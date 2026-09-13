@@ -17,17 +17,12 @@
   #game { position: fixed; display: block; }
 
   #topBar {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; gap: 6px;
     padding: 6px 10px;
     background: linear-gradient(to bottom, rgba(10,10,20,0.9), rgba(10,10,20,0));
-    font-size: 13px;
-    font-weight: 700;
-    pointer-events: none;
-    z-index: 10;
+    font-size: 13px; font-weight: 700;
+    pointer-events: none; z-index: 10;
     padding-top: max(6px, env(safe-area-inset-top));
   }
   .stat {
@@ -46,52 +41,40 @@
     color: #ccc;
     border-radius: 8px;
     padding: 6px 12px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: 0.15s;
+    font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: 0.15s;
   }
   #removeBtn.active {
     background: rgba(192, 57, 43, 0.9);
-    border-color: #e74c3c;
-    color: #fff;
+    border-color: #e74c3c; color: #fff;
     box-shadow: 0 0 12px #e74c3c;
   }
 
   #bottomBar {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; align-items: center; gap: 4px;
     padding: 6px 8px;
     background: linear-gradient(to top, rgba(10,10,20,0.95), rgba(10,10,20,0.6));
     padding-bottom: max(6px, env(safe-area-inset-bottom));
     z-index: 10;
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow-x: auto; overflow-y: hidden;
     scrollbar-width: none;
   }
   #bottomBar::-webkit-scrollbar { display: none; }
 
   .shop-btn {
     flex: 0 0 auto;
-    width: 52px;
-    height: 46px;
+    width: 52px; height: 46px;
     border-radius: 8px;
     background: #16162a;
     border: 2px solid #33335a;
-    color: #ccc;
-    font-size: 11px;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    transition: 0.12s;
+    color: #ccc; font-size: 11px; font-weight: 700;
+    cursor: grab;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 2px; transition: 0.12s;
     padding: 0;
+    touch-action: none;
   }
   .shop-btn .dot {
     width: 14px; height: 14px;
@@ -109,24 +92,19 @@
   .shop-btn[data-type="green"]    .dot { background: #2ecc71; }
   .shop-btn[data-type="blue"]     .dot { background: #3498db; }
   .shop-btn[data-type="purple"]   .dot { background: #9b59b6; }
+  .shop-btn[data-type="magenta"]  .dot { background: #FF33CC; }
   .shop-btn[data-type="orange"]   .dot { background: #e67e22; }
-  .shop-btn[data-type="silver"]   .dot { background: linear-gradient(135deg, #f0f0f0, #808080); }
   .shop-btn[data-type="amethyst"] .dot { background: #B088FF; }
   .shop-btn[data-type="jade"]     .dot { background: #66FF66; }
-  .shop-btn[data-type="magenta"]  .dot { background: #FF33CC; }
+  .shop-btn[data-type="silver"]   .dot { background: linear-gradient(135deg, #f0f0f0, #808080); }
 
   #startWave {
     flex: 0 0 auto;
-    background: #e67e22;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 0 14px;
-    height: 46px;
-    font-weight: 700;
-    font-size: 13px;
-    cursor: pointer;
-    transition: 0.15s;
+    background: #e67e22; color: #fff;
+    border: none; border-radius: 8px;
+    padding: 0 14px; height: 46px;
+    font-weight: 700; font-size: 13px;
+    cursor: pointer; transition: 0.15s;
     white-space: nowrap;
   }
   #startWave:disabled { opacity: 0.4; }
@@ -135,21 +113,17 @@
     flex: 0 0 auto;
     display: flex; align-items: center; gap: 4px;
     font-size: 12px; color: #bbb;
-    padding: 6px 8px;
-    height: 46px;
+    padding: 6px 8px; height: 46px;
     border-radius: 8px;
     background: #16162a;
     border: 1px solid #33335a;
-    cursor: pointer;
-    white-space: nowrap;
+    cursor: pointer; white-space: nowrap;
   }
   .auto-toggle.active { border-color: #2ecc71; color: #2ecc71; }
   .auto-toggle input { width: 16px; height: 16px; }
 
   #log {
-    position: fixed;
-    bottom: 62px;
-    left: 50%;
+    position: fixed; bottom: 62px; left: 50%;
     transform: translateX(-50%);
     font-size: 13px;
     background: rgba(12, 12, 28, 0.95);
@@ -157,20 +131,15 @@
     border-radius: 10px;
     padding: 6px 14px;
     pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s;
+    opacity: 0; transition: opacity 0.3s;
     white-space: nowrap;
-    z-index: 20;
-    max-width: 90vw;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    z-index: 20; max-width: 90vw;
+    overflow: hidden; text-overflow: ellipsis;
   }
   #log.show { opacity: 1; }
 
   #bossBar {
-    position: fixed;
-    top: 42px;
-    left: 50%;
+    position: fixed; top: 42px; left: 50%;
     transform: translateX(-50%);
     width: min(420px, 70vw);
     background: rgba(12, 12, 28, 0.92);
@@ -185,18 +154,13 @@
   }
   #bossBar.show { display: block; }
   #bossBar .label {
-    font-size: 10px;
-    font-weight: 700;
-    color: #ffd700;
-    text-align: center;
-    margin-bottom: 3px;
-    letter-spacing: 2px;
+    font-size: 10px; font-weight: 700;
+    color: #ffd700; text-align: center;
+    margin-bottom: 3px; letter-spacing: 2px;
   }
   #bossBar .bar-bg {
     width: 100%; height: 8px;
-    background: #000;
-    border-radius: 4px;
-    overflow: hidden;
+    background: #000; border-radius: 4px; overflow: hidden;
   }
   #bossBar .bar-fill {
     height: 100%; width: 100%;
@@ -205,19 +169,16 @@
   }
 
   #goldBanner {
-    position: fixed;
-    top: 45%; left: 50%;
+    position: fixed; top: 45%; left: 50%;
     transform: translate(-50%, -50%) scale(0.8);
     font-size: clamp(24px, 6vw, 42px);
-    font-weight: 900;
-    color: #ffd700;
+    font-weight: 900; color: #ffd700;
     text-shadow: 0 0 30px #ffd700, 0 0 60px #ffaa00;
     letter-spacing: 4px;
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.4s, transform 0.4s;
-    white-space: nowrap;
-    z-index: 20;
+    white-space: nowrap; z-index: 20;
   }
   #goldBanner.show {
     opacity: 1;
@@ -225,17 +186,13 @@
   }
 
   #towerPanel {
-    position: fixed;
-    top: 42px;
-    left: 50%;
+    position: fixed; top: 42px; left: 50%;
     transform: translateX(-50%);
     background: rgba(12, 12, 28, 0.95);
     border: 2px solid #ffd700;
     border-radius: 10px;
     padding: 6px 12px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    display: flex; align-items: center; gap: 10px;
     pointer-events: auto;
     z-index: 10;
     box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
@@ -247,29 +204,22 @@
   #towerName { font-weight: 700; font-size: 13px; }
   #towerStats { font-size: 11px; color: #aaa; }
   #upgradeBtn {
-    background: #f1c40f;
-    color: #0a0a14;
-    border: none;
-    border-radius: 6px;
+    background: #f1c40f; color: #0a0a14;
+    border: none; border-radius: 6px;
     padding: 8px 14px;
-    font-weight: 700;
-    cursor: pointer;
+    font-weight: 700; cursor: pointer;
     font-size: 12px;
   }
   #upgradeBtn:disabled { opacity: 0.4; }
 
   #rotateNotice {
-    position: fixed;
-    inset: 0;
+    position: fixed; inset: 0;
     display: none;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    align-items: center; justify-content: center;
     background: #0a0a14;
-    z-index: 100;
-    gap: 16px;
-    font-size: 18px;
-    color: #888;
+    z-index: 100; gap: 16px;
+    font-size: 18px; color: #888;
   }
   #rotateNotice .icon {
     font-size: 64px;
@@ -335,10 +285,9 @@
 </div>
 
 <script>
-// ============ 基本設定 ============
 const BASE_W = 960;
 const BASE_H = 540;
-const MAX_TOWER_LEVEL = 5;  // 普通塔上限，品紅塔可推到這裡
+const MAX_TOWER_LEVEL = 5;
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -365,12 +314,7 @@ const SPOT_SIZE = 90;
 const SPOTS = [];
 for (let r = 0; r < 3; r++) {
   for (let c = 0; c < 5; c++) {
-    SPOTS.push({
-      col: c, row: r,
-      x: COL_X[c], y: ROW_Y[r],
-      tower: null,
-      special: null,
-    });
+    SPOTS.push({ col: c, row: r, x: COL_X[c], y: ROW_Y[r], tower: null, special: null });
   }
 }
 SPOTS[10].special = 'glow';
@@ -390,14 +334,9 @@ function getAdjacentSpots(spot) {
 
 // ============ 路徑 ============
 const PATH = [
-  { x: -40, y: 400 },
-  { x: 60,  y: 400 },
-  { x: 60,  y: 160 },
-  { x: 370, y: 160 },
-  { x: 370, y: 480 },
-  { x: 940, y: 480 },
+  { x: -40, y: 400 }, { x: 60, y: 400 }, { x: 60, y: 160 },
+  { x: 370, y: 160 }, { x: 370, y: 480 }, { x: 940, y: 480 },
 ];
-
 const PATH_SEGMENTS = [];
 let PATH_TOTAL = 0;
 for (let i = 0; i < PATH.length - 1; i++) {
@@ -406,88 +345,61 @@ for (let i = 0; i < PATH.length - 1; i++) {
   PATH_SEGMENTS.push({ a, b, len, start: PATH_TOTAL });
   PATH_TOTAL += len;
 }
-
 function getPosOnPath(distance) {
   if (distance <= 0) {
     const a = PATH[0], b = PATH[1];
-    const angle = Math.atan2(b.y - a.y, b.x - a.x);
-    return { x: a.x, y: a.y, angle };
+    return { x: a.x, y: a.y, angle: Math.atan2(b.y - a.y, b.x - a.x) };
   }
   if (distance >= PATH_TOTAL) {
     const a = PATH[PATH.length - 2], b = PATH[PATH.length - 1];
-    const angle = Math.atan2(b.y - a.y, b.x - a.x);
-    return { x: b.x, y: b.y, angle };
+    return { x: b.x, y: b.y, angle: Math.atan2(b.y - a.y, b.x - a.x) };
   }
   for (const seg of PATH_SEGMENTS) {
     if (distance <= seg.start + seg.len) {
       const t = (distance - seg.start) / seg.len;
-      const angle = Math.atan2(seg.b.y - seg.a.y, seg.b.x - seg.a.x);
       return {
         x: seg.a.x + (seg.b.x - seg.a.x) * t,
         y: seg.a.y + (seg.b.y - seg.a.y) * t,
-        angle,
+        angle: Math.atan2(seg.b.y - seg.a.y, seg.b.x - seg.a.x),
       };
     }
   }
-  return { x: PATH[PATH.length - 1].x, y: PATH[PATH.length - 1].y, angle: 0 };
+  const last = PATH[PATH.length - 1];
+  return { x: last.x, y: last.y, angle: 0 };
 }
 
 // ============ 塔設定 ============
 const TOWER_TYPES = {
-  white: {
-    name: '白塔', cost: 10, baseCost: 10, color: '#f0f0f0',
-    fireInterval: 1.5, damage: 6, hitChance: 1, killChance: 0.08, range: 220,
-  },
-  green: {
-    name: '綠塔', cost: 20, baseCost: 20, color: '#2ecc71',
-    fireInterval: 1.0, damage: 15, hitChance: 1, killChance: 0, range: 220,
-  },
-  blue: {
-    name: '藍塔', cost: 35, baseCost: 35, color: '#3498db',
-    fireInterval: 0.15, damage: 0, hitChance: 0.05, killChance: 1, range: 220,
-  },
-  purple: {
-    name: '紫塔', cost: 50, baseCost: 50, color: '#9b59b6',
-    fireInterval: 1.2, damage: 10, hitChance: 1, killChance: 0,
-    slowFactor: 0.4, slowDuration: 2.0, range: 220,
-  },
-  cyan: {
-    name: '青藍塔', cost: 0, baseCost: 50, color: '#00e5ff',
-    fireInterval: 1.5, damage: 4, hitChance: 1, killChance: 0, range: 280,
-    antiBossMultiplier: 80,
-  },
-  orange: {
-    name: '橙塔', cost: 65, baseCost: 65, color: '#e67e22',
-    reacquireInterval: 3, dps: 25, beamCount: 3,
-  },
-  red: {
-    name: '紅塔', cost: 0, baseCost: 65, color: '#c0392b',
-    buffInterval: 5, buffDuration: 5, buffTargets: 2, buffFireInterval: 0.08,
-  },
-  gold: {
-    name: '金塔', cost: 0, baseCost: 100, color: '#f1c40f',
-    fireInterval: 0.8, damage: 80, hitChance: 1, killChance: 0, range: 280,
-    conveyorSpeed: -40, conveyorBossFactor: 0.3,
-  },
-  silver: {
-    name: '銀塔', cost: 100, baseCost: 100, color: '#c0c0c0',
-    fireInterval: 0.4, baseDamage: 7, range: 220,
-    maxLevel: 10, attacksPerLevel: 2, decayTime: 4.0,
-  },
-  amethyst: {
-    name: '紫晶塔', cost: 70, baseCost: 70, color: '#B088FF',
-    fireInterval: 1.2, damage: 12, hitChance: 1, killChance: 0, range: 220,
-    critRateBuff: 0.20,
-  },
-  jade: {
-    name: '翠玉塔', cost: 85, baseCost: 85, color: '#66FF66',
-    fireInterval: 1.1, damage: 18, hitChance: 1, killChance: 0, range: 220,
-    critDmgBuff: 0.65,
-  },
-  magenta: {
-    name: '品紅塔', cost: 55, baseCost: 55, color: '#FF33CC',
-    triggerTime: 6.0, successRate: 0.65, levelBoost: 2,
-  },
+  white:   { name: '白塔',   cost: 10,  baseCost: 10,  color: '#f0f0f0',
+             fireInterval: 1.5, damage: 6, hitChance: 1, killChance: 0.08, range: 220 },
+  green:   { name: '綠塔',   cost: 20,  baseCost: 20,  color: '#2ecc71',
+             fireInterval: 1.0, damage: 15, hitChance: 1, killChance: 0, range: 220 },
+  blue:    { name: '藍塔',   cost: 35,  baseCost: 35,  color: '#3498db',
+             fireInterval: 0.15, damage: 0, hitChance: 0.05, killChance: 1, range: 220 },
+  purple:  { name: '紫塔',   cost: 50,  baseCost: 50,  color: '#9b59b6',
+             fireInterval: 1.2, damage: 10, hitChance: 1, killChance: 0,
+             slowFactor: 0.4, slowDuration: 2.0, range: 220 },
+  cyan:    { name: '青藍塔', cost: 0,   baseCost: 50,  color: '#00e5ff',
+             fireInterval: 1.5, damage: 4, hitChance: 1, killChance: 0, range: 280,
+             antiBossMultiplier: 80 },
+  orange:  { name: '橙塔',   cost: 65,  baseCost: 65,  color: '#e67e22',
+             reacquireInterval: 3, dps: 25, beamCount: 3 },
+  red:     { name: '紅塔',   cost: 0,   baseCost: 65,  color: '#c0392b',
+             buffInterval: 5, buffDuration: 5, buffTargets: 2, buffFireInterval: 0.08 },
+  gold:    { name: '金塔',   cost: 0,   baseCost: 100, color: '#f1c40f',
+             fireInterval: 0.8, damage: 80, hitChance: 1, killChance: 0, range: 280,
+             conveyorSpeed: -40, conveyorBossFactor: 0.3 },
+  silver:  { name: '銀塔',   cost: 100, baseCost: 100, color: '#c0c0c0',
+             fireInterval: 0.4, baseDamage: 7, range: 220,
+             maxLevel: 10, attacksPerLevel: 2, decayTime: 4.0 },
+  amethyst:{ name: '紫晶塔', cost: 70,  baseCost: 70,  color: '#B088FF',
+             fireInterval: 1.2, damage: 12, hitChance: 1, killChance: 0, range: 220,
+             critRateBuff: 0.20 },
+  jade:    { name: '翠玉塔', cost: 85,  baseCost: 85,  color: '#66FF66',
+             fireInterval: 1.1, damage: 18, hitChance: 1, killChance: 0, range: 220,
+             critDmgBuff: 0.65 },
+  magenta: { name: '品紅塔', cost: 55,  baseCost: 55,  color: '#FF33CC',
+             triggerTime: 6.0, successRate: 0.65, levelBoost: 2 },
 };
 
 const unlocked = {
@@ -496,27 +408,18 @@ const unlocked = {
 };
 
 // ============ 遊戲狀態 ============
-let money = 100;
-let lives = 20;
-let wave = 0;
-let enemies = [];
-let bullets = [];
-let waveActive = false;
-let spawnQueue = [];
-let spawnTimer = 0;
-let lastTime = 0;
-let gameOver = false;
-
-let shopSelected = null;
-let selectedTower = null;
-let removeMode = false;
-
-let autoNext = false;
-let autoNextTimer = 0;
-let hasGoldTower = false;
-
+let money = 100, lives = 20, wave = 0;
+let enemies = [], bullets = [];
+let waveActive = false, spawnQueue = [], spawnTimer = 0;
+let lastTime = 0, gameOver = false;
+let shopSelected = null, selectedTower = null, removeMode = false;
+let autoNext = false, autoNextTimer = 0, hasGoldTower = false;
 let comboSequence = [];
 const GOLD_RECIPE = ['white', 'green', 'blue', 'purple', 'orange', 'red'];
+
+// 拖拽狀態
+// source: 'shop' | 'tower'
+let dragState = null;
 
 // ============ DOM ============
 const moneyEl = document.getElementById('money');
@@ -564,7 +467,6 @@ function updateTowerPanel() {
   towerPanel.classList.remove('hidden');
   const cfg = TOWER_TYPES[selectedTower.type];
 
-  // 品紅塔
   if (selectedTower.type === 'magenta') {
     const t = selectedTower;
     const remain = Math.max(0, t.timer).toFixed(1);
@@ -575,48 +477,44 @@ function updateTowerPanel() {
     return;
   }
 
-  // 銀塔
   if (selectedTower.type === 'silver') {
     const t = selectedTower;
     towerName.textContent = `${cfg.name} Lv.${t.level}（自動成長）`;
     const decayLeft = (cfg.decayTime - t.idleTimer).toFixed(1);
     const critInfo = t.critRate > 0
-      ? ` ｜ 爆 ${(t.critRate * 100).toFixed(0)}% / ${(t.critDamage * 100).toFixed(0)}%`
-      : '';
+      ? ` ｜ 爆 ${(t.critRate * 100).toFixed(0)}% / ${(t.critDamage * 100).toFixed(0)}%` : '';
     towerStats.textContent =
-      `${t.attackCount}/${cfg.attacksPerLevel} ｜ 每發 ${cfg.baseDamage} ｜ 同時 ${t.level} 發${critInfo}`;
+      `${t.attackCount}/${cfg.attacksPerLevel} ｜ 每發 ${(cfg.baseDamage * (1 + (t.level - 1) * 0.25)).toFixed(1)} ｜ 同時 ${t.level} 發${critInfo}`;
     upgradeBtn.disabled = true;
     upgradeBtn.textContent = t.level > 1 ? `降等 ${decayLeft}s` : '最低';
     return;
   }
 
   towerName.textContent = `${cfg.name} Lv.${selectedTower.level}`;
-
   const critInfo = selectedTower.critRate > 0 || selectedTower.critDmgBonus > 0
-    ? ` ｜ 爆 ${(selectedTower.critRate * 100).toFixed(0)}% / ${(selectedTower.critDamage * 100).toFixed(0)}%`
-    : '';
+    ? ` ｜ 爆 ${(selectedTower.critRate * 100).toFixed(0)}% / ${(selectedTower.critDamage * 100).toFixed(0)}%` : '';
 
   if (selectedTower.type === 'amethyst') {
+    const txt = `增益：周圍 +20% 爆擊率${critInfo}`;
     if (selectedTower.level >= MAX_TOWER_LEVEL) {
-      towerStats.textContent = `增益：周圍 +20% 爆擊率${critInfo}`;
-      upgradeBtn.disabled = true;
-      upgradeBtn.textContent = 'MAX';
+      towerStats.textContent = txt;
+      upgradeBtn.disabled = true; upgradeBtn.textContent = 'MAX';
     } else {
       const cost = getUpgradeCost(selectedTower);
-      towerStats.textContent = `增益：周圍 +20% 爆擊率 ｜ 升級 ${cost}${critInfo}`;
+      towerStats.textContent = `${txt} ｜ 升級 ${cost}`;
       upgradeBtn.disabled = money < cost;
       upgradeBtn.textContent = `升級 ${cost}`;
     }
     return;
   }
   if (selectedTower.type === 'jade') {
+    const txt = `增益：周圍 +65% 爆擊傷害${critInfo}`;
     if (selectedTower.level >= MAX_TOWER_LEVEL) {
-      towerStats.textContent = `增益：周圍 +65% 爆擊傷害${critInfo}`;
-      upgradeBtn.disabled = true;
-      upgradeBtn.textContent = 'MAX';
+      towerStats.textContent = txt;
+      upgradeBtn.disabled = true; upgradeBtn.textContent = 'MAX';
     } else {
       const cost = getUpgradeCost(selectedTower);
-      towerStats.textContent = `增益：周圍 +65% 爆擊傷害 ｜ 升級 ${cost}${critInfo}`;
+      towerStats.textContent = `${txt} ｜ 升級 ${cost}`;
       upgradeBtn.disabled = money < cost;
       upgradeBtn.textContent = `升級 ${cost}`;
     }
@@ -625,8 +523,7 @@ function updateTowerPanel() {
 
   if (selectedTower.level >= MAX_TOWER_LEVEL) {
     towerStats.textContent = `已達最高等級${critInfo}`;
-    upgradeBtn.disabled = true;
-    upgradeBtn.textContent = 'MAX';
+    upgradeBtn.disabled = true; upgradeBtn.textContent = 'MAX';
   } else {
     const cost = getUpgradeCost(selectedTower);
     towerStats.textContent = `下一級：${cost} 💰${critInfo}`;
@@ -643,8 +540,7 @@ function upgradeTower(tower) {
   money -= cost;
   tower.level++;
   if (tower.applyLevel) tower.applyLevel();
-  updateUI();
-  updateTowerPanel();
+  updateUI(); updateTowerPanel();
   log(`${TOWER_TYPES[tower.type].name} → Lv.${tower.level}`);
 }
 
@@ -662,16 +558,12 @@ function recomputeBuffs() {
     if (t.type === 'amethyst') {
       const buff = TOWER_TYPES.amethyst.critRateBuff;
       for (const n of getAdjacentSpots(spot)) {
-        if (n.tower && n.tower !== t) {
-          n.tower.critRateBonus += buff;
-        }
+        if (n.tower && n.tower !== t) n.tower.critRateBonus += buff;
       }
     } else if (t.type === 'jade') {
       const buff = TOWER_TYPES.jade.critDmgBuff;
       for (const n of getAdjacentSpots(spot)) {
-        if (n.tower && n.tower !== t) {
-          n.tower.critDmgBonus += buff;
-        }
+        if (n.tower && n.tower !== t) n.tower.critDmgBonus += buff;
       }
     }
   }
@@ -680,102 +572,64 @@ function recomputeBuffs() {
 // ============ 敵人 ============
 class Enemy {
   constructor(hp, speed, isBoss = false) {
-    this.hp = hp;
-    this.maxHp = hp;
+    this.hp = hp; this.maxHp = hp;
     this.baseSpeed = speed;
-    this.slowFactor = 1;
-    this.slowTimer = 0;
+    this.slowFactor = 1; this.slowTimer = 0;
     this.distance = 0;
-    this.alive = true;
-    this.reachedEnd = false;
-    this.isBoss = isBoss;
-    this.elapsed = 0;
+    this.alive = true; this.reachedEnd = false;
+    this.isBoss = isBoss; this.elapsed = 0;
     this.damageReduction = isBoss ? 0.4 : 0;
   }
-
   takeDamage(amount) {
     const actual = amount * (1 - this.damageReduction);
     this.hp -= actual;
     if (this.hp <= 0) this.alive = false;
   }
-
   update(dt) {
     if (!this.alive) return;
     if (this.hp <= 0) { this.alive = false; return; }
-
     this.elapsed += dt;
-
-    let rageMultiplier = 1;
-    if (this.isBoss) {
-      rageMultiplier = Math.min(2.2, 1 + this.elapsed * 0.025);
-    }
-
+    let rageMultiplier = this.isBoss ? Math.min(2.2, 1 + this.elapsed * 0.025) : 1;
     if (this.slowTimer > 0) {
       this.slowTimer -= dt;
       if (this.slowTimer <= 0) this.slowFactor = 1;
     }
-
     let effectiveSlow = this.slowFactor;
-    if (this.isBoss) {
-      effectiveSlow = 1 - (1 - this.slowFactor) * 0.5;
-    }
-
+    if (this.isBoss) effectiveSlow = 1 - (1 - this.slowFactor) * 0.5;
     let speed = this.baseSpeed * effectiveSlow * rageMultiplier;
-
     if (hasGoldTower) {
       const conveyor = TOWER_TYPES.gold.conveyorSpeed *
         (this.isBoss ? TOWER_TYPES.gold.conveyorBossFactor : 1);
       speed += conveyor;
     }
-
     this.distance += speed * dt;
-
-    if (this.distance >= PATH_TOTAL) {
-      this.alive = false;
-      this.reachedEnd = true;
-    }
+    if (this.distance >= PATH_TOTAL) { this.alive = false; this.reachedEnd = true; }
     if (this.distance < 0) this.distance = 0;
   }
-
   getPos() { return getPosOnPath(this.distance); }
-
   draw() {
     if (!this.alive) return;
     const p = this.getPos();
     const r = this.isBoss ? 22 : 13;
-
     if (this.isBoss && this.elapsed > 1) {
       const rage = Math.min(1, (this.elapsed - 1) / 20);
       const glow = 0.3 + 0.4 * Math.sin(this.elapsed * 6) * rage;
       ctx.fillStyle = `rgba(231, 76, 60, ${glow})`;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 10, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x, p.y, r + 10, 0, Math.PI * 2); ctx.fill();
     }
-
     const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
     if (this.isBoss) {
-      grad.addColorStop(0, '#c68642');
-      grad.addColorStop(1, '#5a2e0a');
+      grad.addColorStop(0, '#c68642'); grad.addColorStop(1, '#5a2e0a');
     } else {
-      grad.addColorStop(0, '#ff7675');
-      grad.addColorStop(1, '#c0392b');
+      grad.addColorStop(0, '#ff7675'); grad.addColorStop(1, '#c0392b');
     }
     ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-    ctx.fill();
-
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
     if (this.isBoss) {
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-      ctx.stroke();
-
+      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = '#ffd700';
-      const crownY = p.y - r - 5;
-      const cw = r * 1.2;
+      const crownY = p.y - r - 5; const cw = r * 1.2;
       ctx.beginPath();
       ctx.moveTo(p.x - cw/2, crownY);
       ctx.lineTo(p.x - cw/2, crownY - 7);
@@ -784,18 +638,13 @@ class Enemy {
       ctx.lineTo(p.x + cw/4, crownY - 2);
       ctx.lineTo(p.x + cw/2, crownY - 7);
       ctx.lineTo(p.x + cw/2, crownY);
-      ctx.closePath();
-      ctx.fill();
+      ctx.closePath(); ctx.fill();
     }
-
     if (this.slowTimer > 0) {
       ctx.strokeStyle = 'rgba(155, 89, 182, 0.85)';
       ctx.lineWidth = this.isBoss ? 3 : 2;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 3, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(p.x, p.y, r + 3, 0, Math.PI * 2); ctx.stroke();
     }
-
     if (!this.isBoss) {
       const w = 24;
       const hpPct = Math.max(0, this.hp / this.maxHp);
@@ -810,15 +659,9 @@ class Enemy {
 // ============ 一般塔 ============
 class Tower {
   constructor(spot, type) {
-    this.spot = spot;
-    this.type = type;
-    this.config = TOWER_TYPES[type];
-    this.level = 1;
-    this.cooldown = 0;
-    this.fireFlash = 0;
-    this.hastedTimer = 0;
-    this.critRateBonus = 0;
-    this.critDmgBonus = 0;
+    this.spot = spot; this.type = type; this.config = TOWER_TYPES[type];
+    this.level = 1; this.cooldown = 0; this.fireFlash = 0;
+    this.hastedTimer = 0; this.critRateBonus = 0; this.critDmgBonus = 0;
     this.applyLevel();
   }
   get x() { return this.spot.x; }
@@ -831,115 +674,68 @@ class Tower {
     this.damage = this.config.damage * Math.pow(1.6, lv - 1);
     this.baseFireInterval = this.config.fireInterval * Math.pow(0.85, lv - 1);
     this.range = (this.config.range || 220) + 20 * (lv - 1);
-    if (this.hastedTimer <= 0) {
-      this.fireInterval = this.baseFireInterval;
-    }
+    if (this.hastedTimer <= 0) this.fireInterval = this.baseFireInterval;
     this.hitChance = this.config.hitChance;
     this.killChance = this.config.killChance || 0;
     this.slowFactor = this.config.slowFactor;
     this.slowDuration = this.config.slowDuration;
     this.antiBossMultiplier = this.config.antiBossMultiplier;
   }
-
   applyHaste(duration, newInterval) {
-    this.fireInterval = newInterval;
-    this.hastedTimer = duration;
+    this.fireInterval = newInterval; this.hastedTimer = duration;
   }
-
   update(dt) {
     this.fireFlash = Math.max(0, this.fireFlash - dt * 6);
-
     if (this.hastedTimer > 0) {
       this.hastedTimer -= dt;
-      if (this.hastedTimer <= 0) {
-        this.fireInterval = this.baseFireInterval;
-      }
+      if (this.hastedTimer <= 0) this.fireInterval = this.baseFireInterval;
     }
-
     this.cooldown -= dt;
     if (this.cooldown > 0) return;
     const target = this.findTarget();
-    if (target) {
-      this.fire(target);
-      this.cooldown = this.fireInterval;
-    }
+    if (target) { this.fire(target); this.cooldown = this.fireInterval; }
   }
-
   findTarget() {
-    let best = null;
-    let bestDist = this.range;
+    let best = null, bestDist = this.range;
     for (const e of enemies) {
       if (!e.alive) continue;
       const p = e.getPos();
       const d = Math.hypot(p.x - this.x, p.y - this.y);
-      if (d <= bestDist) {
-        bestDist = d;
-        best = e;
-      }
+      if (d <= bestDist) { bestDist = d; best = e; }
     }
     return best;
   }
-
-  fire(target) {
-    this.fireFlash = 1;
-    bullets.push(new Bullet(this, target));
-  }
-
+  fire(target) { this.fireFlash = 1; bullets.push(new Bullet(this, target)); }
   draw() {
     const x = this.x, y = this.y;
-    const size = 70;
-    const half = size / 2;
-
+    const size = 70, half = size / 2;
     if (selectedTower === this) {
       ctx.fillStyle = 'rgba(255, 215, 0, 0.08)';
-      ctx.beginPath();
-      ctx.arc(x, y, this.range, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, this.range, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)'; ctx.lineWidth = 2; ctx.stroke();
     }
-
     if (this.type === 'amethyst' || this.type === 'jade') {
       const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 300);
       ctx.save();
-      ctx.shadowColor = this.config.color;
-      ctx.shadowBlur = 18 * pulse;
-      ctx.strokeStyle = this.config.color;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 8, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.shadowColor = this.config.color; ctx.shadowBlur = 18 * pulse;
+      ctx.strokeStyle = this.config.color; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x, y, half + 8, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }
-
     if (this.critRateBonus > 0) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 3, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, half + 3, 0, Math.PI * 2); ctx.stroke();
     }
     if (this.critDmgBonus > 0) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 6, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, half + 6, 0, Math.PI * 2); ctx.stroke();
     }
-
     ctx.save();
     ctx.translate(x, y);
     const scale = 1 + this.fireFlash * 0.08;
     ctx.scale(scale, scale);
-
     ctx.fillStyle = '#00000066';
     ctx.fillRect(-half + 2, -half + 3, size, size);
-
     if (this.type === 'gold') {
       const grad = ctx.createLinearGradient(-half, -half, half, half);
       grad.addColorStop(0, '#fff6b0');
@@ -950,69 +746,54 @@ class Tower {
       ctx.fillStyle = this.config.color;
     }
     ctx.fillRect(-half, -half, size, size);
-
     ctx.strokeStyle = this.type === 'gold' ? '#fff6b0' :
       (this.type === 'cyan' ? '#7ff7ff' : '#00000066');
     ctx.lineWidth = 2;
     ctx.strokeRect(-half, -half, size, size);
-
     if (this.type === 'gold') {
       ctx.save();
-      ctx.shadowColor = '#ffd700';
-      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 12;
       ctx.fillStyle = '#ffd700';
       ctx.font = `bold ${size * 0.5}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('★', 0, 0);
       ctx.restore();
     } else if (this.type === 'cyan') {
       ctx.save();
-      ctx.shadowColor = '#00e5ff';
-      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#00e5ff'; ctx.shadowBlur = 10;
       ctx.fillStyle = '#e0ffff';
       ctx.font = `bold ${size * 0.5}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('✚', 0, 0);
       ctx.restore();
     } else if (this.type === 'amethyst') {
       ctx.fillStyle = '#ffffff';
       ctx.font = `bold ${size * 0.55}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('✦', 0, 1);
     } else if (this.type === 'jade') {
       ctx.fillStyle = '#003300';
       ctx.font = `bold ${size * 0.55}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('⬢', 0, 1);
     }
-
     if (this.fireFlash > 0) {
       ctx.fillStyle = `rgba(255,255,255,${this.fireFlash * 0.5})`;
       ctx.fillRect(-half, -half, size, size);
     }
     ctx.restore();
-
     if (this.level > 1) {
       ctx.fillStyle = '#ffd700';
       ctx.font = `bold 14px system-ui`;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'bottom';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
       ctx.fillText(`Lv${this.level}`, x + half - 3, y + half - 3);
     }
-
     if (this.hastedTimer > 0) {
       ctx.save();
-      ctx.shadowColor = '#e74c3c';
-      ctx.shadowBlur = 14;
+      ctx.shadowColor = '#e74c3c'; ctx.shadowBlur = 14;
       ctx.strokeStyle = `rgba(231, 76, 60, ${0.6 + 0.4 * Math.sin(this.hastedTimer * 12)})`;
       ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 5, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, half + 5, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }
   }
@@ -1021,18 +802,10 @@ class Tower {
 // ============ 銀塔 ============
 class SilverTower {
   constructor(spot) {
-    this.spot = spot;
-    this.type = 'silver';
-    this.config = TOWER_TYPES.silver;
-    this.level = 1;
-    this.attackCount = 0;
-    this.idleTimer = 0;
-    this.cooldown = 0;
-    this.fireFlash = 0;
-    this.range = this.config.range;
-    this.pulse = 0;
-    this.critRateBonus = 0;
-    this.critDmgBonus = 0;
+    this.spot = spot; this.type = 'silver'; this.config = TOWER_TYPES.silver;
+    this.level = 1; this.attackCount = 0; this.idleTimer = 0;
+    this.cooldown = 0; this.fireFlash = 0; this.range = this.config.range;
+    this.pulse = 0; this.critRateBonus = 0; this.critDmgBonus = 0;
   }
   get x() { return this.spot.x; }
   get y() { return this.spot.y; }
@@ -1042,19 +815,15 @@ class SilverTower {
   update(dt) {
     this.pulse += dt;
     this.fireFlash = Math.max(0, this.fireFlash - dt * 5);
-
     this.idleTimer += dt;
     if (this.idleTimer >= this.config.decayTime) {
       this.idleTimer = 0;
       if (this.level > 1) this.level--;
     }
-
     this.cooldown -= dt;
     if (this.cooldown > 0) return;
-
     const targets = this.findTargets(this.level);
     if (targets.length === 0) return;
-
     this.fire(targets);
     this.cooldown = this.config.fireInterval;
     this.idleTimer = 0;
@@ -1064,8 +833,6 @@ class SilverTower {
       if (this.level < this.config.maxLevel) this.level++;
     }
   }
-
-  // 集中火力：所有子彈打同一隻（血最多的）
   findTargets(count) {
     const inRange = [];
     for (const e of enemies) {
@@ -1076,95 +843,60 @@ class SilverTower {
     }
     if (inRange.length === 0) return [];
     let focus = inRange[0];
-    for (const e of inRange) {
-      if (e.hp > focus.hp) focus = e;
-    }
+    for (const e of inRange) if (e.hp > focus.hp) focus = e;
     return new Array(count).fill(focus);
   }
-
   fire(targets) {
     this.fireFlash = 1;
-    for (const target of targets) {
-      bullets.push(new SilverBullet(this, target));
-    }
+    for (const target of targets) bullets.push(new SilverBullet(this, target));
   }
-
   draw() {
     const x = this.x, y = this.y;
-    const size = 70;
-    const half = size / 2;
-
+    const size = 70, half = size / 2;
     if (selectedTower === this) {
       ctx.fillStyle = 'rgba(255, 215, 0, 0.08)';
-      ctx.beginPath();
-      ctx.arc(x, y, this.range, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, this.range, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)'; ctx.lineWidth = 2; ctx.stroke();
     }
-
     if (this.critRateBonus > 0) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 3, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, half + 3, 0, Math.PI * 2); ctx.stroke();
     }
     if (this.critDmgBonus > 0) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 6, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, half + 6, 0, Math.PI * 2); ctx.stroke();
     }
-
     if (this.level > 1) {
       const intensity = this.level / this.config.maxLevel;
       ctx.save();
-      ctx.shadowColor = '#c0c0c0';
-      ctx.shadowBlur = 8 + intensity * 16;
+      ctx.shadowColor = '#c0c0c0'; ctx.shadowBlur = 8 + intensity * 16;
       ctx.fillStyle = `rgba(220, 220, 240, ${0.08 + intensity * 0.25})`;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 4, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, half + 4, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
-
     ctx.save();
     ctx.translate(x, y);
     const scale = 1 + this.fireFlash * 0.12;
     ctx.scale(scale, scale);
     ctx.fillStyle = '#00000066';
     ctx.fillRect(-half + 2, -half + 3, size, size);
-
     const grad = ctx.createLinearGradient(-half, -half, half, half);
     grad.addColorStop(0, '#f0f0f0');
     grad.addColorStop(0.5, '#c0c0c0');
     grad.addColorStop(1, '#707070');
     ctx.fillStyle = grad;
     ctx.fillRect(-half, -half, size, size);
-
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
     ctx.strokeRect(-half, -half, size, size);
-
     if (this.fireFlash > 0) {
       ctx.fillStyle = `rgba(255,255,255,${this.fireFlash * 0.7})`;
       ctx.fillRect(-half, -half, size, size);
     }
-
     ctx.fillStyle = '#1a1a1a';
     ctx.font = `bold ${size * 0.5}px system-ui`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(this.level, 0, 1);
     ctx.restore();
-
     if (this.level > 1) {
       const remain = this.config.decayTime - this.idleTimer;
       if (remain < 0.8) {
@@ -1183,49 +915,32 @@ class SilverTower {
 // ============ 橙塔 ============
 class BeamTower {
   constructor(spot) {
-    this.spot = spot;
-    this.type = 'orange';
-    this.config = TOWER_TYPES.orange;
-    this.level = 1;
-    this.beamTargets = [];
-    this.reacquireTimer = 0;
-    this.pulse = 0;
-    this.hastedTimer = 0;
-    this.critRateBonus = 0;
-    this.critDmgBonus = 0;
+    this.spot = spot; this.type = 'orange'; this.config = TOWER_TYPES.orange;
+    this.level = 1; this.beamTargets = []; this.reacquireTimer = 0;
+    this.pulse = 0; this.hastedTimer = 0;
+    this.critRateBonus = 0; this.critDmgBonus = 0;
     this.applyLevel();
   }
   get x() { return this.spot.x; }
   get y() { return this.spot.y; }
-
   applyLevel() {
     const lv = this.level;
     this.dps = this.config.dps * Math.pow(1.6, lv - 1);
     this.beamCount = this.config.beamCount + (lv - 1);
   }
-
-  applyHaste(duration) {
-    this.hastedTimer = duration;
-  }
-
+  applyHaste(duration) { this.hastedTimer = duration; }
   update(dt) {
     this.pulse += dt;
     this.reacquireTimer -= dt;
     if (this.hastedTimer > 0) this.hastedTimer -= dt;
-
     if (this.reacquireTimer <= 0) {
       this.beamTargets = this.pickRandom(this.beamCount);
       this.reacquireTimer = this.config.reacquireInterval;
     }
-
     this.beamTargets = this.beamTargets.filter(e => e.alive);
-
     const dpsMult = this.hastedTimer > 0 ? 3 : 1;
-    for (const target of this.beamTargets) {
-      target.takeDamage(this.dps * dt * dpsMult);
-    }
+    for (const target of this.beamTargets) target.takeDamage(this.dps * dt * dpsMult);
   }
-
   pickRandom(n) {
     const alive = enemies.filter(e => e.alive);
     for (let i = alive.length - 1; i > 0; i--) {
@@ -1234,88 +949,53 @@ class BeamTower {
     }
     return alive.slice(0, n);
   }
-
   draw() {
     const x = this.x, y = this.y;
-    const size = 70;
-    const half = size / 2;
-
+    const size = 70, half = size / 2;
     if (selectedTower === this) {
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
       ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
     }
-
     if (this.critRateBonus > 0) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 3, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, half + 3, 0, Math.PI * 2); ctx.stroke();
     }
     if (this.critDmgBonus > 0) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 6, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, half + 6, 0, Math.PI * 2); ctx.stroke();
     }
-
     ctx.fillStyle = '#00000066';
     ctx.fillRect(x - half + 2, y - half + 3, size, size);
     ctx.fillStyle = this.config.color;
     ctx.fillRect(x - half, y - half, size, size);
-    ctx.strokeStyle = '#00000066';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#00000066'; ctx.lineWidth = 2;
     ctx.strokeRect(x - half, y - half, size, size);
-
     const glow = 0.6 + 0.4 * Math.sin(this.pulse * 8);
     ctx.fillStyle = `rgba(255, 220, 120, ${glow})`;
-    ctx.beginPath();
-    ctx.arc(x, y, size * 0.18, 0, Math.PI * 2);
-    ctx.fill();
-
+    ctx.beginPath(); ctx.arc(x, y, size * 0.18, 0, Math.PI * 2); ctx.fill();
     if (this.level > 1) {
       ctx.fillStyle = '#ffd700';
       ctx.font = `bold 14px system-ui`;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'bottom';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
       ctx.fillText(`Lv${this.level}`, x + half - 3, y + half - 3);
     }
-
     ctx.save();
-    ctx.shadowColor = '#e67e22';
-    ctx.shadowBlur = 12;
-    ctx.lineWidth = 3;
+    ctx.shadowColor = '#e67e22'; ctx.shadowBlur = 12; ctx.lineWidth = 3;
     for (const target of this.beamTargets) {
       if (!target.alive) continue;
       const tp = target.getPos();
       ctx.strokeStyle = `rgba(255, 180, 80, ${0.7 + 0.3 * Math.sin(this.pulse * 12)})`;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(tp.x, tp.y);
-      ctx.stroke();
-
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tp.x, tp.y); ctx.stroke();
       ctx.fillStyle = 'rgba(255, 200, 120, 0.9)';
-      ctx.beginPath();
-      ctx.arc(tp.x, tp.y, 8, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(tp.x, tp.y, 8, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
-
     if (this.hastedTimer > 0) {
       ctx.save();
-      ctx.shadowColor = '#e74c3c';
-      ctx.shadowBlur = 14;
+      ctx.shadowColor = '#e74c3c'; ctx.shadowBlur = 14;
       ctx.strokeStyle = `rgba(231, 76, 60, ${0.6 + 0.4 * Math.sin(this.pulse * 12)})`;
       ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 5, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, half + 5, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }
   }
@@ -1324,53 +1004,36 @@ class BeamTower {
 // ============ 紅塔 ============
 class BossTower {
   constructor(spot) {
-    this.spot = spot;
-    this.type = 'red';
-    this.config = TOWER_TYPES.red;
-    this.level = 1;
-    this.buffTimer = this.config.buffInterval;
-    this.buffFlash = 0;
-    this.activeBuffs = [];
-    this.critRateBonus = 0;
-    this.critDmgBonus = 0;
+    this.spot = spot; this.type = 'red'; this.config = TOWER_TYPES.red;
+    this.level = 1; this.buffTimer = this.config.buffInterval;
+    this.buffFlash = 0; this.activeBuffs = [];
+    this.critRateBonus = 0; this.critDmgBonus = 0;
     this.applyLevel();
   }
   get x() { return this.spot.x; }
   get y() { return this.spot.y; }
-
   applyLevel() {
     const lv = this.level;
     this.buffTargets = this.config.buffTargets + (lv - 1);
     this.buffDuration = this.config.buffDuration + (lv - 1) * 2;
     this.buffInterval = Math.max(2, this.config.buffInterval - (lv - 1));
   }
-
   update(dt) {
     this.buffFlash = Math.max(0, this.buffFlash - dt * 3);
-
     for (const buff of this.activeBuffs) buff.timer -= dt;
     this.activeBuffs = this.activeBuffs.filter(b =>
-      b.timer > 0 && SPOTS.some(s => s.tower === b.tower)
-    );
-
+      b.timer > 0 && SPOTS.some(s => s.tower === b.tower));
     this.buffTimer -= dt;
-    if (this.buffTimer <= 0) {
-      this.triggerBuff();
-      this.buffTimer = this.buffInterval;
-    }
+    if (this.buffTimer <= 0) { this.triggerBuff(); this.buffTimer = this.buffInterval; }
   }
-
   triggerBuff() {
-    const others = SPOTS
-      .map(s => s.tower)
+    const others = SPOTS.map(s => s.tower)
       .filter(t => t && t !== this && typeof t.applyHaste === 'function');
     if (others.length === 0) return;
-
     for (let i = others.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [others[i], others[j]] = [others[j], others[i]];
     }
-
     const count = Math.min(this.buffTargets, others.length);
     for (let i = 0; i < count; i++) {
       const t = others[i];
@@ -1381,46 +1044,34 @@ class BossTower {
     }
     this.buffFlash = 1;
   }
-
   draw() {
     const x = this.x, y = this.y;
-    const size = 70;
-    const half = size / 2;
-
+    const size = 70, half = size / 2;
     ctx.save();
     ctx.translate(x, y);
-
     ctx.fillStyle = '#00000066';
     ctx.fillRect(-half + 2, -half + 3, size, size);
     ctx.fillStyle = '#7b1f1f';
     ctx.fillRect(-half, -half, size, size);
-    ctx.strokeStyle = '#00000066';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#00000066'; ctx.lineWidth = 2;
     ctx.strokeRect(-half, -half, size, size);
-
     ctx.fillStyle = '#ffd700';
     ctx.font = `bold ${size * 0.55}px system-ui`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('$', 0, 2);
-
     if (this.level > 1) {
       ctx.fillStyle = '#ffd700';
       ctx.font = `bold 14px system-ui`;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'bottom';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
       ctx.fillText(`Lv${this.level}`, half - 3, half - 3);
     }
-
     if (this.buffFlash > 0) {
       ctx.fillStyle = `rgba(231, 76, 60, ${this.buffFlash * 0.6})`;
       ctx.fillRect(-half, -half, size, size);
     }
     ctx.restore();
-
     if (selectedTower === this) {
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
       ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
     }
   }
@@ -1429,51 +1080,32 @@ class BossTower {
 // ============ 品紅塔 ============
 class MagentaTower {
   constructor(spot) {
-    this.spot = spot;
-    this.type = 'magenta';
-    this.config = TOWER_TYPES.magenta;
-    this.level = 1;
-    this.timer = this.config.triggerTime;
-    this.triggered = false;
-    this.pulse = 0;
-    this.critRateBonus = 0;
-    this.critDmgBonus = 0;
+    this.spot = spot; this.type = 'magenta'; this.config = TOWER_TYPES.magenta;
+    this.level = 1; this.timer = this.config.triggerTime;
+    this.triggered = false; this.pulse = 0;
+    this.critRateBonus = 0; this.critDmgBonus = 0;
   }
   get x() { return this.spot.x; }
   get y() { return this.spot.y; }
   get critRate() { return 0; }
   get critDamage() { return 2.0; }
-
-  applyLevel() { /* 不可升級 */ }
-
+  applyLevel() {}
   update(dt) {
     if (this.triggered) return;
     this.pulse += dt;
     this.timer -= dt;
-    if (this.timer <= 0) {
-      this.trigger();
-      this.triggered = true;
-    }
+    if (this.timer <= 0) { this.trigger(); this.triggered = true; }
   }
-
   trigger() {
-    // 先從場上移除自己
     this.spot.tower = null;
-
-    // 找可升級的候選：排除品紅塔自己、其他品紅塔、銀塔、已滿級
     const candidates = SPOTS.filter(s =>
-      s.tower &&
-      s.tower !== this &&
-      s.tower.type !== 'magenta' &&
-      s.tower.type !== 'silver' &&
-      s.tower.level < MAX_TOWER_LEVEL
-    );
-
+      s.tower && s.tower !== this &&
+      s.tower.type !== 'magenta' && s.tower.type !== 'silver' &&
+      s.tower.level < MAX_TOWER_LEVEL);
     if (candidates.length === 0) {
       log('品紅塔：沒有可升級的目標', 2500);
       return;
     }
-
     if (Math.random() < this.config.successRate) {
       const targetSpot = candidates[Math.floor(Math.random() * candidates.length)];
       const t = targetSpot.tower;
@@ -1485,53 +1117,33 @@ class MagentaTower {
       log('💔 品紅塔失敗了...', 2500);
     }
   }
-
   draw() {
     const x = this.x, y = this.y;
-    const size = 70;
-    const half = size / 2;
-
+    const size = 70, half = size / 2;
     if (selectedTower === this) {
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
       ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
     }
-
-    // 脈動光暈（快觸發時更亮）
     const progress = 1 - Math.max(0, this.timer) / this.config.triggerTime;
     const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 100);
-
     ctx.save();
     ctx.shadowColor = '#FF33CC';
     ctx.shadowBlur = 10 + progress * 25 + pulse * 8;
     ctx.fillStyle = `rgba(255, 51, 204, ${0.15 + progress * 0.4})`;
-    ctx.beginPath();
-    ctx.arc(x, y, half + 6 + progress * 8, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, half + 6 + progress * 8, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
-
-    // 塔身
     ctx.fillStyle = '#00000066';
     ctx.fillRect(x - half + 2, y - half + 3, size, size);
-
     const grad = ctx.createLinearGradient(x - half, y - half, x + half, y + half);
-    grad.addColorStop(0, '#FF66DD');
-    grad.addColorStop(1, '#CC0099');
+    grad.addColorStop(0, '#FF66DD'); grad.addColorStop(1, '#CC0099');
     ctx.fillStyle = grad;
     ctx.fillRect(x - half, y - half, size, size);
-
-    ctx.strokeStyle = '#ffd6f5';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ffd6f5'; ctx.lineWidth = 2;
     ctx.strokeRect(x - half, y - half, size, size);
-
-    // 倒數
     ctx.fillStyle = '#ffffff';
     ctx.font = `bold ${size * 0.55}px system-ui`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(Math.ceil(Math.max(0, this.timer)), 0 + x, y + 1);
-
-    // 進度環
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(Math.ceil(Math.max(0, this.timer)), x, y + 1);
     ctx.save();
     ctx.strokeStyle = 'rgba(255, 51, 204, 0.9)';
     ctx.lineWidth = 3;
@@ -1545,13 +1157,10 @@ class MagentaTower {
 // ============ 子彈 ============
 class Bullet {
   constructor(tower, target) {
-    this.x = tower.x;
-    this.y = tower.y;
-    this.target = target;
-    this.alive = true;
+    this.x = tower.x; this.y = tower.y;
+    this.target = target; this.alive = true;
     this.speed = 600;
     this.color = tower.config.color;
-
     this.damage = tower.damage;
     this.killChance = tower.killChance || 0;
     this.slowFactor = tower.slowFactor;
@@ -1561,35 +1170,23 @@ class Bullet {
     this.critRate = tower.critRate || 0;
     this.critDamage = tower.critDamage || 2.0;
   }
-
   update(dt) {
     if (!this.alive) return;
     if (!this.target.alive) { this.alive = false; return; }
-
     const tp = this.target.getPos();
-    const dx = tp.x - this.x;
-    const dy = tp.y - this.y;
+    const dx = tp.x - this.x, dy = tp.y - this.y;
     const dist = Math.hypot(dx, dy);
     const move = this.speed * dt;
-
     if (dist <= move) {
       if (this.isHit) {
         const procsKill = this.killChance > 0 && Math.random() < this.killChance;
         if (procsKill) {
-          if (this.target.isBoss) {
-            this.target.takeDamage(this.target.maxHp * 0.01);
-          } else {
-            this.target.hp = 0;
-            this.target.alive = false;
-          }
+          if (this.target.isBoss) this.target.takeDamage(this.target.maxHp * 0.01);
+          else { this.target.hp = 0; this.target.alive = false; }
         } else {
           let dmg = this.damage;
-          if (this.target.isBoss && this.antiBossMultiplier) {
-            dmg *= this.antiBossMultiplier;
-          }
-          if (this.critRate > 0 && Math.random() < this.critRate) {
-            dmg *= this.critDamage;
-          }
+          if (this.target.isBoss && this.antiBossMultiplier) dmg *= this.antiBossMultiplier;
+          if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
           this.target.takeDamage(dmg);
         }
         if (this.slowFactor !== undefined) {
@@ -1603,45 +1200,32 @@ class Bullet {
       this.y += (dy / dist) * move;
     }
   }
-
   draw() {
     if (!this.alive) return;
     ctx.fillStyle = this.color;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI * 2); ctx.fill();
   }
 }
 
 class SilverBullet {
   constructor(tower, target) {
-    this.x = tower.x;
-    this.y = tower.y;
-    this.target = target;
-    this.alive = true;
-    this.speed = 900;
-    this.color = '#e0e0e0';
-    // 每級 +25% 傷害
+    this.x = tower.x; this.y = tower.y;
+    this.target = target; this.alive = true;
+    this.speed = 900; this.color = '#e0e0e0';
     this.damage = tower.config.baseDamage * (1 + (tower.level - 1) * 0.25);
     this.critRate = tower.critRate || 0;
     this.critDamage = tower.critDamage || 2.0;
   }
-
   update(dt) {
     if (!this.alive) return;
     if (!this.target.alive) { this.alive = false; return; }
-
     const tp = this.target.getPos();
-    const dx = tp.x - this.x;
-    const dy = tp.y - this.y;
+    const dx = tp.x - this.x, dy = tp.y - this.y;
     const dist = Math.hypot(dx, dy);
     const move = this.speed * dt;
-
     if (dist <= move) {
       let dmg = this.damage;
-      if (this.critRate > 0 && Math.random() < this.critRate) {
-        dmg *= this.critDamage;
-      }
+      if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
       this.target.takeDamage(dmg);
       this.alive = false;
     } else {
@@ -1649,13 +1233,10 @@ class SilverBullet {
       this.y += (dy / dist) * move;
     }
   }
-
   draw() {
     if (!this.alive) return;
     ctx.fillStyle = this.color;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2); ctx.fill();
   }
 }
 
@@ -1682,25 +1263,25 @@ function createTower(spot, type) {
 function combineTowers(a, b) {
   const key = a.type + '+' + b.type;
   const resultType = COMBOS[key]();
-  const spotA = a.spot;
-  const spotB = b.spot;
-  spotA.tower = null;
-  spotB.tower = null;
-
+  const spotA = a.spot, spotB = b.spot;
+  spotA.tower = null; spotB.tower = null;
   const newTower = createTower(spotA, resultType);
   spotA.tower = newTower;
 
   if (resultType === 'green' && !unlocked.green) {
     unlocked.green = true;
-    document.querySelector('.shop-btn.green').classList.remove('locked');
+    const btn = document.querySelector('.shop-btn[data-type="green"]');
+    if (btn) btn.classList.remove('locked');
     log('✨ 綠塔解鎖！');
   } else if (resultType === 'blue' && !unlocked.blue) {
     unlocked.blue = true;
-    document.querySelector('.shop-btn.blue').classList.remove('locked');
+    const btn = document.querySelector('.shop-btn[data-type="blue"]');
+    if (btn) btn.classList.remove('locked');
     log('💙 藍塔解鎖！');
   } else if (resultType === 'orange' && !unlocked.orange) {
     unlocked.orange = true;
-    document.querySelector('.shop-btn.orange').classList.remove('locked');
+    const btn = document.querySelector('.shop-btn[data-type="orange"]');
+    if (btn) btn.classList.remove('locked');
     log('🔥 橙塔解鎖！');
   } else if (resultType === 'cyan') {
     log('⚡ 青藍塔！專剋 Boss', 3000);
@@ -1711,61 +1292,47 @@ function combineTowers(a, b) {
     log(`合成：${names[resultType] || resultType}`);
   }
   selectedTower = null;
-  updateTowerPanel();
-  updateUI();
+  updateTowerPanel(); updateUI();
 }
 
 function combineGold(towerList) {
   const firstSpot = towerList[0].spot;
-  for (const t of towerList) {
-    t.spot.tower = null;
-  }
-  const newTower = new Tower(firstSpot, 'gold');
-  firstSpot.tower = newTower;
-
+  for (const t of towerList) t.spot.tower = null;
+  firstSpot.tower = new Tower(firstSpot, 'gold');
   goldBanner.classList.add('show');
   setTimeout(() => goldBanner.classList.remove('show'), 1800);
-
   log('✨✨✨ 金色傳說！', 4000);
   selectedTower = null;
-  updateTowerPanel();
-  updateUI();
+  updateTowerPanel(); updateUI();
 }
 
 // ============ 波次 ============
 function startWave() {
   if (waveActive || gameOver) return;
-  wave++;
-  waveActive = true;
-  autoNextTimer = 0;
-
+  wave++; waveActive = true; autoNextTimer = 0;
   const isBossWave = wave % 10 === 0;
-
   const baseHp = Math.floor(45 * Math.pow(1.20, wave - 1));
   const baseSpeed = Math.min(180, 70 + (wave - 1) * 4);
   const count = 5 + Math.floor(wave * 1.5);
-
   spawnQueue = [];
   for (let i = 0; i < count; i++) {
     spawnQueue.push({ hp: baseHp, speed: baseSpeed, delay: i * 0.55, isBoss: false });
   }
-
   if (isBossWave) {
-    const bossHp = Math.floor(baseHp * 20);
-    const bossSpeed = baseSpeed * 0.6;
     spawnQueue.push({
-      hp: bossHp, speed: bossSpeed,
-      delay: count * 0.55 + 2.5, isBoss: true,
+      hp: Math.floor(baseHp * 20),
+      speed: baseSpeed * 0.6,
+      delay: count * 0.55 + 2.5,
+      isBoss: true,
     });
     log(`⚠️ 第 ${wave} 波：BOSS！`, 3000);
   }
-
   spawnTimer = 0;
   startWaveBtn.disabled = true;
   updateUI();
 }
 
-// ============ 點擊 ============
+// ============ 工具 ============
 function getPointerPos(e) {
   const rect = canvas.getBoundingClientRect();
   return {
@@ -1773,7 +1340,6 @@ function getPointerPos(e) {
     y: (e.clientY - rect.top) * (BASE_H / rect.height),
   };
 }
-
 function findSpotAt(x, y) {
   const radius = SPOT_SIZE * 0.55;
   for (const spot of SPOTS) {
@@ -1781,24 +1347,20 @@ function findSpotAt(x, y) {
   }
   return null;
 }
+function canCombineTypes(t1, t2) {
+  return !!COMBOS[t1 + '+' + t2];
+}
 
+// ============ 點塔（輕點） ============
 function handleTowerClick(tower) {
-  // 品紅塔不能被選中合成，只顯示資訊
   if (tower.type === 'magenta') {
-    selectedTower = tower;
-    updateTowerPanel();
-    return;
+    selectedTower = tower; updateTowerPanel(); return;
   }
-
   comboSequence.push({ type: tower.type, tower });
-
   if (comboSequence.length === GOLD_RECIPE.length) {
     let fullMatch = true;
     for (let i = 0; i < GOLD_RECIPE.length; i++) {
-      if (comboSequence[i].type !== GOLD_RECIPE[i]) {
-        fullMatch = false;
-        break;
-      }
+      if (comboSequence[i].type !== GOLD_RECIPE[i]) { fullMatch = false; break; }
     }
     if (fullMatch) {
       combineGold(comboSequence.map(c => c.tower));
@@ -1806,108 +1368,195 @@ function handleTowerClick(tower) {
       return;
     }
   }
-
   let isPrefix = true;
   for (let i = 0; i < comboSequence.length; i++) {
-    if (comboSequence[i].type !== GOLD_RECIPE[i]) {
-      isPrefix = false;
-      break;
-    }
+    if (comboSequence[i].type !== GOLD_RECIPE[i]) { isPrefix = false; break; }
   }
   if (!isPrefix) {
-    comboSequence = tower.type === GOLD_RECIPE[0]
-      ? [{ type: tower.type, tower }]
-      : [];
+    comboSequence = tower.type === GOLD_RECIPE[0] ? [{ type: tower.type, tower }] : [];
   }
-
-  if (!selectedTower) {
-    selectedTower = tower;
-  } else if (selectedTower === tower) {
-    // 保留
-  } else {
+  if (!selectedTower) selectedTower = tower;
+  else if (selectedTower === tower) { /* keep */ }
+  else {
     const key = selectedTower.type + '+' + tower.type;
-    if (COMBOS[key]) {
-      combineTowers(selectedTower, tower);
-      comboSequence = [];
-    } else {
-      selectedTower = tower;
-    }
+    if (COMBOS[key]) { combineTowers(selectedTower, tower); comboSequence = []; }
+    else selectedTower = tower;
   }
   updateTowerPanel();
 }
 
+// ============ Canvas pointerdown ============
 canvas.addEventListener('pointerdown', (e) => {
   if (gameOver) return;
+  if (dragState) return;
   e.preventDefault();
   const pos = getPointerPos(e);
   const spot = findSpotAt(pos.x, pos.y);
+
   if (!spot) {
-    selectedTower = null;
-    comboSequence = [];
+    selectedTower = null; comboSequence = [];
     updateTowerPanel();
     return;
   }
 
+  // 撤塔模式
   if (removeMode) {
     if (spot.tower) {
       spot.tower = null;
-      selectedTower = null;
-      comboSequence = [];
-      updateUI();
-      updateTowerPanel();
+      selectedTower = null; comboSequence = [];
+      updateUI(); updateTowerPanel();
       log('已撤除（不退款）');
     }
     return;
   }
 
+  // 商店選中 → 直接放塔
   if (shopSelected) {
     if (spot.tower) return;
     const cfg = TOWER_TYPES[shopSelected];
     if (money < cfg.cost) { log('金幣不足'); return; }
     money -= cfg.cost;
-    const newTower = createTower(spot, shopSelected);
-    spot.tower = newTower;
+    spot.tower = createTower(spot, shopSelected);
     updateUI();
     return;
   }
 
+  // 場上的塔 → 開始拖拽
   if (spot.tower) {
-    handleTowerClick(spot.tower);
+    dragState = {
+      source: 'tower',
+      type: spot.tower.type,
+      sourceSpot: spot,
+      sourceTower: spot.tower,
+      x: pos.x, y: pos.y,
+      startX: e.clientX, startY: e.clientY,
+      hoverSpot: spot,
+      moved: false,
+    };
   } else {
-    selectedTower = null;
-    comboSequence = [];
+    selectedTower = null; comboSequence = [];
     updateTowerPanel();
   }
 }, { passive: false });
 
-// ============ 商店 ============
+// ============ 商店按鈕 pointerdown ============
 document.querySelectorAll('.shop-btn').forEach(btn => {
   btn.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     const type = btn.dataset.type;
-    if (!unlocked[type]) {
-      log('尚未解鎖');
-      return;
-    }
-    if (shopSelected === type) {
-      shopSelected = null;
-      btn.classList.remove('selected');
-    } else {
-      shopSelected = type;
-      selectedTower = null;
-      comboSequence = [];
-      removeMode = false;
-      removeBtn.classList.remove('active');
-      document.querySelectorAll('.shop-btn').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      updateTowerPanel();
-    }
+    if (!unlocked[type]) { log('尚未解鎖'); return; }
+    dragState = {
+      source: 'shop',
+      type,
+      x: 0, y: 0,
+      startX: e.clientX, startY: e.clientY,
+      hoverSpot: null,
+      moved: false,
+    };
+    document.querySelectorAll('.shop-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    shopSelected = type;
+    selectedTower = null; comboSequence = [];
+    removeMode = false; removeBtn.classList.remove('active');
+    updateTowerPanel();
   }, { passive: false });
 });
 
+// ============ 全域 pointermove ============
+window.addEventListener('pointermove', (e) => {
+  const pos = getPointerPos(e);
+  if (dragState) {
+    dragState.x = pos.x;
+    dragState.y = pos.y;
+    dragState.hoverSpot = findSpotAt(pos.x, pos.y);
+    const dx = e.clientX - dragState.startX;
+    const dy = e.clientY - dragState.startY;
+    if (Math.hypot(dx, dy) > 8) dragState.moved = true;
+  }
+}, { passive: false });
+
+// ============ 全域 pointerup ============
+window.addEventListener('pointerup', (e) => {
+  if (!dragState) return;
+  const state = dragState;
+  dragState = null;
+
+  const pos = getPointerPos(e);
+  const spot = findSpotAt(pos.x, pos.y);
+
+  // ===== 商店拖拽放塔 =====
+  if (state.source === 'shop') {
+    if (spot && !spot.tower) {
+      const cfg = TOWER_TYPES[state.type];
+      if (money < cfg.cost) { log('金幣不足'); return; }
+      money -= cfg.cost;
+      spot.tower = createTower(spot, state.type);
+      updateUI();
+      shopSelected = null;
+      document.querySelectorAll('.shop-btn').forEach(b => b.classList.remove('selected'));
+    } else if (!spot) {
+      // 沒拖到格子上，取消選中
+      shopSelected = null;
+      document.querySelectorAll('.shop-btn').forEach(b => b.classList.remove('selected'));
+    }
+    return;
+  }
+
+  // ===== 場上塔拖拽 =====
+  if (state.source === 'tower') {
+    const sourceSpot = state.sourceSpot;
+    const sourceTower = state.sourceTower;
+
+    // 沒有移動 → 當作輕點
+    if (!state.moved) {
+      handleTowerClick(sourceTower);
+      return;
+    }
+
+    // 目標是另一座塔 → 嘗試合成
+    if (spot && spot !== sourceSpot && spot.tower) {
+      const a = sourceTower;
+      const b = spot.tower;
+
+      if (a.type === 'magenta' || b.type === 'magenta') {
+        log('品紅塔不能合成');
+        selectedTower = null;
+        updateTowerPanel();
+        return;
+      }
+
+      const key = a.type + '+' + b.type;
+      if (COMBOS[key]) {
+        combineTowers(a, b);
+        comboSequence = [];
+      } else {
+        log(`${TOWER_TYPES[a.type].name} 與 ${TOWER_TYPES[b.type].name} 無法合成`);
+        selectedTower = null;
+        updateTowerPanel();
+      }
+      return;
+    }
+
+    // 目標是空格 → 移動塔
+    if (spot && spot !== sourceSpot && !spot.tower) {
+      sourceSpot.tower = null;
+      spot.tower = sourceTower;
+      sourceTower.spot = spot;
+      updateUI();
+      return;
+    }
+
+    // 放回原處或無效位置 → 保持原樣
+  }
+}, { passive: false });
+
+window.addEventListener('pointercancel', () => {
+  dragState = null;
+}, { passive: false });
+
+// ============ 其他按鈕 ============
 startWaveBtn.addEventListener('pointerdown', (e) => {
-  e.preventDefault();
-  startWave();
+  e.preventDefault(); startWave();
 }, { passive: false });
 
 autoNextEl.addEventListener('change', () => {
@@ -1921,8 +1570,7 @@ removeBtn.addEventListener('pointerdown', (e) => {
   removeBtn.classList.toggle('active', removeMode);
   if (removeMode) {
     shopSelected = null;
-    selectedTower = null;
-    comboSequence = [];
+    selectedTower = null; comboSequence = [];
     document.querySelectorAll('.shop-btn').forEach(b => b.classList.remove('selected'));
     updateTowerPanel();
     log('撤塔模式：點塔移除（不退款）');
@@ -1942,35 +1590,26 @@ function drawBackground() {
   grad.addColorStop(1, '#050510');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, BASE_W, BASE_H);
-
   ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
   for (let i = 0; i < 60; i++) {
     const sx = (i * 137.5) % BASE_W;
     const sy = (i * 73.3) % BASE_H;
     const sr = 0.5 + ((i * 17) % 10) / 10;
-    ctx.beginPath();
-    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fill();
   }
 }
 
 function drawPath() {
   ctx.beginPath();
   ctx.moveTo(PATH[0].x, PATH[0].y);
-  for (let i = 1; i < PATH.length; i++) {
-    ctx.lineTo(PATH[i].x, PATH[i].y);
-  }
-
+  for (let i = 1; i < PATH.length; i++) ctx.lineTo(PATH[i].x, PATH[i].y);
   ctx.strokeStyle = hasGoldTower ? '#2a1f0a' : '#23233d';
   ctx.lineWidth = 42;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.stroke();
-
   ctx.strokeStyle = hasGoldTower ? '#4a3a15' : '#2e2e50';
   ctx.lineWidth = 32;
   ctx.stroke();
-
   if (hasGoldTower) {
     ctx.save();
     ctx.setLineDash([12, 18]);
@@ -1978,7 +1617,6 @@ function drawPath() {
     ctx.strokeStyle = 'rgba(120, 90, 10, 0.6)';
     ctx.lineWidth = 32;
     ctx.stroke();
-
     ctx.setLineDash([6, 24]);
     ctx.lineDashOffset = (performance.now() / 25) % 30;
     ctx.strokeStyle = 'rgba(241, 196, 15, 0.7)';
@@ -1990,17 +1628,13 @@ function drawPath() {
 
 function drawSpot(spot) {
   const x = spot.x, y = spot.y;
-  const size = SPOT_SIZE;
-  const half = size / 2;
-
+  const size = SPOT_SIZE, half = size / 2;
   if (spot.special === 'glow') {
     ctx.save();
-    ctx.shadowColor = '#ffffff';
-    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 20;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     ctx.fillRect(x - half, y - half, size, size);
     ctx.restore();
-
     ctx.fillStyle = '#2ecc71';
     ctx.strokeStyle = '#27ae60';
     ctx.lineWidth = 2;
@@ -2016,22 +1650,17 @@ function drawSpot(spot) {
       ctx.lineTo(ax + 4, ay + 12);
       ctx.lineTo(ax + 8, ay + 12);
       ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
+      ctx.fill(); ctx.stroke();
     }
     return;
   }
-
   if (spot.special === 'void') {
     const grad = ctx.createRadialGradient(x, y, 0, x, y, half);
     grad.addColorStop(0, '#000000');
     grad.addColorStop(0.6, '#0a0a14');
     grad.addColorStop(1, '#1a1a30');
     ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(x, y, half, 0, Math.PI * 2);
-    ctx.fill();
-
+    ctx.beginPath(); ctx.arc(x, y, half, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = 'rgba(80, 50, 120, 0.4)';
     ctx.lineWidth = 1.5;
     for (let i = 0; i < 3; i++) {
@@ -2049,13 +1678,11 @@ function drawSpot(spot) {
     }
     return;
   }
-
   const grad = ctx.createLinearGradient(x - half, y - half, x + half, y + half);
   grad.addColorStop(0, '#c8c8c8');
   grad.addColorStop(0.5, '#b0b0b0');
   grad.addColorStop(1, '#888888');
   ctx.fillStyle = grad;
-
   const r = 6;
   ctx.beginPath();
   ctx.moveTo(x - half + r, y - half);
@@ -2069,10 +1696,89 @@ function drawSpot(spot) {
   ctx.quadraticCurveTo(x - half, y - half, x - half + r, y - half);
   ctx.closePath();
   ctx.fill();
-
   ctx.strokeStyle = 'rgba(0,0,0,0.25)';
   ctx.lineWidth = 2;
   ctx.stroke();
+}
+
+// ============ 拖拽預覽 ============
+function drawDragPreview() {
+  if (!dragState) return;
+
+  // 商店拖拽：在 hover 的格子上畫放置預覽
+  if (dragState.source === 'shop' && dragState.hoverSpot) {
+    const spot = dragState.hoverSpot;
+    if (spot.tower) return;
+    const cfg = TOWER_TYPES[dragState.type];
+    const canPlace = money >= cfg.cost;
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = canPlace ? 'rgba(46,204,113,0.35)' : 'rgba(231,76,60,0.35)';
+    ctx.fillRect(spot.x - SPOT_SIZE/2, spot.y - SPOT_SIZE/2, SPOT_SIZE, SPOT_SIZE);
+    ctx.strokeStyle = canPlace ? '#2ecc71' : '#e74c3c';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(spot.x - SPOT_SIZE/2, spot.y - SPOT_SIZE/2, SPOT_SIZE, SPOT_SIZE);
+    ctx.fillStyle = cfg.color;
+    ctx.fillRect(spot.x - 28, spot.y - 28, 56, 56);
+    ctx.restore();
+    return;
+  }
+
+  // 塔拖拽
+  if (dragState.source === 'tower' && dragState.moved) {
+    // hover 目標高亮
+    if (dragState.hoverSpot && dragState.hoverSpot !== dragState.sourceSpot) {
+      const target = dragState.hoverSpot;
+      if (target.tower) {
+        const canCombine = canCombineTypes(dragState.type, target.tower.type);
+        ctx.save();
+        ctx.strokeStyle = canCombine ? '#2ecc71' : '#e74c3c';
+        ctx.lineWidth = 4;
+        ctx.shadowColor = canCombine ? '#2ecc71' : '#e74c3c';
+        ctx.shadowBlur = 14;
+        ctx.strokeRect(
+          target.x - SPOT_SIZE/2, target.y - SPOT_SIZE/2,
+          SPOT_SIZE, SPOT_SIZE
+        );
+        ctx.restore();
+        // 顯示合成提示
+        if (canCombine) {
+          ctx.save();
+          ctx.fillStyle = '#2ecc71';
+          ctx.font = 'bold 16px system-ui';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText('合成', target.x, target.y + SPOT_SIZE/2 + 4);
+          ctx.restore();
+        }
+      } else {
+        // 空格 → 移動提示
+        ctx.save();
+        ctx.strokeStyle = 'rgba(52, 152, 219, 0.8)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 6]);
+        ctx.strokeRect(
+          target.x - SPOT_SIZE/2, target.y - SPOT_SIZE/2,
+          SPOT_SIZE, SPOT_SIZE
+        );
+        ctx.restore();
+      }
+    }
+
+    // 跟隨手指的塔
+    const cfg = TOWER_TYPES[dragState.type];
+    const x = dragState.x, y = dragState.y;
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.shadowColor = cfg.color;
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = cfg.color;
+    ctx.fillRect(x - 30, y - 30, 60, 60);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x - 30, y - 30, 60, 60);
+    ctx.restore();
+  }
 }
 
 // ============ 遊戲迴圈 ============
@@ -2082,7 +1788,6 @@ function gameLoop(timestamp) {
   lastTime = timestamp;
 
   hasGoldTower = SPOTS.some(s => s.tower && s.tower.type === 'gold');
-
   recomputeBuffs();
 
   if (!gameOver) {
@@ -2101,26 +1806,18 @@ function gameLoop(timestamp) {
       autoNextTimer -= dt;
       if (autoNextTimer <= 0) startWave();
     }
-
     for (const e of enemies) e.update(dt);
-    for (const spot of SPOTS) {
-      if (spot.tower) spot.tower.update(dt);
-    }
+    for (const spot of SPOTS) if (spot.tower) spot.tower.update(dt);
     for (const b of bullets) b.update(dt);
-
     for (const e of enemies) {
       if (!e.alive) {
-        if (e.reachedEnd) {
-          lives -= e.isBoss ? 10 : 1;
-        } else {
-          money += e.isBoss ? 250 : 10;
-        }
+        if (e.reachedEnd) lives -= e.isBoss ? 10 : 1;
+        else money += e.isBoss ? 250 : 10;
         updateUI();
       }
     }
     enemies = enemies.filter(e => e.alive);
     bullets = bullets.filter(b => b.alive);
-
     if (lives <= 0) {
       gameOver = true;
       setTimeout(() => alert('遊戲結束！重新整理頁面再來一次。'), 50);
@@ -2131,15 +1828,29 @@ function gameLoop(timestamp) {
 
   drawBackground();
   drawPath();
-
   for (const spot of SPOTS) drawSpot(spot);
 
+  // 繪製塔（拖拽中的源塔半透明）
   for (const spot of SPOTS) {
-    if (spot.tower) spot.tower.draw();
+    if (!spot.tower) continue;
+    const isDragging = dragState &&
+      dragState.source === 'tower' &&
+      dragState.sourceTower === spot.tower &&
+      dragState.moved;
+    if (isDragging) {
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      spot.tower.draw();
+      ctx.restore();
+    } else {
+      spot.tower.draw();
+    }
   }
 
   for (const e of enemies) e.draw();
   for (const b of bullets) b.draw();
+
+  drawDragPreview();
 
   const boss = enemies.find(e => e.isBoss && e.alive);
   if (boss) {
