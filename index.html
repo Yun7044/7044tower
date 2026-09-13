@@ -90,15 +90,8 @@
     align-items: center;
     justify-content: center;
     gap: 2px;
-    transition: 0.15s;
+    transition: 0.12s;
     padding: 0;
-    opacity: 0.3;
-  }
-  .shop-btn.unlocked {
-    opacity: 1;
-    border-color: #6a6aaa;
-    background: #1e1e3a;
-    color: #fff;
   }
   .shop-btn .dot {
     width: 14px; height: 14px;
@@ -111,6 +104,7 @@
     box-shadow: 0 0 10px #ffd70088;
     background: #22224a;
   }
+  .shop-btn.locked { opacity: 0.3; cursor: not-allowed; }
   .shop-btn[data-type="white"]    .dot { background: #f0f0f0; }
   .shop-btn[data-type="green"]    .dot { background: #2ecc71; }
   .shop-btn[data-type="blue"]     .dot { background: #3498db; }
@@ -119,6 +113,7 @@
   .shop-btn[data-type="silver"]   .dot { background: linear-gradient(135deg, #f0f0f0, #808080); }
   .shop-btn[data-type="amethyst"] .dot { background: #B088FF; }
   .shop-btn[data-type="jade"]     .dot { background: #66FF66; }
+  .shop-btn[data-type="magenta"]  .dot { background: #FF33CC; }
 
   #startWave {
     flex: 0 0 auto;
@@ -318,14 +313,15 @@
 <div id="log"></div>
 
 <div id="bottomBar">
-  <button class="shop-btn unlocked" data-type="white"><div class="dot"></div><div class="price">10</div></button>
-  <button class="shop-btn" data-type="green"><div class="dot"></div><div class="price">20</div></button>
-  <button class="shop-btn" data-type="blue"><div class="dot"></div><div class="price">35</div></button>
-  <button class="shop-btn unlocked" data-type="purple"><div class="dot"></div><div class="price">50</div></button>
-  <button class="shop-btn" data-type="orange"><div class="dot"></div><div class="price">65</div></button>
-  <button class="shop-btn unlocked" data-type="amethyst"><div class="dot"></div><div class="price">70</div></button>
-  <button class="shop-btn unlocked" data-type="jade"><div class="dot"></div><div class="price">85</div></button>
-  <button class="shop-btn unlocked" data-type="silver"><div class="dot"></div><div class="price">100</div></button>
+  <button class="shop-btn" data-type="white"><div class="dot"></div><div class="price">10</div></button>
+  <button class="shop-btn locked" data-type="green"><div class="dot"></div><div class="price">20</div></button>
+  <button class="shop-btn locked" data-type="blue"><div class="dot"></div><div class="price">35</div></button>
+  <button class="shop-btn" data-type="purple"><div class="dot"></div><div class="price">50</div></button>
+  <button class="shop-btn" data-type="magenta"><div class="dot"></div><div class="price">55</div></button>
+  <button class="shop-btn locked" data-type="orange"><div class="dot"></div><div class="price">65</div></button>
+  <button class="shop-btn" data-type="amethyst"><div class="dot"></div><div class="price">70</div></button>
+  <button class="shop-btn" data-type="jade"><div class="dot"></div><div class="price">85</div></button>
+  <button class="shop-btn" data-type="silver"><div class="dot"></div><div class="price">100</div></button>
   <button id="startWave">▶ 開始</button>
   <label class="auto-toggle" id="autoToggle">
     <input type="checkbox" id="autoNext">
@@ -342,6 +338,7 @@
 // ============ 基本設定 ============
 const BASE_W = 960;
 const BASE_H = 540;
+const MAX_TOWER_LEVEL = 5;  // 普通塔上限，品紅塔可推到這裡
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -474,8 +471,8 @@ const TOWER_TYPES = {
   },
   silver: {
     name: '銀塔', cost: 100, baseCost: 100, color: '#c0c0c0',
-    fireInterval: 0.4, baseDamage: 8.5, range: 220,
-    maxLevel: 10, attacksPerLevel: 2, decayTime: 2.0,
+    fireInterval: 0.4, baseDamage: 7, range: 220,
+    maxLevel: 10, attacksPerLevel: 2, decayTime: 4.0,
   },
   amethyst: {
     name: '紫晶塔', cost: 70, baseCost: 70, color: '#B088FF',
@@ -487,11 +484,15 @@ const TOWER_TYPES = {
     fireInterval: 1.1, damage: 18, hitChance: 1, killChance: 0, range: 220,
     critDmgBuff: 0.65,
   },
+  magenta: {
+    name: '品紅塔', cost: 55, baseCost: 55, color: '#FF33CC',
+    triggerTime: 6.0, successRate: 0.65, levelBoost: 2,
+  },
 };
 
 const unlocked = {
   white: true, green: false, blue: false, purple: true,
-  orange: false, silver: true, amethyst: true, jade: true,
+  orange: false, silver: true, amethyst: true, jade: true, magenta: true,
 };
 
 // ============ 遊戲狀態 ============
@@ -516,9 +517,6 @@ let hasGoldTower = false;
 
 let comboSequence = [];
 const GOLD_RECIPE = ['white', 'green', 'blue', 'purple', 'orange', 'red'];
-
-let dragState = null;
-const DRAG_THRESHOLD = 14;
 
 // ============ DOM ============
 const moneyEl = document.getElementById('money');
@@ -553,22 +551,6 @@ function updateUI() {
   towerCountEl.textContent = SPOTS.filter(s => s.tower).length;
 }
 
-function unlockShopButton(type) {
-  const btn = document.querySelector(`.shop-btn[data-type="${type}"]`);
-  if (!btn) return;
-  btn.classList.add('unlocked');
-  btn.style.transition = '0.15s';
-  btn.style.boxShadow = '0 0 20px #ffd700';
-  setTimeout(() => {
-    btn.style.boxShadow = '';
-  }, 600);
-}
-
-function getTowerRefund(tower) {
-  const baseCost = TOWER_TYPES[tower.type].baseCost || 0;
-  return Math.floor(baseCost * 0.5);
-}
-
 function getUpgradeCost(tower) {
   const baseCost = TOWER_TYPES[tower.type].baseCost || 50;
   return Math.floor(baseCost * tower.level * 1.5);
@@ -582,6 +564,18 @@ function updateTowerPanel() {
   towerPanel.classList.remove('hidden');
   const cfg = TOWER_TYPES[selectedTower.type];
 
+  // 品紅塔
+  if (selectedTower.type === 'magenta') {
+    const t = selectedTower;
+    const remain = Math.max(0, t.timer).toFixed(1);
+    towerName.textContent = `${cfg.name}（一次性）`;
+    towerStats.textContent = `${remain}s 後觸發 ｜ 65% 使隨機塔 +2 級`;
+    upgradeBtn.disabled = true;
+    upgradeBtn.textContent = '不可升級';
+    return;
+  }
+
+  // 銀塔
   if (selectedTower.type === 'silver') {
     const t = selectedTower;
     towerName.textContent = `${cfg.name} Lv.${t.level}（自動成長）`;
@@ -603,7 +597,7 @@ function updateTowerPanel() {
     : '';
 
   if (selectedTower.type === 'amethyst') {
-    if (selectedTower.level >= 3) {
+    if (selectedTower.level >= MAX_TOWER_LEVEL) {
       towerStats.textContent = `增益：周圍 +20% 爆擊率${critInfo}`;
       upgradeBtn.disabled = true;
       upgradeBtn.textContent = 'MAX';
@@ -616,7 +610,7 @@ function updateTowerPanel() {
     return;
   }
   if (selectedTower.type === 'jade') {
-    if (selectedTower.level >= 3) {
+    if (selectedTower.level >= MAX_TOWER_LEVEL) {
       towerStats.textContent = `增益：周圍 +65% 爆擊傷害${critInfo}`;
       upgradeBtn.disabled = true;
       upgradeBtn.textContent = 'MAX';
@@ -629,7 +623,7 @@ function updateTowerPanel() {
     return;
   }
 
-  if (selectedTower.level >= 3) {
+  if (selectedTower.level >= MAX_TOWER_LEVEL) {
     towerStats.textContent = `已達最高等級${critInfo}`;
     upgradeBtn.disabled = true;
     upgradeBtn.textContent = 'MAX';
@@ -642,8 +636,8 @@ function updateTowerPanel() {
 }
 
 function upgradeTower(tower) {
-  if (!tower || tower.level >= 3) return;
-  if (tower.type === 'silver') return;
+  if (!tower || tower.level >= MAX_TOWER_LEVEL) return;
+  if (tower.type === 'silver' || tower.type === 'magenta') return;
   const cost = getUpgradeCost(tower);
   if (money < cost) { log('金幣不足'); return; }
   money -= cost;
@@ -654,6 +648,7 @@ function upgradeTower(tower) {
   log(`${TOWER_TYPES[tower.type].name} → Lv.${tower.level}`);
 }
 
+// ============ 增益重算 ============
 function recomputeBuffs() {
   for (const spot of SPOTS) {
     if (spot.tower) {
@@ -695,7 +690,7 @@ class Enemy {
     this.reachedEnd = false;
     this.isBoss = isBoss;
     this.elapsed = 0;
-    this.damageReduction = isBoss ? 0.25 : 0;
+    this.damageReduction = isBoss ? 0.4 : 0;
   }
 
   takeDamage(amount) {
@@ -712,7 +707,7 @@ class Enemy {
 
     let rageMultiplier = 1;
     if (this.isBoss) {
-      rageMultiplier = Math.min(1.8, 1 + this.elapsed * 0.015);
+      rageMultiplier = Math.min(2.2, 1 + this.elapsed * 0.025);
     }
 
     if (this.slowTimer > 0) {
@@ -1070,6 +1065,7 @@ class SilverTower {
     }
   }
 
+  // 集中火力：所有子彈打同一隻（血最多的）
   findTargets(count) {
     const inRange = [];
     for (const e of enemies) {
@@ -1079,11 +1075,11 @@ class SilverTower {
       if (d <= this.range) inRange.push(e);
     }
     if (inRange.length === 0) return [];
-    const result = [];
-    for (let i = 0; i < count; i++) {
-      result.push(inRange[Math.floor(Math.random() * inRange.length)]);
+    let focus = inRange[0];
+    for (const e of inRange) {
+      if (e.hp > focus.hp) focus = e;
     }
-    return result;
+    return new Array(count).fill(focus);
   }
 
   fire(targets) {
@@ -1430,6 +1426,122 @@ class BossTower {
   }
 }
 
+// ============ 品紅塔 ============
+class MagentaTower {
+  constructor(spot) {
+    this.spot = spot;
+    this.type = 'magenta';
+    this.config = TOWER_TYPES.magenta;
+    this.level = 1;
+    this.timer = this.config.triggerTime;
+    this.triggered = false;
+    this.pulse = 0;
+    this.critRateBonus = 0;
+    this.critDmgBonus = 0;
+  }
+  get x() { return this.spot.x; }
+  get y() { return this.spot.y; }
+  get critRate() { return 0; }
+  get critDamage() { return 2.0; }
+
+  applyLevel() { /* 不可升級 */ }
+
+  update(dt) {
+    if (this.triggered) return;
+    this.pulse += dt;
+    this.timer -= dt;
+    if (this.timer <= 0) {
+      this.trigger();
+      this.triggered = true;
+    }
+  }
+
+  trigger() {
+    // 先從場上移除自己
+    this.spot.tower = null;
+
+    // 找可升級的候選：排除品紅塔自己、其他品紅塔、銀塔、已滿級
+    const candidates = SPOTS.filter(s =>
+      s.tower &&
+      s.tower !== this &&
+      s.tower.type !== 'magenta' &&
+      s.tower.type !== 'silver' &&
+      s.tower.level < MAX_TOWER_LEVEL
+    );
+
+    if (candidates.length === 0) {
+      log('品紅塔：沒有可升級的目標', 2500);
+      return;
+    }
+
+    if (Math.random() < this.config.successRate) {
+      const targetSpot = candidates[Math.floor(Math.random() * candidates.length)];
+      const t = targetSpot.tower;
+      const oldLevel = t.level;
+      t.level = Math.min(MAX_TOWER_LEVEL, t.level + this.config.levelBoost);
+      if (t.applyLevel) t.applyLevel();
+      log(`💖 品紅塔成功！${TOWER_TYPES[t.type].name} Lv.${oldLevel} → Lv.${t.level}`, 3500);
+    } else {
+      log('💔 品紅塔失敗了...', 2500);
+    }
+  }
+
+  draw() {
+    const x = this.x, y = this.y;
+    const size = 70;
+    const half = size / 2;
+
+    if (selectedTower === this) {
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
+    }
+
+    // 脈動光暈（快觸發時更亮）
+    const progress = 1 - Math.max(0, this.timer) / this.config.triggerTime;
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 100);
+
+    ctx.save();
+    ctx.shadowColor = '#FF33CC';
+    ctx.shadowBlur = 10 + progress * 25 + pulse * 8;
+    ctx.fillStyle = `rgba(255, 51, 204, ${0.15 + progress * 0.4})`;
+    ctx.beginPath();
+    ctx.arc(x, y, half + 6 + progress * 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 塔身
+    ctx.fillStyle = '#00000066';
+    ctx.fillRect(x - half + 2, y - half + 3, size, size);
+
+    const grad = ctx.createLinearGradient(x - half, y - half, x + half, y + half);
+    grad.addColorStop(0, '#FF66DD');
+    grad.addColorStop(1, '#CC0099');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x - half, y - half, size, size);
+
+    ctx.strokeStyle = '#ffd6f5';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x - half, y - half, size, size);
+
+    // 倒數
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${size * 0.55}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(Math.ceil(Math.max(0, this.timer)), 0 + x, y + 1);
+
+    // 進度環
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 51, 204, 0.9)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, half + 5, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
 // ============ 子彈 ============
 class Bullet {
   constructor(tower, target) {
@@ -1509,7 +1621,8 @@ class SilverBullet {
     this.alive = true;
     this.speed = 900;
     this.color = '#e0e0e0';
-    this.damage = tower.config.baseDamage;
+    // 每級 +25% 傷害
+    this.damage = tower.config.baseDamage * (1 + (tower.level - 1) * 0.25);
     this.critRate = tower.critRate || 0;
     this.critDamage = tower.critDamage || 2.0;
   }
@@ -1550,8 +1663,8 @@ class SilverBullet {
 const COMBOS = {
   'white+white': () => {
     const r = Math.random();
-    if (r < 0.45) return 'green';
-    if (r < 0.90) return 'blue';
+    if (r < 0.55) return 'green';
+    if (r < 0.95) return 'blue';
     return 'cyan';
   },
   'purple+purple': () => 'orange',
@@ -1562,39 +1675,32 @@ function createTower(spot, type) {
   if (type === 'orange') return new BeamTower(spot);
   if (type === 'red') return new BossTower(spot);
   if (type === 'silver') return new SilverTower(spot);
+  if (type === 'magenta') return new MagentaTower(spot);
   return new Tower(spot, type);
 }
 
-// 合成：新塔留在「拖過去的目標格」
-function combineTowers(sourceSpot, targetSpot) {
-  const sourceTower = sourceSpot.tower;
-  const targetTower = targetSpot.tower;
+function combineTowers(a, b) {
+  const key = a.type + '+' + b.type;
+  const resultType = COMBOS[key]();
+  const spotA = a.spot;
+  const spotB = b.spot;
+  spotA.tower = null;
+  spotB.tower = null;
 
-  const key1 = sourceTower.type + '+' + targetTower.type;
-  const key2 = targetTower.type + '+' + sourceTower.type;
-  let resultType;
-  if (COMBOS[key1]) resultType = COMBOS[key1]();
-  else if (COMBOS[key2]) resultType = COMBOS[key2]();
-  else return false;
-
-  // 先清空兩格
-  sourceSpot.tower = null;
-  targetSpot.tower = null;
-
-  // 新塔建在目標格（拖過去的那格）
-  targetSpot.tower = createTower(targetSpot, resultType);
+  const newTower = createTower(spotA, resultType);
+  spotA.tower = newTower;
 
   if (resultType === 'green' && !unlocked.green) {
     unlocked.green = true;
-    unlockShopButton('green');
+    document.querySelector('.shop-btn.green').classList.remove('locked');
     log('✨ 綠塔解鎖！');
   } else if (resultType === 'blue' && !unlocked.blue) {
     unlocked.blue = true;
-    unlockShopButton('blue');
+    document.querySelector('.shop-btn.blue').classList.remove('locked');
     log('💙 藍塔解鎖！');
   } else if (resultType === 'orange' && !unlocked.orange) {
     unlocked.orange = true;
-    unlockShopButton('orange');
+    document.querySelector('.shop-btn.orange').classList.remove('locked');
     log('🔥 橙塔解鎖！');
   } else if (resultType === 'cyan') {
     log('⚡ 青藍塔！專剋 Boss', 3000);
@@ -1607,23 +1713,6 @@ function combineTowers(sourceSpot, targetSpot) {
   selectedTower = null;
   updateTowerPanel();
   updateUI();
-  return true;
-}
-
-function swapTowers(spotA, spotB) {
-  const towerA = spotA.tower;
-  const towerB = spotB.tower;
-  spotA.tower = towerB;
-  spotB.tower = towerA;
-  if (towerA) towerA.spot = spotB;
-  if (towerB) towerB.spot = spotA;
-}
-
-function moveTower(fromSpot, toSpot) {
-  const t = fromSpot.tower;
-  fromSpot.tower = null;
-  toSpot.tower = t;
-  if (t) t.spot = toSpot;
 }
 
 function combineGold(towerList) {
@@ -1662,7 +1751,7 @@ function startWave() {
   }
 
   if (isBossWave) {
-    const bossHp = Math.floor(baseHp * 12);
+    const bossHp = Math.floor(baseHp * 20);
     const bossSpeed = baseSpeed * 0.6;
     spawnQueue.push({
       hp: bossHp, speed: bossSpeed,
@@ -1676,7 +1765,7 @@ function startWave() {
   updateUI();
 }
 
-// ============ 指標位置 ============
+// ============ 點擊 ============
 function getPointerPos(e) {
   const rect = canvas.getBoundingClientRect();
   return {
@@ -1693,8 +1782,14 @@ function findSpotAt(x, y) {
   return null;
 }
 
-// ============ 點擊塔 ============
 function handleTowerClick(tower) {
+  // 品紅塔不能被選中合成，只顯示資訊
+  if (tower.type === 'magenta') {
+    selectedTower = tower;
+    updateTowerPanel();
+    return;
+  }
+
   comboSequence.push({ type: tower.type, tower });
 
   if (comboSequence.length === GOLD_RECIPE.length) {
@@ -1725,17 +1820,27 @@ function handleTowerClick(tower) {
       : [];
   }
 
-  selectedTower = tower;
+  if (!selectedTower) {
+    selectedTower = tower;
+  } else if (selectedTower === tower) {
+    // 保留
+  } else {
+    const key = selectedTower.type + '+' + tower.type;
+    if (COMBOS[key]) {
+      combineTowers(selectedTower, tower);
+      comboSequence = [];
+    } else {
+      selectedTower = tower;
+    }
+  }
   updateTowerPanel();
 }
 
-// ============ 指標事件 ============
 canvas.addEventListener('pointerdown', (e) => {
   if (gameOver) return;
   e.preventDefault();
   const pos = getPointerPos(e);
   const spot = findSpotAt(pos.x, pos.y);
-
   if (!spot) {
     selectedTower = null;
     comboSequence = [];
@@ -1745,14 +1850,12 @@ canvas.addEventListener('pointerdown', (e) => {
 
   if (removeMode) {
     if (spot.tower) {
-      const refund = getTowerRefund(spot.tower);
-      money += refund;
       spot.tower = null;
       selectedTower = null;
       comboSequence = [];
       updateUI();
       updateTowerPanel();
-      log(`已撤除（+${refund}💰）`);
+      log('已撤除（不退款）');
     }
     return;
   }
@@ -1769,76 +1872,13 @@ canvas.addEventListener('pointerdown', (e) => {
   }
 
   if (spot.tower) {
-    dragState = {
-      tower: spot.tower,
-      startX: pos.x,
-      startY: pos.y,
-      currentX: pos.x,
-      currentY: pos.y,
-      moved: false,
-      sourceSpot: spot,
-    };
+    handleTowerClick(spot.tower);
   } else {
     selectedTower = null;
     comboSequence = [];
     updateTowerPanel();
   }
 }, { passive: false });
-
-canvas.addEventListener('pointermove', (e) => {
-  if (!dragState) return;
-  const pos = getPointerPos(e);
-  dragState.currentX = pos.x;
-  dragState.currentY = pos.y;
-  if (Math.hypot(pos.x - dragState.startX, pos.y - dragState.startY) > DRAG_THRESHOLD) {
-    dragState.moved = true;
-  }
-});
-
-canvas.addEventListener('pointerup', (e) => {
-  if (!dragState) return;
-  const pos = getPointerPos(e);
-  const targetSpot = findSpotAt(pos.x, pos.y);
-  const drag = dragState;
-  dragState = null;
-
-  // 沒移動 → 單純點擊
-  if (!drag.moved) {
-    handleTowerClick(drag.tower);
-    return;
-  }
-
-  // 拖回原格或拖出界 → 不動
-  if (!targetSpot || targetSpot === drag.sourceSpot) {
-    return;
-  }
-
-  const sourceSpot = drag.sourceSpot;
-
-  // 拖到有塔的格子
-  if (targetSpot.tower) {
-    const key1 = sourceSpot.tower.type + '+' + targetSpot.tower.type;
-    const key2 = targetSpot.tower.type + '+' + sourceSpot.tower.type;
-    if (COMBOS[key1] || COMBOS[key2]) {
-      combineTowers(sourceSpot, targetSpot);
-    } else {
-      swapTowers(sourceSpot, targetSpot);
-      log('交換位置');
-      selectedTower = null;
-      updateTowerPanel();
-    }
-    return;
-  }
-
-  // 拖到空格 → 移動
-  moveTower(sourceSpot, targetSpot);
-  selectedTower = null;
-  updateTowerPanel();
-});
-
-canvas.addEventListener('pointercancel', () => {
-  dragState = null;
-});
 
 // ============ 商店 ============
 document.querySelectorAll('.shop-btn').forEach(btn => {
@@ -1885,7 +1925,7 @@ removeBtn.addEventListener('pointerdown', (e) => {
     comboSequence = [];
     document.querySelectorAll('.shop-btn').forEach(b => b.classList.remove('selected'));
     updateTowerPanel();
-    log('撤塔模式：點塔移除（返還 50%）');
+    log('撤塔模式：點塔移除（不退款）');
   }
 }, { passive: false });
 
@@ -2035,43 +2075,6 @@ function drawSpot(spot) {
   ctx.stroke();
 }
 
-function drawDragOverlay() {
-  if (!dragState || !dragState.moved) return;
-  const x = dragState.currentX;
-  const y = dragState.currentY;
-  const half = 35;
-
-  ctx.save();
-  ctx.globalAlpha = 0.7;
-  ctx.fillStyle = TOWER_TYPES[dragState.tower.type].color;
-  ctx.fillRect(x - half, y - half, 70, 70);
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x - half, y - half, 70, 70);
-  ctx.restore();
-
-  const targetSpot = findSpotAt(x, y);
-  if (targetSpot && targetSpot !== dragState.sourceSpot) {
-    let color = '#2ecc71';
-    if (targetSpot.tower) {
-      const a = dragState.tower;
-      const b = targetSpot.tower;
-      const key1 = a.type + '+' + b.type;
-      const key2 = b.type + '+' + a.type;
-      if (!COMBOS[key1] && !COMBOS[key2]) {
-        color = '#f1c40f';
-      }
-    }
-    ctx.save();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(targetSpot.x, targetSpot.y, SPOT_SIZE / 2 + 6, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
-}
-
 // ============ 遊戲迴圈 ============
 function gameLoop(timestamp) {
   if (!lastTime) lastTime = timestamp;
@@ -2137,8 +2140,6 @@ function gameLoop(timestamp) {
 
   for (const e of enemies) e.draw();
   for (const b of bullets) b.draw();
-
-  drawDragOverlay();
 
   const boss = enemies.find(e => e.isBoss && e.alive);
   if (boss) {
