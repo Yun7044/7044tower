@@ -94,7 +94,6 @@
     padding: 0;
     opacity: 0.3;
   }
-  /* 解鎖後 */
   .shop-btn.unlocked {
     opacity: 1;
     border-color: #6a6aaa;
@@ -518,7 +517,6 @@ let hasGoldTower = false;
 let comboSequence = [];
 const GOLD_RECIPE = ['white', 'green', 'blue', 'purple', 'orange', 'red'];
 
-// 拖拽狀態
 let dragState = null;
 const DRAG_THRESHOLD = 14;
 
@@ -555,12 +553,10 @@ function updateUI() {
   towerCountEl.textContent = SPOTS.filter(s => s.tower).length;
 }
 
-// ============ 商店解鎖 ============
 function unlockShopButton(type) {
   const btn = document.querySelector(`.shop-btn[data-type="${type}"]`);
   if (!btn) return;
   btn.classList.add('unlocked');
-  // 短暫閃爍提示
   btn.style.transition = '0.15s';
   btn.style.boxShadow = '0 0 20px #ffd700';
   setTimeout(() => {
@@ -568,7 +564,6 @@ function unlockShopButton(type) {
   }, 600);
 }
 
-// ============ 撤回 ============
 function getTowerRefund(tower) {
   const baseCost = TOWER_TYPES[tower.type].baseCost || 0;
   return Math.floor(baseCost * 0.5);
@@ -579,7 +574,6 @@ function getUpgradeCost(tower) {
   return Math.floor(baseCost * tower.level * 1.5);
 }
 
-// ============ 塔資訊面板 ============
 function updateTowerPanel() {
   if (!selectedTower || !SPOTS.some(s => s.tower === selectedTower)) {
     towerPanel.classList.add('hidden');
@@ -660,7 +654,6 @@ function upgradeTower(tower) {
   log(`${TOWER_TYPES[tower.type].name} → Lv.${tower.level}`);
 }
 
-// ============ 增益重算 ============
 function recomputeBuffs() {
   for (const spot of SPOTS) {
     if (spot.tower) {
@@ -1572,21 +1565,23 @@ function createTower(spot, type) {
   return new Tower(spot, type);
 }
 
-function combineTowers(a, b) {
-  const key1 = a.type + '+' + b.type;
-  const key2 = b.type + '+' + a.type;
+// 合成：新塔留在 targetSpot（拖過去的格子）
+function combineTowers(sourceTower, targetTower) {
+  const key1 = sourceTower.type + '+' + targetTower.type;
+  const key2 = targetTower.type + '+' + sourceTower.type;
   let resultType;
   if (COMBOS[key1]) resultType = COMBOS[key1]();
   else if (COMBOS[key2]) resultType = COMBOS[key2]();
   else return false;
 
-  const spotA = a.spot;
-  const spotB = b.spot;
-  spotA.tower = null;
-  spotB.tower = null;
+  const sourceSpot = sourceTower.spot;
+  const targetSpot = targetTower.spot;
+  sourceSpot.tower = null;
+  targetSpot.tower = null;
 
-  const newTower = createTower(spotA, resultType);
-  spotA.tower = newTower;
+  // 新塔放在拖過去的格子
+  const newTower = createTower(targetSpot, resultType);
+  targetSpot.tower = newTower;
 
   if (resultType === 'green' && !unlocked.green) {
     unlocked.green = true;
@@ -1612,6 +1607,23 @@ function combineTowers(a, b) {
   updateTowerPanel();
   updateUI();
   return true;
+}
+
+// 交換兩格上的塔
+function swapTowers(spotA, spotB) {
+  const towerA = spotA.tower;
+  const towerB = spotB.tower;
+  spotA.tower = towerB;
+  spotB.tower = towerA;
+  if (towerA) towerA.spot = spotB;
+  if (towerB) towerB.spot = spotA;
+}
+
+// 移動塔到空格
+function moveTower(fromSpot, toSpot) {
+  toSpot.tower = fromSpot.tower;
+  toSpot.tower.spot = toSpot;
+  fromSpot.tower = null;
 }
 
 function combineGold(towerList) {
@@ -1681,7 +1693,7 @@ function findSpotAt(x, y) {
   return null;
 }
 
-// ============ 點擊塔（處理金塔配方 + 選中） ============
+// ============ 點擊塔 ============
 function handleTowerClick(tower) {
   comboSequence.push({ type: tower.type, tower });
 
@@ -1731,7 +1743,6 @@ canvas.addEventListener('pointerdown', (e) => {
     return;
   }
 
-  // 撤塔模式
   if (removeMode) {
     if (spot.tower) {
       const refund = getTowerRefund(spot.tower);
@@ -1746,7 +1757,6 @@ canvas.addEventListener('pointerdown', (e) => {
     return;
   }
 
-  // 商店放置模式
   if (shopSelected) {
     if (spot.tower) return;
     const cfg = TOWER_TYPES[shopSelected];
@@ -1758,7 +1768,6 @@ canvas.addEventListener('pointerdown', (e) => {
     return;
   }
 
-  // 點到塔：開始追蹤拖拽
   if (spot.tower) {
     dragState = {
       tower: spot.tower,
@@ -1793,17 +1802,40 @@ canvas.addEventListener('pointerup', (e) => {
   const drag = dragState;
   dragState = null;
 
-  if (drag.moved && targetSpot && targetSpot !== drag.sourceSpot && targetSpot.tower) {
-    // 拖拽合成
+  // 沒移動：單純點擊
+  if (!drag.moved) {
+    handleTowerClick(drag.tower);
+    return;
+  }
+
+  // 拖回原格或拖出界：不動
+  if (!targetSpot || targetSpot === drag.sourceSpot) {
+    return;
+  }
+
+  // 拖到有塔的格子
+  if (targetSpot.tower) {
     const a = drag.tower;
     const b = targetSpot.tower;
-    if (!combineTowers(a, b)) {
-      log('無法合成');
+    const key1 = a.type + '+' + b.type;
+    const key2 = b.type + '+' + a.type;
+    if (COMBOS[key1] || COMBOS[key2]) {
+      // 可合成
+      combineTowers(a, b);
+    } else {
+      // 不能合成：交換位置
+      swapTowers(drag.sourceSpot, targetSpot);
+      log('交換位置');
+      selectedTower = null;
+      updateTowerPanel();
     }
-  } else if (!drag.moved) {
-    // 單純點擊：處理金塔配方 + 選中
-    handleTowerClick(drag.tower);
+    return;
   }
+
+  // 拖到空格：移動
+  moveTower(drag.sourceSpot, targetSpot);
+  selectedTower = null;
+  updateTowerPanel();
 });
 
 canvas.addEventListener('pointercancel', () => {
@@ -2005,14 +2037,12 @@ function drawSpot(spot) {
   ctx.stroke();
 }
 
-// 畫拖拽幽靈 + 合成提示
 function drawDragOverlay() {
   if (!dragState || !dragState.moved) return;
   const x = dragState.currentX;
   const y = dragState.currentY;
   const half = 35;
 
-  // 半透明塔
   ctx.save();
   ctx.globalAlpha = 0.7;
   ctx.fillStyle = TOWER_TYPES[dragState.tower.type].color;
@@ -2022,16 +2052,20 @@ function drawDragOverlay() {
   ctx.strokeRect(x - half, y - half, 70, 70);
   ctx.restore();
 
-  // 若在有效目標上，畫高亮
   const targetSpot = findSpotAt(x, y);
-  if (targetSpot && targetSpot !== dragState.sourceSpot && targetSpot.tower) {
-    const a = dragState.tower;
-    const b = targetSpot.tower;
-    const key1 = a.type + '+' + b.type;
-    const key2 = b.type + '+' + a.type;
-    const canCombine = COMBOS[key1] || COMBOS[key2];
+  if (targetSpot && targetSpot !== dragState.sourceSpot) {
+    let color = '#2ecc71';   // 預設：空格或可合成 → 綠
+    if (targetSpot.tower) {
+      const a = dragState.tower;
+      const b = targetSpot.tower;
+      const key1 = a.type + '+' + b.type;
+      const key2 = b.type + '+' + a.type;
+      if (!COMBOS[key1] && !COMBOS[key2]) {
+        color = '#f1c40f';   // 不能合成，會交換 → 黃
+      }
+    }
     ctx.save();
-    ctx.strokeStyle = canCombine ? '#2ecc71' : '#e74c3c';
+    ctx.strokeStyle = color;
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.arc(targetSpot.x, targetSpot.y, SPOT_SIZE / 2 + 6, 0, Math.PI * 2);
@@ -2094,7 +2128,6 @@ function gameLoop(timestamp) {
 
   updateTowerPanel();
 
-  // 繪製
   drawBackground();
   drawPath();
 
