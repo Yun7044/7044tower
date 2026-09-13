@@ -19,15 +19,11 @@
   #topBar {
     position: fixed;
     top: 0; left: 0; right: 0;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    display: flex; align-items: center; gap: 6px;
     padding: 6px 10px;
     background: linear-gradient(to bottom, rgba(10,10,20,0.9), rgba(10,10,20,0));
-    font-size: 13px;
-    font-weight: 700;
-    pointer-events: none;
-    z-index: 10;
+    font-size: 13px; font-weight: 700;
+    pointer-events: none; z-index: 10;
     padding-top: max(6px, env(safe-area-inset-top));
   }
   .stat {
@@ -39,59 +35,40 @@
     backdrop-filter: blur(4px);
   }
   #removeBtn {
-    margin-left: auto;
-    pointer-events: auto;
+    margin-left: auto; pointer-events: auto;
     background: rgba(12,12,28,0.9);
-    border: 2px solid #555;
-    color: #ccc;
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: 0.15s;
+    border: 2px solid #555; color: #ccc;
+    border-radius: 8px; padding: 6px 12px;
+    font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: 0.15s;
   }
   #removeBtn.active {
     background: rgba(192, 57, 43, 0.9);
-    border-color: #e74c3c;
-    color: #fff;
+    border-color: #e74c3c; color: #fff;
     box-shadow: 0 0 12px #e74c3c;
   }
 
   #bottomBar {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; align-items: center; gap: 4px;
     padding: 6px 8px;
     background: linear-gradient(to top, rgba(10,10,20,0.95), rgba(10,10,20,0.6));
     padding-bottom: max(6px, env(safe-area-inset-bottom));
-    z-index: 10;
-    overflow-x: auto;
-    overflow-y: hidden;
+    z-index: 10; overflow-x: auto; overflow-y: hidden;
     scrollbar-width: none;
   }
   #bottomBar::-webkit-scrollbar { display: none; }
 
   .shop-btn {
-    flex: 0 0 auto;
-    width: 52px;
-    height: 46px;
+    flex: 0 0 auto; width: 52px; height: 46px;
     border-radius: 8px;
     background: #16162a;
     border: 2px solid #33335a;
-    color: #ccc;
-    font-size: 11px;
-    font-weight: 700;
+    color: #ccc; font-size: 11px; font-weight: 700;
     cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    transition: 0.12s;
-    padding: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 2px; transition: 0.12s; padding: 0;
   }
   .shop-btn .dot {
     width: 14px; height: 14px;
@@ -114,19 +91,23 @@
   .shop-btn[data-type="amethyst"] .dot { background: #B088FF; }
   .shop-btn[data-type="jade"]     .dot { background: #66FF66; }
   .shop-btn[data-type="magenta"]  .dot { background: #FF33CC; }
+  .shop-btn[data-type="fireArrow"] .dot { background: #FF4500; }
+
+  @keyframes unlockFlash {
+    0%, 100% { box-shadow: 0 0 0 0 #ffd700; border-color: #33335a; }
+    50% { box-shadow: 0 0 20px 4px #ffd700; border-color: #ffd700; }
+  }
+  .shop-btn.just-unlocked {
+    animation: unlockFlash 0.6s ease-in-out 3;
+  }
 
   #startWave {
     flex: 0 0 auto;
-    background: #e67e22;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 0 14px;
-    height: 46px;
-    font-weight: 700;
-    font-size: 13px;
-    cursor: pointer;
-    transition: 0.15s;
+    background: #e67e22; color: #fff;
+    border: none; border-radius: 8px;
+    padding: 0 14px; height: 46px;
+    font-weight: 700; font-size: 13px;
+    cursor: pointer; transition: 0.15s;
     white-space: nowrap;
   }
   #startWave:disabled { opacity: 0.4; }
@@ -135,67 +116,53 @@
     flex: 0 0 auto;
     display: flex; align-items: center; gap: 4px;
     font-size: 12px; color: #bbb;
-    padding: 6px 8px;
-    height: 46px;
+    padding: 6px 8px; height: 46px;
     border-radius: 8px;
     background: #16162a;
     border: 1px solid #33335a;
-    cursor: pointer;
-    white-space: nowrap;
+    cursor: pointer; white-space: nowrap;
   }
   .auto-toggle.active { border-color: #2ecc71; color: #2ecc71; }
   .auto-toggle input { width: 16px; height: 16px; }
 
   #log {
-    position: fixed;
-    bottom: 62px;
-    left: 50%;
+    position: fixed; bottom: 62px; left: 50%;
     transform: translateX(-50%);
     font-size: 13px;
     background: rgba(12, 12, 28, 0.95);
     border: 1px solid #2a2a4a;
     border-radius: 10px;
     padding: 6px 14px;
-    pointer-events: none;
-    opacity: 0;
+    pointer-events: none; opacity: 0;
     transition: opacity 0.3s;
-    white-space: nowrap;
-    z-index: 20;
+    white-space: nowrap; z-index: 20;
     max-width: 90vw;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: hidden; text-overflow: ellipsis;
   }
   #log.show { opacity: 1; }
 
   #bossBar {
-    position: fixed;
-    top: 42px;
-    left: 50%;
+    position: fixed; top: 42px; left: 50%;
     transform: translateX(-50%);
     width: min(420px, 70vw);
     background: rgba(12, 12, 28, 0.92);
     border: 2px solid #8B4513;
     border-radius: 8px;
     padding: 4px 8px;
-    pointer-events: none;
-    display: none;
+    pointer-events: none; display: none;
     box-shadow: 0 0 16px rgba(139, 69, 19, 0.6);
     z-index: 5;
     padding-top: max(4px, calc(env(safe-area-inset-top) + 30px));
   }
   #bossBar.show { display: block; }
   #bossBar .label {
-    font-size: 10px;
-    font-weight: 700;
-    color: #ffd700;
-    text-align: center;
-    margin-bottom: 3px;
-    letter-spacing: 2px;
+    font-size: 10px; font-weight: 700;
+    color: #ffd700; text-align: center;
+    margin-bottom: 3px; letter-spacing: 2px;
   }
   #bossBar .bar-bg {
     width: 100%; height: 8px;
-    background: #000;
-    border-radius: 4px;
+    background: #000; border-radius: 4px;
     overflow: hidden;
   }
   #bossBar .bar-fill {
@@ -205,19 +172,15 @@
   }
 
   #goldBanner {
-    position: fixed;
-    top: 45%; left: 50%;
+    position: fixed; top: 45%; left: 50%;
     transform: translate(-50%, -50%) scale(0.8);
     font-size: clamp(24px, 6vw, 42px);
-    font-weight: 900;
-    color: #ffd700;
+    font-weight: 900; color: #ffd700;
     text-shadow: 0 0 30px #ffd700, 0 0 60px #ffaa00;
     letter-spacing: 4px;
-    pointer-events: none;
-    opacity: 0;
+    pointer-events: none; opacity: 0;
     transition: opacity 0.4s, transform 0.4s;
-    white-space: nowrap;
-    z-index: 20;
+    white-space: nowrap; z-index: 20;
   }
   #goldBanner.show {
     opacity: 1;
@@ -225,19 +188,14 @@
   }
 
   #towerPanel {
-    position: fixed;
-    top: 42px;
-    left: 50%;
+    position: fixed; top: 42px; left: 50%;
     transform: translateX(-50%);
     background: rgba(12, 12, 28, 0.95);
     border: 2px solid #ffd700;
     border-radius: 10px;
     padding: 6px 12px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    pointer-events: auto;
-    z-index: 10;
+    display: flex; align-items: center; gap: 10px;
+    pointer-events: auto; z-index: 10;
     box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
     font-size: 12px;
     padding-top: max(6px, calc(env(safe-area-inset-top) + 30px));
@@ -247,29 +205,22 @@
   #towerName { font-weight: 700; font-size: 13px; }
   #towerStats { font-size: 11px; color: #aaa; }
   #upgradeBtn {
-    background: #f1c40f;
-    color: #0a0a14;
-    border: none;
-    border-radius: 6px;
+    background: #f1c40f; color: #0a0a14;
+    border: none; border-radius: 6px;
     padding: 8px 14px;
-    font-weight: 700;
-    cursor: pointer;
+    font-weight: 700; cursor: pointer;
     font-size: 12px;
   }
   #upgradeBtn:disabled { opacity: 0.4; }
 
   #rotateNotice {
-    position: fixed;
-    inset: 0;
+    position: fixed; inset: 0;
     display: none;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    align-items: center; justify-content: center;
     background: #0a0a14;
-    z-index: 100;
-    gap: 16px;
-    font-size: 18px;
-    color: #888;
+    z-index: 100; gap: 16px;
+    font-size: 18px; color: #888;
   }
   #rotateNotice .icon {
     font-size: 64px;
@@ -322,6 +273,7 @@
   <button class="shop-btn" data-type="amethyst"><div class="dot"></div><div class="price">70</div></button>
   <button class="shop-btn" data-type="jade"><div class="dot"></div><div class="price">85</div></button>
   <button class="shop-btn" data-type="silver"><div class="dot"></div><div class="price">100</div></button>
+  <button class="shop-btn" data-type="fireArrow"><div class="dot"></div><div class="price">120</div></button>
   <button id="startWave">▶ 開始</button>
   <label class="auto-toggle" id="autoToggle">
     <input type="checkbox" id="autoNext">
@@ -338,7 +290,8 @@
 // ============ 基本設定 ============
 const BASE_W = 960;
 const BASE_H = 540;
-const MAX_TOWER_LEVEL = 5;
+const MAX_TOWER_LEVEL = 8;
+const EMU_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -368,8 +321,7 @@ for (let r = 0; r < 3; r++) {
     SPOTS.push({
       col: c, row: r,
       x: COL_X[c], y: ROW_Y[r],
-      tower: null,
-      special: null,
+      tower: null, special: null,
     });
   }
 }
@@ -471,7 +423,7 @@ const TOWER_TYPES = {
   },
   silver: {
     name: '銀塔', cost: 100, baseCost: 100, color: '#c0c0c0',
-    fireInterval: 0.4, baseDamage: 7, range: 220,
+    fireInterval: 0.4, baseDamage: 8.5, range: 220,
     maxLevel: 10, attacksPerLevel: 2, decayTime: 4.0,
   },
   amethyst: {
@@ -488,11 +440,20 @@ const TOWER_TYPES = {
     name: '品紅塔', cost: 55, baseCost: 55, color: '#FF33CC',
     triggerTime: 6.0, successRate: 0.65, levelBoost: 2,
   },
+  fireArrow: {
+    name: '火矢塔', cost: 120, baseCost: 120, color: '#FF4500',
+    range: Infinity,
+    damage: 1.25,
+    fireIntervalNormal: 10,
+    fireIntervalBoss: 0.01,
+    antiBossMultiplier: 1, // 對 boss 不加倍，靠爆擊
+  },
 };
 
 const unlocked = {
   white: true, green: false, blue: false, purple: true,
   orange: false, silver: true, amethyst: true, jade: true, magenta: true,
+  fireArrow: true,
 };
 
 // ============ 遊戲狀態 ============
@@ -518,7 +479,6 @@ let hasGoldTower = false;
 let comboSequence = [];
 const GOLD_RECIPE = ['white', 'green', 'blue', 'purple', 'orange', 'red'];
 
-// 拖塔狀態
 let drag = null;
 
 // ============ DOM ============
@@ -624,6 +584,23 @@ function updateTowerPanel() {
     return;
   }
 
+  if (selectedTower.type === 'fireArrow') {
+    const t = selectedTower;
+    const hasBoss = enemies.some(e => e.isBoss && e.alive);
+    const mode = hasBoss ? '格林機槍模式' : '待機模式';
+    const rate = hasBoss ? '100 發/秒' : '每 10 秒 1 發';
+    towerStats.textContent = `${mode} ｜ ${rate} ｜ 傷害 ${cfg.damage}${critInfo}`;
+    if (selectedTower.level >= MAX_TOWER_LEVEL) {
+      upgradeBtn.disabled = true;
+      upgradeBtn.textContent = 'MAX';
+    } else {
+      const cost = getUpgradeCost(selectedTower);
+      upgradeBtn.disabled = money < cost;
+      upgradeBtn.textContent = `升級 ${cost}`;
+    }
+    return;
+  }
+
   if (selectedTower.level >= MAX_TOWER_LEVEL) {
     towerStats.textContent = `已達最高等級${critInfo}`;
     upgradeBtn.disabled = true;
@@ -663,16 +640,12 @@ function recomputeBuffs() {
     if (t.type === 'amethyst') {
       const buff = TOWER_TYPES.amethyst.critRateBuff;
       for (const n of getAdjacentSpots(spot)) {
-        if (n.tower && n.tower !== t) {
-          n.tower.critRateBonus += buff;
-        }
+        if (n.tower && n.tower !== t) n.tower.critRateBonus += buff;
       }
     } else if (t.type === 'jade') {
       const buff = TOWER_TYPES.jade.critDmgBuff;
       for (const n of getAdjacentSpots(spot)) {
-        if (n.tower && n.tower !== t) {
-          n.tower.critDmgBonus += buff;
-        }
+        if (n.tower && n.tower !== t) n.tower.critDmgBonus += buff;
       }
     }
   }
@@ -707,9 +680,7 @@ class Enemy {
     this.elapsed += dt;
 
     let rageMultiplier = 1;
-    if (this.isBoss) {
-      rageMultiplier = Math.min(2.2, 1 + this.elapsed * 0.025);
-    }
+    if (this.isBoss) rageMultiplier = Math.min(2.2, 1 + this.elapsed * 0.025);
 
     if (this.slowTimer > 0) {
       this.slowTimer -= dt;
@@ -717,9 +688,7 @@ class Enemy {
     }
 
     let effectiveSlow = this.slowFactor;
-    if (this.isBoss) {
-      effectiveSlow = 1 - (1 - this.slowFactor) * 0.5;
-    }
+    if (this.isBoss) effectiveSlow = 1 - (1 - this.slowFactor) * 0.5;
 
     let speed = this.baseSpeed * effectiveSlow * rageMultiplier;
 
@@ -808,6 +777,225 @@ class Enemy {
   }
 }
 
+// ============ 塔的圖案繪製 ============
+function drawTowerIcon(type, x, y, size) {
+  const half = size / 2;
+  ctx.save();
+
+  switch (type) {
+    case 'white':
+      ctx.fillStyle = '#555';
+      ctx.beginPath();
+      ctx.arc(x, y, size * 0.16, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'green': {
+      ctx.fillStyle = '#0a4d26';
+      const h = size * 0.32;
+      const s = size * 0.3;
+      ctx.beginPath();
+      ctx.moveTo(x, y - h);
+      ctx.lineTo(x - s, y + h * 0.6);
+      ctx.lineTo(x + s, y + h * 0.6);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'blue': {
+      ctx.fillStyle = '#0a2d5c';
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.02, y - size * 0.28);
+      ctx.lineTo(x - size * 0.14, y + size * 0.02);
+      ctx.lineTo(x - size * 0.02, y + size * 0.02);
+      ctx.lineTo(x - size * 0.06, y + size * 0.28);
+      ctx.lineTo(x + size * 0.14, y - size * 0.04);
+      ctx.lineTo(x + size * 0.02, y - size * 0.04);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'purple': {
+      ctx.fillStyle = '#2d1445';
+      ctx.beginPath();
+      const outer = size * 0.3;
+      const inner = size * 0.13;
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + i * Math.PI / 5;
+        const r = i % 2 === 0 ? outer : inner;
+        const px = x + Math.cos(a) * r;
+        const py = y + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'cyan': {
+      ctx.fillStyle = '#003d4d';
+      ctx.fillRect(x - size * 0.07, y - size * 0.28, size * 0.14, size * 0.56);
+      ctx.fillRect(x - size * 0.28, y - size * 0.07, size * 0.56, size * 0.14);
+      break;
+    }
+    case 'orange': {
+      ctx.fillStyle = '#4d2200';
+      ctx.beginPath();
+      ctx.arc(x, y, size * 0.16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#4d2200';
+      ctx.lineWidth = 3;
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4;
+        ctx.beginPath();
+        ctx.moveTo(x + Math.cos(a) * size * 0.2, y + Math.sin(a) * size * 0.2);
+        ctx.lineTo(x + Math.cos(a) * size * 0.3, y + Math.sin(a) * size * 0.3);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'red':
+      ctx.fillStyle = '#ffd700';
+      ctx.font = `bold ${size * 0.55}px system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('$', x, y + 1);
+      break;
+    case 'gold': {
+      ctx.save();
+      ctx.shadowColor = '#ffd700';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = '#8b6914';
+      ctx.beginPath();
+      const outer = size * 0.32;
+      const inner = size * 0.14;
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + i * Math.PI / 5;
+        const r = i % 2 === 0 ? outer : inner;
+        const px = x + Math.cos(a) * r;
+        const py = y + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case 'silver': {
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y, size * 0.22, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y, size * 0.12, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    }
+    case 'amethyst': {
+      ctx.fillStyle = '#3d1a5c';
+      ctx.beginPath();
+      ctx.moveTo(x, y - size * 0.28);
+      ctx.lineTo(x + size * 0.22, y);
+      ctx.lineTo(x, y + size * 0.28);
+      ctx.lineTo(x - size * 0.22, y);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'jade': {
+      ctx.fillStyle = '#003300';
+      ctx.beginPath();
+      const r = size * 0.28;
+      for (let i = 0; i < 6; i++) {
+        const a = i * Math.PI / 3 - Math.PI / 2;
+        const px = x + Math.cos(a) * r;
+        const py = y + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'magenta': {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `${size * 0.5}px ${EMU_FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('♥', x, y + 1);
+      break;
+    }
+    case 'fireArrow': {
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath();
+      ctx.moveTo(x, y - size * 0.3);
+      ctx.bezierCurveTo(
+        x + size * 0.22, y - size * 0.1,
+        x + size * 0.18, y + size * 0.18,
+        x, y + size * 0.3
+      );
+      ctx.bezierCurveTo(
+        x - size * 0.18, y + size * 0.18,
+        x - size * 0.22, y - size * 0.1,
+        x, y - size * 0.3
+      );
+      ctx.fill();
+      ctx.fillStyle = '#ff4500';
+      ctx.beginPath();
+      ctx.moveTo(x, y - size * 0.18);
+      ctx.bezierCurveTo(
+        x + size * 0.12, y - size * 0.05,
+        x + size * 0.1, y + size * 0.1,
+        x, y + size * 0.18
+      );
+      ctx.bezierCurveTo(
+        x - size * 0.1, y + size * 0.1,
+        x - size * 0.12, y - size * 0.05,
+        x, y - size * 0.18
+      );
+      ctx.fill();
+      break;
+    }
+  }
+
+  ctx.restore();
+}
+
+// ============ 星星等級繪製 ============
+function drawLevelStars(level, x, y, size) {
+  if (level <= 1) return;
+
+  let stars = [];
+  let emoji = '';
+
+  if (level <= 3) {
+    emoji = '⭐';
+    stars = new Array(level).fill(emoji);
+  } else if (level <= 6) {
+    emoji = '🌟';
+    stars = new Array(level - 3).fill(emoji);
+  } else {
+    emoji = '💫';
+    stars = [emoji, emoji]; // 固定兩顆
+  }
+
+  const fontSize = size * 0.4;
+  const spacing = fontSize * 0.95;
+  const totalWidth = (stars.length - 1) * spacing;
+
+  ctx.save();
+  ctx.font = `${fontSize}px ${EMU_FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (let i = 0; i < stars.length; i++) {
+    const sx = x - totalWidth / 2 + i * spacing;
+    ctx.fillText(stars[i], sx, y);
+  }
+  ctx.restore();
+}
+
 // ============ 一般塔 ============
 class Tower {
   constructor(spot, type) {
@@ -829,12 +1017,10 @@ class Tower {
 
   applyLevel() {
     const lv = this.level;
-    this.damage = this.config.damage * Math.pow(1.6, lv - 1);
-    this.baseFireInterval = this.config.fireInterval * Math.pow(0.85, lv - 1);
+    this.damage = this.config.damage * Math.pow(1.5, lv - 1);
+    this.baseFireInterval = this.config.fireInterval * Math.pow(0.88, lv - 1);
     this.range = (this.config.range || 220) + 20 * (lv - 1);
-    if (this.hastedTimer <= 0) {
-      this.fireInterval = this.baseFireInterval;
-    }
+    if (this.hastedTimer <= 0) this.fireInterval = this.baseFireInterval;
     this.hitChance = this.config.hitChance;
     this.killChance = this.config.killChance || 0;
     this.slowFactor = this.config.slowFactor;
@@ -849,14 +1035,10 @@ class Tower {
 
   update(dt) {
     this.fireFlash = Math.max(0, this.fireFlash - dt * 6);
-
     if (this.hastedTimer > 0) {
       this.hastedTimer -= dt;
-      if (this.hastedTimer <= 0) {
-        this.fireInterval = this.baseFireInterval;
-      }
+      if (this.hastedTimer <= 0) this.fireInterval = this.baseFireInterval;
     }
-
     this.cooldown -= dt;
     if (this.cooldown > 0) return;
     const target = this.findTarget();
@@ -873,10 +1055,7 @@ class Tower {
       if (!e.alive) continue;
       const p = e.getPos();
       const d = Math.hypot(p.x - this.x, p.y - this.y);
-      if (d <= bestDist) {
-        bestDist = d;
-        best = e;
-      }
+      if (d <= bestDist) { bestDist = d; best = e; }
     }
     return best;
   }
@@ -912,49 +1091,10 @@ class Tower {
     ctx.lineWidth = 2;
     ctx.strokeRect(-half, -half, size, size);
 
-    if (this.type === 'gold') {
-      ctx.save();
-      ctx.shadowColor = '#ffd700';
-      ctx.shadowBlur = 12;
-      ctx.fillStyle = '#ffd700';
-      ctx.font = `bold ${size * 0.5}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('★', 0, 0);
-      ctx.restore();
-    } else if (this.type === 'cyan') {
-      ctx.save();
-      ctx.shadowColor = '#00e5ff';
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = '#e0ffff';
-      ctx.font = `bold ${size * 0.5}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('✚', 0, 0);
-      ctx.restore();
-    } else if (this.type === 'amethyst') {
-      ctx.fillStyle = '#ffffff';
-      ctx.font = `bold ${size * 0.55}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('✦', 0, 1);
-    } else if (this.type === 'jade') {
-      ctx.fillStyle = '#003300';
-      ctx.font = `bold ${size * 0.55}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('⬢', 0, 1);
-    }
-
-    if (this.level > 1) {
-      ctx.fillStyle = '#ffd700';
-      ctx.font = `bold 14px system-ui`;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(`Lv${this.level}`, half - 3, half - 3);
-    }
-
     ctx.restore();
+
+    // 中心圖案
+    drawTowerIcon(this.type, x, y, size);
   }
 
   draw() {
@@ -1004,7 +1144,6 @@ class Tower {
       ctx.restore();
     }
 
-    // 如果是被拖曳的塔，本體不畫在格子上
     const isDragging = drag && drag.tower === this && drag.isDragging;
     if (!isDragging) {
       ctx.save();
@@ -1022,6 +1161,9 @@ class Tower {
         ctx.restore();
       }
     }
+
+    // 星星等級
+    drawLevelStars(this.level, x, y - half - 12, size);
 
     if (this.hastedTimer > 0) {
       ctx.save();
@@ -1094,17 +1236,13 @@ class SilverTower {
     }
     if (inRange.length === 0) return [];
     let focus = inRange[0];
-    for (const e of inRange) {
-      if (e.hp > focus.hp) focus = e;
-    }
+    for (const e of inRange) if (e.hp > focus.hp) focus = e;
     return new Array(count).fill(focus);
   }
 
   fire(targets) {
     this.fireFlash = 1;
-    for (const target of targets) {
-      bullets.push(new SilverBullet(this, target));
-    }
+    for (const target of targets) bullets.push(new SilverBullet(this, target));
   }
 
   drawBody(x, y, alpha = 1) {
@@ -1127,13 +1265,9 @@ class SilverTower {
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.strokeRect(-half, -half, size, size);
-
-    ctx.fillStyle = '#1a1a1a';
-    ctx.font = `bold ${size * 0.5}px system-ui`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(this.level, 0, 1);
     ctx.restore();
+
+    drawTowerIcon('silver', x, y, size);
   }
 
   draw() {
@@ -1193,6 +1327,17 @@ class SilverTower {
       ctx.restore();
     }
 
+    // 銀塔顯示等級數字（因為它的等級是動態的，用數字比較清楚）
+    if (this.level > 1) {
+      ctx.save();
+      ctx.fillStyle = '#ffd700';
+      ctx.font = `bold 14px system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`Lv${this.level}`, x, y - half - 12);
+      ctx.restore();
+    }
+
     if (this.level > 1) {
       const remain = this.config.decayTime - this.idleTimer;
       if (remain < 0.8) {
@@ -1228,13 +1373,11 @@ class BeamTower {
 
   applyLevel() {
     const lv = this.level;
-    this.dps = this.config.dps * Math.pow(1.6, lv - 1);
+    this.dps = this.config.dps * Math.pow(1.5, lv - 1);
     this.beamCount = this.config.beamCount + (lv - 1);
   }
 
-  applyHaste(duration) {
-    this.hastedTimer = duration;
-  }
+  applyHaste(duration) { this.hastedTimer = duration; }
 
   update(dt) {
     this.pulse += dt;
@@ -1245,13 +1388,10 @@ class BeamTower {
       this.beamTargets = this.pickRandom(this.beamCount);
       this.reacquireTimer = this.config.reacquireInterval;
     }
-
     this.beamTargets = this.beamTargets.filter(e => e.alive);
 
     const dpsMult = this.hastedTimer > 0 ? 3 : 1;
-    for (const target of this.beamTargets) {
-      target.takeDamage(this.dps * dt * dpsMult);
-    }
+    for (const target of this.beamTargets) target.takeDamage(this.dps * dt * dpsMult);
   }
 
   pickRandom(n) {
@@ -1276,20 +1416,17 @@ class BeamTower {
     ctx.strokeStyle = '#00000066';
     ctx.lineWidth = 2;
     ctx.strokeRect(x - half, y - half, size, size);
+    ctx.restore();
 
+    drawTowerIcon('orange', x, y, size);
+
+    // 核心光點
+    ctx.save();
     const glow = 0.6 + 0.4 * Math.sin(this.pulse * 8);
-    ctx.fillStyle = `rgba(255, 220, 120, ${glow})`;
+    ctx.fillStyle = `rgba(255, 220, 120, ${glow * 0.6})`;
     ctx.beginPath();
-    ctx.arc(x, y, size * 0.18, 0, Math.PI * 2);
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.fill();
-
-    if (this.level > 1) {
-      ctx.fillStyle = '#ffd700';
-      ctx.font = `bold 14px system-ui`;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(`Lv${this.level}`, x + half - 3, y + half - 3);
-    }
     ctx.restore();
   }
 
@@ -1326,7 +1463,6 @@ class BeamTower {
     const isDragging = drag && drag.tower === this && drag.isDragging;
     if (!isDragging) this.drawBody(x, y, 1);
 
-    // 只有沒在拖曳時才畫雷射
     if (!isDragging) {
       ctx.save();
       ctx.shadowColor = '#e67e22';
@@ -1348,6 +1484,8 @@ class BeamTower {
       }
       ctx.restore();
     }
+
+    drawLevelStars(this.level, x, y - half - 12, size);
 
     if (this.hastedTimer > 0) {
       ctx.save();
@@ -1384,12 +1522,11 @@ class BossTower {
     const lv = this.level;
     this.buffTargets = this.config.buffTargets + (lv - 1);
     this.buffDuration = this.config.buffDuration + (lv - 1) * 2;
-    this.buffInterval = Math.max(2, this.config.buffInterval - (lv - 1));
+    this.buffInterval = Math.max(2, this.config.buffInterval - (lv - 1) * 0.5);
   }
 
   update(dt) {
     this.buffFlash = Math.max(0, this.buffFlash - dt * 3);
-
     for (const buff of this.activeBuffs) buff.timer -= dt;
     this.activeBuffs = this.activeBuffs.filter(b =>
       b.timer > 0 && SPOTS.some(s => s.tower === b.tower)
@@ -1412,7 +1549,6 @@ class BossTower {
       const j = Math.floor(Math.random() * (i + 1));
       [others[i], others[j]] = [others[j], others[i]];
     }
-
     const count = Math.min(this.buffTargets, others.length);
     for (let i = 0; i < count; i++) {
       const t = others[i];
@@ -1439,25 +1575,13 @@ class BossTower {
     ctx.lineWidth = 2;
     ctx.strokeRect(-half, -half, size, size);
 
-    ctx.fillStyle = '#ffd700';
-    ctx.font = `bold ${size * 0.55}px system-ui`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('$', 0, 2);
-
-    if (this.level > 1) {
-      ctx.fillStyle = '#ffd700';
-      ctx.font = `bold 14px system-ui`;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(`Lv${this.level}`, half - 3, half - 3);
-    }
-
     if (this.buffFlash > 0) {
       ctx.fillStyle = `rgba(231, 76, 60, ${this.buffFlash * 0.6})`;
       ctx.fillRect(-half, -half, size, size);
     }
     ctx.restore();
+
+    drawTowerIcon('red', x, y, size);
   }
 
   draw() {
@@ -1473,6 +1597,8 @@ class BossTower {
       ctx.lineWidth = 3;
       ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
     }
+
+    drawLevelStars(this.level, x, y - half - 12, size);
   }
 }
 
@@ -1494,7 +1620,7 @@ class MagentaTower {
   get critRate() { return 0; }
   get critDamage() { return 2.0; }
 
-  applyLevel() { /* 不可升級 */ }
+  applyLevel() {}
 
   update(dt) {
     if (this.triggered) return;
@@ -1508,7 +1634,6 @@ class MagentaTower {
 
   trigger() {
     this.spot.tower = null;
-
     const candidates = SPOTS.filter(s =>
       s.tower &&
       s.tower !== this &&
@@ -1598,6 +1723,188 @@ class MagentaTower {
   }
 }
 
+// ============ 火矢塔 ============
+class FireArrowTower {
+  constructor(spot) {
+    this.spot = spot;
+    this.type = 'fireArrow';
+    this.config = TOWER_TYPES.fireArrow;
+    this.level = 1;
+    this.cooldown = 0;
+    this.fireFlash = 0;
+    this.pulse = 0;
+    this.beams = [];
+    this.critRateBonus = 0;
+    this.critDmgBonus = 0;
+    this.hastedTimer = 0;
+    this.applyLevel();
+  }
+  get x() { return this.spot.x; }
+  get y() { return this.spot.y; }
+  get critRate() { return Math.min(1.0, this.critRateBonus); }
+  get critDamage() { return Math.min(5.0, 2.0 + this.critDmgBonus); }
+
+  applyLevel() {
+    const lv = this.level;
+    this.damage = this.config.damage * Math.pow(1.5, lv - 1);
+  }
+
+  applyHaste(duration) {
+    // 火矢塔本身不吃攻速 buff（它已經很快了），但記錄一下避免報錯
+    this.hastedTimer = duration;
+  }
+
+  update(dt) {
+    this.pulse += dt;
+    this.fireFlash = Math.max(0, this.fireFlash - dt * 20);
+
+    // 更新光束
+    for (const b of this.beams) b.timer -= dt;
+    this.beams = this.beams.filter(b => b.timer > 0 && b.target && b.target.alive);
+
+    this.cooldown -= dt;
+    if (this.cooldown > 0) return;
+
+    const target = this.findTarget();
+    if (!target) return;
+
+    this.fireAt(target);
+
+    const hasBoss = enemies.some(e => e.isBoss && e.alive);
+    this.cooldown = hasBoss ? this.config.fireIntervalBoss : this.config.fireIntervalNormal;
+  }
+
+  findTarget() {
+    // 有 boss 優先打 boss
+    for (const e of enemies) {
+      if (e.alive && e.isBoss) return e;
+    }
+    // 沒 boss 打最近的
+    let best = null;
+    let bestDist = Infinity;
+    for (const e of enemies) {
+      if (!e.alive) continue;
+      const p = e.getPos();
+      const d = Math.hypot(p.x - this.x, p.y - this.y);
+      if (d < bestDist) { bestDist = d; best = e; }
+    }
+    return best;
+  }
+
+  fireAt(target) {
+    let dmg = this.damage;
+    if (this.critRate > 0 && Math.random() < this.critRate) {
+      dmg *= this.critDamage;
+    }
+    target.takeDamage(dmg);
+    this.fireFlash = 1;
+    this.beams.push({ target, timer: 0.06 });
+  }
+
+  drawBody(x, y, alpha = 1) {
+    const size = 70;
+    const half = size / 2;
+
+    const hasBoss = enemies.some(e => e.isBoss && e.alive);
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(x, y);
+
+    ctx.fillStyle = '#00000066';
+    ctx.fillRect(-half + 2, -half + 3, size, size);
+
+    const grad = ctx.createLinearGradient(-half, -half, half, half);
+    if (hasBoss) {
+      grad.addColorStop(0, '#ffcc66');
+      grad.addColorStop(0.5, '#ff6600');
+      grad.addColorStop(1, '#991100');
+    } else {
+      grad.addColorStop(0, '#cc4400');
+      grad.addColorStop(0.5, '#882200');
+      grad.addColorStop(1, '#441100');
+    }
+    ctx.fillStyle = grad;
+    ctx.fillRect(-half, -half, size, size);
+
+    ctx.strokeStyle = hasBoss ? '#ffd700' : '#552200';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-half, -half, size, size);
+    ctx.restore();
+
+    drawTowerIcon('fireArrow', x, y, size);
+
+    // Boss 模式發光
+    if (hasBoss) {
+      ctx.save();
+      const glow = 0.6 + 0.4 * Math.sin(this.pulse * 20);
+      ctx.shadowColor = '#FF4500';
+      ctx.shadowBlur = 20 * glow;
+      ctx.strokeStyle = `rgba(255, 200, 100, ${glow})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y, half + 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  draw() {
+    const x = this.x, y = this.y;
+    const size = 70;
+    const half = size / 2;
+
+    if (selectedTower === this) {
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
+    }
+
+    if (this.critRateBonus > 0) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, half + 3, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (this.critDmgBonus > 0) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, half + 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    const isDragging = drag && drag.tower === this && drag.isDragging;
+    if (!isDragging) this.drawBody(x, y, 1);
+
+    // 光束
+    if (!isDragging) {
+      ctx.save();
+      ctx.shadowColor = '#FF4500';
+      ctx.shadowBlur = 14;
+      for (const b of this.beams) {
+        if (!b.target || !b.target.alive) continue;
+        const tp = b.target.getPos();
+        const alpha = b.timer / 0.06;
+        ctx.strokeStyle = `rgba(255, 180, 50, ${alpha})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(tp.x, tp.y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    drawLevelStars(this.level, x, y - half - 12, size);
+  }
+}
+
 // ============ 子彈 ============
 class Bullet {
   constructor(tower, target) {
@@ -1640,12 +1947,8 @@ class Bullet {
           }
         } else {
           let dmg = this.damage;
-          if (this.target.isBoss && this.antiBossMultiplier) {
-            dmg *= this.antiBossMultiplier;
-          }
-          if (this.critRate > 0 && Math.random() < this.critRate) {
-            dmg *= this.critDamage;
-          }
+          if (this.target.isBoss && this.antiBossMultiplier) dmg *= this.antiBossMultiplier;
+          if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
           this.target.takeDamage(dmg);
         }
         if (this.slowFactor !== undefined) {
@@ -1694,9 +1997,7 @@ class SilverBullet {
 
     if (dist <= move) {
       let dmg = this.damage;
-      if (this.critRate > 0 && Math.random() < this.critRate) {
-        dmg *= this.critDamage;
-      }
+      if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
       this.target.takeDamage(dmg);
       this.alive = false;
     } else {
@@ -1718,8 +2019,8 @@ class SilverBullet {
 const COMBOS = {
   'white+white': () => {
     const r = Math.random();
-    if (r < 0.55) return 'green';
-    if (r < 0.95) return 'blue';
+    if (r < 0.45) return 'green';
+    if (r < 0.90) return 'blue';
     return 'cyan';
   },
   'purple+purple': () => 'orange',
@@ -1739,7 +2040,16 @@ function createTower(spot, type) {
   if (type === 'red') return new BossTower(spot);
   if (type === 'silver') return new SilverTower(spot);
   if (type === 'magenta') return new MagentaTower(spot);
+  if (type === 'fireArrow') return new FireArrowTower(spot);
   return new Tower(spot, type);
+}
+
+function unlockButton(type) {
+  const btn = document.querySelector(`.shop-btn[data-type="${type}"]`);
+  if (!btn) return;
+  btn.classList.remove('locked');
+  btn.classList.add('just-unlocked');
+  setTimeout(() => btn.classList.remove('just-unlocked'), 2000);
 }
 
 function combineTowers(a, b) {
@@ -1755,15 +2065,15 @@ function combineTowers(a, b) {
 
   if (resultType === 'green' && !unlocked.green) {
     unlocked.green = true;
-    document.querySelector('.shop-btn.green').classList.remove('locked');
+    unlockButton('green');
     log('✨ 綠塔解鎖！');
   } else if (resultType === 'blue' && !unlocked.blue) {
     unlocked.blue = true;
-    document.querySelector('.shop-btn.blue').classList.remove('locked');
+    unlockButton('blue');
     log('💙 藍塔解鎖！');
   } else if (resultType === 'orange' && !unlocked.orange) {
     unlocked.orange = true;
-    document.querySelector('.shop-btn.orange').classList.remove('locked');
+    unlockButton('orange');
     log('🔥 橙塔解鎖！');
   } else if (resultType === 'cyan') {
     log('⚡ 青藍塔！專剋 Boss', 3000);
@@ -1780,9 +2090,7 @@ function combineTowers(a, b) {
 
 function combineGold(towerList) {
   const firstSpot = towerList[0].spot;
-  for (const t of towerList) {
-    t.spot.tower = null;
-  }
+  for (const t of towerList) t.spot.tower = null;
   const newTower = new Tower(firstSpot, 'gold');
   firstSpot.tower = newTower;
 
@@ -1803,7 +2111,6 @@ function startWave() {
   autoNextTimer = 0;
 
   const isBossWave = wave % 10 === 0;
-
   const baseHp = Math.floor(45 * Math.pow(1.20, wave - 1));
   const baseSpeed = Math.min(180, 70 + (wave - 1) * 4);
   const count = 5 + Math.floor(wave * 1.5);
@@ -1828,7 +2135,7 @@ function startWave() {
   updateUI();
 }
 
-// ============ 指標處理 ============
+// ============ 指標 ============
 function getPointerPos(e) {
   const rect = canvas.getBoundingClientRect();
   return {
@@ -1900,20 +2207,21 @@ canvas.addEventListener('pointerdown', (e) => {
     return;
   }
 
-  // 撤塔模式
   if (removeMode) {
     if (spot.tower) {
+      const t = spot.tower;
+      const refund = Math.floor((TOWER_TYPES[t.type].baseCost || 0) * 0.5);
+      money += refund;
       spot.tower = null;
       selectedTower = null;
       comboSequence = [];
       updateUI();
       updateTowerPanel();
-      log('已撤除（不退款）');
+      log(`已撤除，返還 ${refund} 💰`);
     }
     return;
   }
 
-  // 放塔模式
   if (shopSelected) {
     if (spot.tower) return;
     const cfg = TOWER_TYPES[shopSelected];
@@ -1925,7 +2233,6 @@ canvas.addEventListener('pointerdown', (e) => {
     return;
   }
 
-  // 點塔 → 記錄起始位置，準備可能拖曳
   if (spot.tower) {
     drag = {
       tower: spot.tower,
@@ -1957,7 +2264,6 @@ canvas.addEventListener('pointermove', (e) => {
     const dy = pos.y - drag.startY;
     if (Math.hypot(dx, dy) > 12) {
       drag.isDragging = true;
-      // 拖曳時清除選中
       selectedTower = null;
       comboSequence = [];
       updateTowerPanel();
@@ -1968,42 +2274,39 @@ canvas.addEventListener('pointermove', (e) => {
 canvas.addEventListener('pointerup', (e) => {
   if (!drag) return;
   e.preventDefault();
-
   const pos = getPointerPos(e);
 
   if (drag.isDragging) {
     const targetSpot = findSpotAt(pos.x, pos.y);
-    if (targetSpot && targetSpot !== drag.spot && targetSpot.tower) {
+    if (targetSpot && targetSpot !== drag.spot) {
       const a = drag.tower;
+      const aSpot = drag.spot;
       const b = targetSpot.tower;
-      if (canCombine(a, b)) {
+
+      if (!b) {
+        // 目標空 → 移動
+        aSpot.tower = null;
+        targetSpot.tower = a;
+        a.spot = targetSpot;
+      } else if (canCombine(a, b)) {
+        // 可合成 → 合成
         combineTowers(a, b);
-        comboSequence = [];
       } else {
-        log('這兩座塔無法合成');
+        // 不可合成 → 交換
+        aSpot.tower = b;
+        targetSpot.tower = a;
+        a.spot = targetSpot;
+        b.spot = aSpot;
       }
     }
-    // 沒落在有效目標上 → 靜默取消
   } else {
-    // 視為點擊
     handleTowerTap(drag.tower);
   }
 
   drag = null;
 }, { passive: false });
 
-canvas.addEventListener('pointercancel', (e) => {
-  if (drag) {
-    drag = null;
-  }
-});
-
-canvas.addEventListener('pointerleave', (e) => {
-  // 只有滑鼠才會觸發，觸控不會
-  if (drag && drag.isDragging) {
-    // 不強制取消，等 pointerup
-  }
-});
+canvas.addEventListener('pointercancel', () => { drag = null; });
 
 // ============ 商店 ============
 document.querySelectorAll('.shop-btn').forEach(btn => {
@@ -2050,7 +2353,7 @@ removeBtn.addEventListener('pointerdown', (e) => {
     comboSequence = [];
     document.querySelectorAll('.shop-btn').forEach(b => b.classList.remove('selected'));
     updateTowerPanel();
-    log('撤塔模式：點塔移除（不退款）');
+    log('撤塔模式：點塔移除（返 50%）');
   }
 }, { passive: false });
 
@@ -2082,9 +2385,7 @@ function drawBackground() {
 function drawPath() {
   ctx.beginPath();
   ctx.moveTo(PATH[0].x, PATH[0].y);
-  for (let i = 1; i < PATH.length; i++) {
-    ctx.lineTo(PATH[i].x, PATH[i].y);
-  }
+  for (let i = 1; i < PATH.length; i++) ctx.lineTo(PATH[i].x, PATH[i].y);
 
   ctx.strokeStyle = hasGoldTower ? '#2a1f0a' : '#23233d';
   ctx.lineWidth = 42;
@@ -2200,7 +2501,7 @@ function drawSpot(spot) {
   ctx.stroke();
 }
 
-// ============ 繪製拖曳幽靈 ============
+// ============ 拖曳幽靈 ============
 function drawDragGhost() {
   if (!drag || !drag.isDragging) return;
 
@@ -2210,28 +2511,40 @@ function drawDragGhost() {
   const size = 70;
   const half = size / 2;
 
-  // 檢查目標
   const targetSpot = findSpotAt(x, y);
   let targetValid = false;
   let targetInvalid = false;
+  let targetSwap = false;
   let targetSpotPos = null;
 
-  if (targetSpot && targetSpot !== drag.spot && targetSpot.tower) {
-    if (canCombine(t, targetSpot.tower)) {
+  if (targetSpot && targetSpot !== drag.spot) {
+    if (!targetSpot.tower) {
+      // 空位 → 移動
+      targetValid = true;
+      targetSpotPos = { x: targetSpot.x, y: targetSpot.y };
+    } else if (canCombine(t, targetSpot.tower)) {
       targetValid = true;
       targetSpotPos = { x: targetSpot.x, y: targetSpot.y };
     } else {
-      targetInvalid = true;
+      // 不可合成但可以交換 → 顯示黃色框
+      targetSwap = true;
       targetSpotPos = { x: targetSpot.x, y: targetSpot.y };
     }
   }
 
-  // 目標框
   if (targetSpotPos) {
     ctx.save();
-    ctx.strokeStyle = targetValid ? '#2ecc71' : '#e74c3c';
+    if (targetValid) {
+      ctx.strokeStyle = '#2ecc71';
+      ctx.shadowColor = '#2ecc71';
+    } else if (targetSwap) {
+      ctx.strokeStyle = '#f1c40f';
+      ctx.shadowColor = '#f1c40f';
+    } else {
+      ctx.strokeStyle = '#e74c3c';
+      ctx.shadowColor = '#e74c3c';
+    }
     ctx.lineWidth = 4;
-    ctx.shadowColor = targetValid ? '#2ecc71' : '#e74c3c';
     ctx.shadowBlur = 12;
     ctx.strokeRect(
       targetSpotPos.x - half - 5,
@@ -2242,7 +2555,7 @@ function drawDragGhost() {
     ctx.restore();
   }
 
-  // 幽靈塔
+  // 幽靈
   ctx.save();
   ctx.globalAlpha = 0.75;
   ctx.translate(x, y);
@@ -2258,19 +2571,9 @@ function drawDragGhost() {
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 2;
   ctx.strokeRect(-half, -half, size, size);
-
-  // 簡易符號
-  ctx.fillStyle = '#000000';
-  ctx.font = `bold ${size * 0.4}px system-ui`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  const symbolMap = {
-    white: '·', green: '●', blue: '◆', purple: '▲',
-    cyan: '✚', orange: '◈', red: '$', gold: '★',
-    silver: 'S', amethyst: '✦', jade: '⬢', magenta: '♥',
-  };
-  ctx.fillText(symbolMap[t.type] || '?', 0, 1);
   ctx.restore();
+
+  drawTowerIcon(t.type, x, y, size);
 }
 
 // ============ 遊戲迴圈 ============
@@ -2280,7 +2583,6 @@ function gameLoop(timestamp) {
   lastTime = timestamp;
 
   hasGoldTower = SPOTS.some(s => s.tower && s.tower.type === 'gold');
-
   recomputeBuffs();
 
   if (!gameOver) {
@@ -2308,11 +2610,8 @@ function gameLoop(timestamp) {
 
     for (const e of enemies) {
       if (!e.alive) {
-        if (e.reachedEnd) {
-          lives -= e.isBoss ? 10 : 1;
-        } else {
-          money += e.isBoss ? 250 : 10;
-        }
+        if (e.reachedEnd) lives -= e.isBoss ? 10 : 1;
+        else money += e.isBoss ? 250 : 10;
         updateUI();
       }
     }
@@ -2331,7 +2630,6 @@ function gameLoop(timestamp) {
   drawPath();
 
   for (const spot of SPOTS) drawSpot(spot);
-
   for (const spot of SPOTS) {
     if (spot.tower) spot.tower.draw();
   }
@@ -2339,7 +2637,6 @@ function gameLoop(timestamp) {
   for (const e of enemies) e.draw();
   for (const b of bullets) b.draw();
 
-  // 拖曳幽靈放最上層
   drawDragGhost();
 
   const boss = enemies.find(e => e.isBoss && e.alive);
