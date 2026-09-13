@@ -1565,8 +1565,11 @@ function createTower(spot, type) {
   return new Tower(spot, type);
 }
 
-// 合成：新塔留在 targetSpot（拖過去的格子）
-function combineTowers(sourceTower, targetTower) {
+// 合成：新塔留在「拖過去的目標格」
+function combineTowers(sourceSpot, targetSpot) {
+  const sourceTower = sourceSpot.tower;
+  const targetTower = targetSpot.tower;
+
   const key1 = sourceTower.type + '+' + targetTower.type;
   const key2 = targetTower.type + '+' + sourceTower.type;
   let resultType;
@@ -1574,14 +1577,12 @@ function combineTowers(sourceTower, targetTower) {
   else if (COMBOS[key2]) resultType = COMBOS[key2]();
   else return false;
 
-  const sourceSpot = sourceTower.spot;
-  const targetSpot = targetTower.spot;
+  // 先清空兩格
   sourceSpot.tower = null;
   targetSpot.tower = null;
 
-  // 新塔放在拖過去的格子
-  const newTower = createTower(targetSpot, resultType);
-  targetSpot.tower = newTower;
+  // 新塔建在目標格（拖過去的那格）
+  targetSpot.tower = createTower(targetSpot, resultType);
 
   if (resultType === 'green' && !unlocked.green) {
     unlocked.green = true;
@@ -1609,7 +1610,6 @@ function combineTowers(sourceTower, targetTower) {
   return true;
 }
 
-// 交換兩格上的塔
 function swapTowers(spotA, spotB) {
   const towerA = spotA.tower;
   const towerB = spotB.tower;
@@ -1619,11 +1619,11 @@ function swapTowers(spotA, spotB) {
   if (towerB) towerB.spot = spotA;
 }
 
-// 移動塔到空格
 function moveTower(fromSpot, toSpot) {
-  toSpot.tower = fromSpot.tower;
-  toSpot.tower.spot = toSpot;
+  const t = fromSpot.tower;
   fromSpot.tower = null;
+  toSpot.tower = t;
+  if (t) t.spot = toSpot;
 }
 
 function combineGold(towerList) {
@@ -1802,29 +1802,27 @@ canvas.addEventListener('pointerup', (e) => {
   const drag = dragState;
   dragState = null;
 
-  // 沒移動：單純點擊
+  // 沒移動 → 單純點擊
   if (!drag.moved) {
     handleTowerClick(drag.tower);
     return;
   }
 
-  // 拖回原格或拖出界：不動
+  // 拖回原格或拖出界 → 不動
   if (!targetSpot || targetSpot === drag.sourceSpot) {
     return;
   }
 
+  const sourceSpot = drag.sourceSpot;
+
   // 拖到有塔的格子
   if (targetSpot.tower) {
-    const a = drag.tower;
-    const b = targetSpot.tower;
-    const key1 = a.type + '+' + b.type;
-    const key2 = b.type + '+' + a.type;
+    const key1 = sourceSpot.tower.type + '+' + targetSpot.tower.type;
+    const key2 = targetSpot.tower.type + '+' + sourceSpot.tower.type;
     if (COMBOS[key1] || COMBOS[key2]) {
-      // 可合成
-      combineTowers(a, b);
+      combineTowers(sourceSpot, targetSpot);
     } else {
-      // 不能合成：交換位置
-      swapTowers(drag.sourceSpot, targetSpot);
+      swapTowers(sourceSpot, targetSpot);
       log('交換位置');
       selectedTower = null;
       updateTowerPanel();
@@ -1832,8 +1830,8 @@ canvas.addEventListener('pointerup', (e) => {
     return;
   }
 
-  // 拖到空格：移動
-  moveTower(drag.sourceSpot, targetSpot);
+  // 拖到空格 → 移動
+  moveTower(sourceSpot, targetSpot);
   selectedTower = null;
   updateTowerPanel();
 });
@@ -2054,14 +2052,14 @@ function drawDragOverlay() {
 
   const targetSpot = findSpotAt(x, y);
   if (targetSpot && targetSpot !== dragState.sourceSpot) {
-    let color = '#2ecc71';   // 預設：空格或可合成 → 綠
+    let color = '#2ecc71';
     if (targetSpot.tower) {
       const a = dragState.tower;
       const b = targetSpot.tower;
       const key1 = a.type + '+' + b.type;
       const key2 = b.type + '+' + a.type;
       if (!COMBOS[key1] && !COMBOS[key2]) {
-        color = '#f1c40f';   // 不能合成，會交換 → 黃
+        color = '#f1c40f';
       }
     }
     ctx.save();
