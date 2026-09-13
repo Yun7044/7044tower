@@ -34,17 +34,39 @@
     white-space: nowrap;
     backdrop-filter: blur(4px);
   }
-  #removeBtn {
-    margin-left: auto; pointer-events: auto;
+  #statsBtn {
+    margin-left: auto;
+    pointer-events: auto;
     background: rgba(12,12,28,0.9);
-    border: 2px solid #555; color: #ccc;
-    border-radius: 8px; padding: 6px 12px;
+    border: 2px solid #555;
+    color: #ccc;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 14px; font-weight: 700;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  #statsBtn.active {
+    background: rgba(241, 196, 15, 0.15);
+    border-color: #ffd700;
+    color: #ffd700;
+    box-shadow: 0 0 12px #ffd70066;
+  }
+  #removeBtn {
+    pointer-events: auto;
+    background: rgba(12,12,28,0.9);
+    border: 2px solid #555;
+    color: #ccc;
+    border-radius: 8px;
+    padding: 6px 12px;
     font-size: 13px; font-weight: 700;
-    cursor: pointer; transition: 0.15s;
+    cursor: pointer;
+    transition: 0.15s;
   }
   #removeBtn.active {
     background: rgba(192, 57, 43, 0.9);
-    border-color: #e74c3c; color: #fff;
+    border-color: #e74c3c;
+    color: #fff;
     box-shadow: 0 0 12px #e74c3c;
   }
 
@@ -82,15 +104,15 @@
     background: #22224a;
   }
   .shop-btn.locked { opacity: 0.3; cursor: not-allowed; }
-  .shop-btn[data-type="white"]    .dot { background: #f0f0f0; }
-  .shop-btn[data-type="green"]    .dot { background: #2ecc71; }
-  .shop-btn[data-type="blue"]     .dot { background: #3498db; }
-  .shop-btn[data-type="purple"]   .dot { background: #9b59b6; }
-  .shop-btn[data-type="orange"]   .dot { background: #e67e22; }
-  .shop-btn[data-type="silver"]   .dot { background: linear-gradient(135deg, #f0f0f0, #808080); }
-  .shop-btn[data-type="amethyst"] .dot { background: #B088FF; }
-  .shop-btn[data-type="jade"]     .dot { background: #66FF66; }
-  .shop-btn[data-type="magenta"]  .dot { background: #FF33CC; }
+  .shop-btn[data-type="white"]     .dot { background: #f0f0f0; }
+  .shop-btn[data-type="green"]     .dot { background: #2ecc71; }
+  .shop-btn[data-type="blue"]      .dot { background: #3498db; }
+  .shop-btn[data-type="purple"]    .dot { background: #9b59b6; }
+  .shop-btn[data-type="orange"]    .dot { background: #e67e22; }
+  .shop-btn[data-type="silver"]    .dot { background: linear-gradient(135deg, #f0f0f0, #808080); }
+  .shop-btn[data-type="amethyst"]  .dot { background: #B088FF; }
+  .shop-btn[data-type="jade"]      .dot { background: #66FF66; }
+  .shop-btn[data-type="magenta"]   .dot { background: #FF33CC; }
   .shop-btn[data-type="fireArrow"] .dot { background: #FF4500; }
 
   @keyframes unlockFlash {
@@ -140,6 +162,73 @@
     overflow: hidden; text-overflow: ellipsis;
   }
   #log.show { opacity: 1; }
+
+  #statsPanel {
+    position: fixed;
+    top: 42px;
+    right: 10px;
+    width: 230px;
+    max-height: 70vh;
+    overflow-y: auto;
+    background: rgba(12, 12, 28, 0.96);
+    border: 2px solid #ffd700;
+    border-radius: 10px;
+    padding: 10px 12px;
+    z-index: 15;
+    box-shadow: 0 0 24px rgba(255, 215, 0, 0.35);
+    font-size: 12px;
+    padding-top: max(10px, calc(env(safe-area-inset-top) + 40px));
+  }
+  #statsPanel.hidden { display: none; }
+  #statsPanel .stats-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffd700;
+    margin-bottom: 8px;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+  #statsPanel .stats-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    border-bottom: 1px solid #1a1a2e;
+  }
+  #statsPanel .stats-row:last-child { border-bottom: none; }
+  #statsPanel .stats-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex: 0 0 auto;
+    border: 1px solid #00000055;
+  }
+  #statsPanel .stats-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #statsPanel .stats-num {
+    color: #ffd700;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  #statsPanel .stats-pct {
+    color: #888;
+    font-size: 10px;
+    width: 38px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  #statsPanel .stats-total {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 2px solid #ffd70055;
+    font-weight: 700;
+    text-align: right;
+    color: #ffd700;
+  }
 
   #bossBar {
     position: fixed; top: 42px; left: 50%;
@@ -244,7 +333,14 @@
   <div class="stat">❤️ <span id="lives">20</span></div>
   <div class="stat">🌊 <span id="wave">0</span></div>
   <div class="stat">🏗 <span id="towerCount">0</span>/15</div>
+  <button id="statsBtn">📊</button>
   <button id="removeBtn">🗑 撤塔</button>
+</div>
+
+<div id="statsPanel" class="hidden">
+  <div class="stats-title">📊 傷害統計</div>
+  <div id="statsList"></div>
+  <div class="stats-total">總計：<span id="statsTotal">0</span></div>
 </div>
 
 <div id="bossBar">
@@ -446,7 +542,6 @@ const TOWER_TYPES = {
     damage: 1.25,
     fireIntervalNormal: 10,
     fireIntervalBoss: 0.01,
-    antiBossMultiplier: 1, // 對 boss 不加倍，靠爆擊
   },
 };
 
@@ -481,6 +576,13 @@ const GOLD_RECIPE = ['white', 'green', 'blue', 'purple', 'orange', 'red'];
 
 let drag = null;
 
+// ============ 傷害統計 ============
+let damageStats = {};
+function addDamage(type, amount) {
+  if (!amount || amount <= 0) return;
+  damageStats[type] = (damageStats[type] || 0) + amount;
+}
+
 // ============ DOM ============
 const moneyEl = document.getElementById('money');
 const livesEl = document.getElementById('lives');
@@ -498,6 +600,10 @@ const towerName = document.getElementById('towerName');
 const towerStats = document.getElementById('towerStats');
 const upgradeBtn = document.getElementById('upgradeBtn');
 const removeBtn = document.getElementById('removeBtn');
+const statsBtn = document.getElementById('statsBtn');
+const statsPanel = document.getElementById('statsPanel');
+const statsList = document.getElementById('statsList');
+const statsTotal = document.getElementById('statsTotal');
 
 let logTimer = null;
 function log(msg, ms = 2200) {
@@ -585,7 +691,6 @@ function updateTowerPanel() {
   }
 
   if (selectedTower.type === 'fireArrow') {
-    const t = selectedTower;
     const hasBoss = enemies.some(e => e.isBoss && e.alive);
     const mode = hasBoss ? '格林機槍模式' : '待機模式';
     const rate = hasBoss ? '100 發/秒' : '每 10 秒 1 發';
@@ -671,6 +776,7 @@ class Enemy {
     const actual = amount * (1 - this.damageReduction);
     this.hp -= actual;
     if (this.hp <= 0) this.alive = false;
+    return actual;
   }
 
   update(dt) {
@@ -779,9 +885,7 @@ class Enemy {
 
 // ============ 塔的圖案繪製 ============
 function drawTowerIcon(type, x, y, size) {
-  const half = size / 2;
   ctx.save();
-
   switch (type) {
     case 'white':
       ctx.fillStyle = '#555';
@@ -958,26 +1062,20 @@ function drawTowerIcon(type, x, y, size) {
       break;
     }
   }
-
   ctx.restore();
 }
 
-// ============ 星星等級繪製 ============
+// ============ 星星等級 ============
 function drawLevelStars(level, x, y, size) {
   if (level <= 1) return;
 
   let stars = [];
-  let emoji = '';
-
   if (level <= 3) {
-    emoji = '⭐';
-    stars = new Array(level).fill(emoji);
+    stars = new Array(level).fill('⭐');
   } else if (level <= 6) {
-    emoji = '🌟';
-    stars = new Array(level - 3).fill(emoji);
+    stars = new Array(level - 3).fill('🌟');
   } else {
-    emoji = '💫';
-    stars = [emoji, emoji]; // 固定兩顆
+    stars = ['💫', '💫'];
   }
 
   const fontSize = size * 0.4;
@@ -1090,10 +1188,8 @@ class Tower {
       (this.type === 'cyan' ? '#7ff7ff' : '#00000066');
     ctx.lineWidth = 2;
     ctx.strokeRect(-half, -half, size, size);
-
     ctx.restore();
 
-    // 中心圖案
     drawTowerIcon(this.type, x, y, size);
   }
 
@@ -1162,7 +1258,6 @@ class Tower {
       }
     }
 
-    // 星星等級
     drawLevelStars(this.level, x, y - half - 12, size);
 
     if (this.hastedTimer > 0) {
@@ -1327,7 +1422,6 @@ class SilverTower {
       ctx.restore();
     }
 
-    // 銀塔顯示等級數字（因為它的等級是動態的，用數字比較清楚）
     if (this.level > 1) {
       ctx.save();
       ctx.fillStyle = '#ffd700';
@@ -1391,7 +1485,10 @@ class BeamTower {
     this.beamTargets = this.beamTargets.filter(e => e.alive);
 
     const dpsMult = this.hastedTimer > 0 ? 3 : 1;
-    for (const target of this.beamTargets) target.takeDamage(this.dps * dt * dpsMult);
+    for (const target of this.beamTargets) {
+      const actual = target.takeDamage(this.dps * dt * dpsMult);
+      addDamage('orange', actual);
+    }
   }
 
   pickRandom(n) {
@@ -1420,7 +1517,6 @@ class BeamTower {
 
     drawTowerIcon('orange', x, y, size);
 
-    // 核心光點
     ctx.save();
     const glow = 0.6 + 0.4 * Math.sin(this.pulse * 8);
     ctx.fillStyle = `rgba(255, 220, 120, ${glow * 0.6})`;
@@ -1750,7 +1846,6 @@ class FireArrowTower {
   }
 
   applyHaste(duration) {
-    // 火矢塔本身不吃攻速 buff（它已經很快了），但記錄一下避免報錯
     this.hastedTimer = duration;
   }
 
@@ -1758,7 +1853,6 @@ class FireArrowTower {
     this.pulse += dt;
     this.fireFlash = Math.max(0, this.fireFlash - dt * 20);
 
-    // 更新光束
     for (const b of this.beams) b.timer -= dt;
     this.beams = this.beams.filter(b => b.timer > 0 && b.target && b.target.alive);
 
@@ -1775,11 +1869,9 @@ class FireArrowTower {
   }
 
   findTarget() {
-    // 有 boss 優先打 boss
     for (const e of enemies) {
       if (e.alive && e.isBoss) return e;
     }
-    // 沒 boss 打最近的
     let best = null;
     let bestDist = Infinity;
     for (const e of enemies) {
@@ -1793,10 +1885,9 @@ class FireArrowTower {
 
   fireAt(target) {
     let dmg = this.damage;
-    if (this.critRate > 0 && Math.random() < this.critRate) {
-      dmg *= this.critDamage;
-    }
-    target.takeDamage(dmg);
+    if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
+    const actual = target.takeDamage(dmg);
+    addDamage('fireArrow', actual);
     this.fireFlash = 1;
     this.beams.push({ target, timer: 0.06 });
   }
@@ -1804,7 +1895,6 @@ class FireArrowTower {
   drawBody(x, y, alpha = 1) {
     const size = 70;
     const half = size / 2;
-
     const hasBoss = enemies.some(e => e.isBoss && e.alive);
 
     ctx.save();
@@ -1834,7 +1924,6 @@ class FireArrowTower {
 
     drawTowerIcon('fireArrow', x, y, size);
 
-    // Boss 模式發光
     if (hasBoss) {
       ctx.save();
       const glow = 0.6 + 0.4 * Math.sin(this.pulse * 20);
@@ -1882,7 +1971,6 @@ class FireArrowTower {
     const isDragging = drag && drag.tower === this && drag.isDragging;
     if (!isDragging) this.drawBody(x, y, 1);
 
-    // 光束
     if (!isDragging) {
       ctx.save();
       ctx.shadowColor = '#FF4500';
@@ -1914,6 +2002,7 @@ class Bullet {
     this.alive = true;
     this.speed = 600;
     this.color = tower.config.color;
+    this.towerType = tower.type;
 
     this.damage = tower.damage;
     this.killChance = tower.killChance || 0;
@@ -1940,8 +2029,10 @@ class Bullet {
         const procsKill = this.killChance > 0 && Math.random() < this.killChance;
         if (procsKill) {
           if (this.target.isBoss) {
-            this.target.takeDamage(this.target.maxHp * 0.01);
+            const d = this.target.takeDamage(this.target.maxHp * 0.01);
+            addDamage(this.towerType, d);
           } else {
+            addDamage(this.towerType, this.target.hp);
             this.target.hp = 0;
             this.target.alive = false;
           }
@@ -1949,7 +2040,8 @@ class Bullet {
           let dmg = this.damage;
           if (this.target.isBoss && this.antiBossMultiplier) dmg *= this.antiBossMultiplier;
           if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
-          this.target.takeDamage(dmg);
+          const actual = this.target.takeDamage(dmg);
+          addDamage(this.towerType, actual);
         }
         if (this.slowFactor !== undefined) {
           this.target.slowFactor = this.slowFactor;
@@ -1980,6 +2072,7 @@ class SilverBullet {
     this.alive = true;
     this.speed = 900;
     this.color = '#e0e0e0';
+    this.towerType = 'silver';
     this.damage = tower.config.baseDamage * (1 + (tower.level - 1) * 0.25);
     this.critRate = tower.critRate || 0;
     this.critDamage = tower.critDamage || 2.0;
@@ -1998,7 +2091,8 @@ class SilverBullet {
     if (dist <= move) {
       let dmg = this.damage;
       if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
-      this.target.takeDamage(dmg);
+      const actual = this.target.takeDamage(dmg);
+      addDamage(this.towerType, actual);
       this.alive = false;
     } else {
       this.x += (dx / dist) * move;
@@ -2284,15 +2378,12 @@ canvas.addEventListener('pointerup', (e) => {
       const b = targetSpot.tower;
 
       if (!b) {
-        // 目標空 → 移動
         aSpot.tower = null;
         targetSpot.tower = a;
         a.spot = targetSpot;
       } else if (canCombine(a, b)) {
-        // 可合成 → 合成
         combineTowers(a, b);
       } else {
-        // 不可合成 → 交換
         aSpot.tower = b;
         targetSpot.tower = a;
         a.spot = targetSpot;
@@ -2360,6 +2451,58 @@ removeBtn.addEventListener('pointerdown', (e) => {
 upgradeBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   if (selectedTower) upgradeTower(selectedTower);
+}, { passive: false });
+
+// ============ 傷害統計面板 ============
+let statsVisible = false;
+
+function formatNum(n) {
+  n = Math.floor(n);
+  if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return n.toString();
+}
+
+function renderStats() {
+  if (!statsVisible) return;
+
+  const entries = Object.entries(damageStats)
+    .filter(([_, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1]);
+
+  const total = entries.reduce((sum, [_, v]) => sum + v, 0);
+
+  if (entries.length === 0) {
+    statsList.innerHTML = '<div style="color:#666;text-align:center;padding:12px 0;">還沒有傷害紀錄</div>';
+    statsTotal.textContent = '0';
+    return;
+  }
+
+  let html = '';
+  for (const [type, dmg] of entries) {
+    const cfg = TOWER_TYPES[type];
+    const name = cfg ? cfg.name : type;
+    const color = cfg ? cfg.color : '#666';
+    const pct = ((dmg / total) * 100).toFixed(1);
+    html += `
+      <div class="stats-row">
+        <div class="stats-dot" style="background:${color};"></div>
+        <div class="stats-name">${name}</div>
+        <div class="stats-num">${formatNum(dmg)}</div>
+        <div class="stats-pct">${pct}%</div>
+      </div>
+    `;
+  }
+  statsList.innerHTML = html;
+  statsTotal.textContent = formatNum(total);
+}
+
+statsBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  statsVisible = !statsVisible;
+  statsPanel.classList.toggle('hidden', !statsVisible);
+  statsBtn.classList.toggle('active', statsVisible);
+  if (statsVisible) renderStats();
 }, { passive: false });
 
 // ============ 背景 ============
@@ -2513,20 +2656,17 @@ function drawDragGhost() {
 
   const targetSpot = findSpotAt(x, y);
   let targetValid = false;
-  let targetInvalid = false;
   let targetSwap = false;
   let targetSpotPos = null;
 
   if (targetSpot && targetSpot !== drag.spot) {
     if (!targetSpot.tower) {
-      // 空位 → 移動
       targetValid = true;
       targetSpotPos = { x: targetSpot.x, y: targetSpot.y };
     } else if (canCombine(t, targetSpot.tower)) {
       targetValid = true;
       targetSpotPos = { x: targetSpot.x, y: targetSpot.y };
     } else {
-      // 不可合成但可以交換 → 顯示黃色框
       targetSwap = true;
       targetSpotPos = { x: targetSpot.x, y: targetSpot.y };
     }
@@ -2555,7 +2695,6 @@ function drawDragGhost() {
     ctx.restore();
   }
 
-  // 幽靈
   ctx.save();
   ctx.globalAlpha = 0.75;
   ctx.translate(x, y);
@@ -2577,6 +2716,8 @@ function drawDragGhost() {
 }
 
 // ============ 遊戲迴圈 ============
+let statsTimer = 0;
+
 function gameLoop(timestamp) {
   if (!lastTime) lastTime = timestamp;
   const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
@@ -2625,6 +2766,13 @@ function gameLoop(timestamp) {
   }
 
   updateTowerPanel();
+
+  // 統計面板每 200ms 更新一次
+  statsTimer += dt;
+  if (statsTimer > 0.2) {
+    statsTimer = 0;
+    renderStats();
+  }
 
   drawBackground();
   drawPath();
