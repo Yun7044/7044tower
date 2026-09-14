@@ -14,7 +14,13 @@
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
-  #game { position: fixed; display: block; }
+  #game {
+    position: fixed;
+    display: block;
+    touch-action: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
 
   #topBar {
     position: fixed;
@@ -68,6 +74,18 @@
     border-color: #e74c3c;
     color: #e74c3c;
     box-shadow: 0 0 12px #e74c3c66;
+  }
+  #musicBtn.active {
+    background: rgba(52, 152, 219, 0.15);
+    border-color: #3498db;
+    color: #3498db;
+    box-shadow: 0 0 12px #3498db66;
+  }
+  #emuBtn.active {
+    background: rgba(155, 89, 182, 0.15);
+    border-color: #9b59b6;
+    color: #9b59b6;
+    box-shadow: 0 0 12px #9b59b666;
   }
   #removeBtn.active {
     background: rgba(192, 57, 43, 0.9);
@@ -388,7 +406,9 @@
   <div class="stat">❤️ <span id="lives">20</span></div>
   <div class="stat">🌊 <span id="wave">0</span></div>
   <div class="stat">🏗 <span id="towerCount">0</span>/15</div>
+  <button id="emuBtn" class="topBtn">🖱</button>
   <button id="speedBtn" class="topBtn">⏩ x1</button>
+  <button id="musicBtn" class="topBtn">🎵</button>
   <button id="muteBtn" class="topBtn">🔊</button>
   <button id="statsBtn" class="topBtn">📊</button>
   <button id="removeBtn" class="topBtn">🗑</button>
@@ -480,17 +500,34 @@ resize();
 // ============ 音效系統 ============
 let audioCtx = null;
 let muted = false;
+let musicEnabled = true;
+let musicStarted = false;
+let musicGain = null;
 
 function initAudio() {
   if (!audioCtx) {
     try {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      musicGain = audioCtx.createGain();
+      musicGain.gain.value = 0.35;
+      musicGain.connect(audioCtx.destination);
+      console.log('[音效] AudioContext 建立, state =', audioCtx.state);
     } catch (e) {
+      console.error('[音效] AudioContext 建立失敗:', e);
       audioCtx = null;
     }
   }
   if (audioCtx && audioCtx.state === 'suspended') {
-    audioCtx.resume();
+    audioCtx.resume().then(() => {
+      console.log('[音效] AudioContext 已 resume');
+      if (musicEnabled && !musicStarted) {
+        musicStarted = true;
+        startBgm();
+      }
+    }).catch(() => {});
+  } else if (audioCtx && audioCtx.state === 'running' && musicEnabled && !musicStarted) {
+    musicStarted = true;
+    startBgm();
   }
 }
 
@@ -501,7 +538,7 @@ function playTone(opts) {
     slideTo = null,
     duration = 0.1,
     type = 'sine',
-    volume = 0.15,
+    volume = 0.3,
     delay = 0,
   } = opts;
 
@@ -526,7 +563,6 @@ function playTone(opts) {
   } catch (e) {}
 }
 
-// 節流器：避免同一種音效在一瞬間播太多次
 const throttleMap = {};
 function throttled(key, ms, fn) {
   const now = performance.now();
@@ -535,58 +571,166 @@ function throttled(key, ms, fn) {
   fn();
 }
 
-// ===== 各音效 =====
+// ===== 遊戲音效 =====
 function sfxShoot() {
   throttled('shoot', 60, () => {
-    playTone({ freq: 900, duration: 0.04, type: 'square', volume: 0.03 });
+    playTone({ freq: 900, duration: 0.05, type: 'square', volume: 0.18 });
   });
 }
 
 function sfxHit() {
   throttled('hit', 80, () => {
-    playTone({ freq: 250, slideTo: 120, duration: 0.06, type: 'triangle', volume: 0.05 });
+    playTone({ freq: 250, slideTo: 120, duration: 0.08, type: 'triangle', volume: 0.25 });
   });
 }
 
 function sfxPlace() {
-  playTone({ freq: 500, slideTo: 900, duration: 0.15, type: 'sine', volume: 0.15 });
+  playTone({ freq: 500, slideTo: 900, duration: 0.15, type: 'sine', volume: 0.4 });
 }
 
 function sfxRemove() {
-  playTone({ freq: 500, slideTo: 200, duration: 0.2, type: 'sawtooth', volume: 0.12 });
+  playTone({ freq: 500, slideTo: 200, duration: 0.2, type: 'sawtooth', volume: 0.35 });
 }
 
 function sfxCombine() {
-  playTone({ freq: 523, duration: 0.1, type: 'sine', volume: 0.15, delay: 0 });
-  playTone({ freq: 659, duration: 0.1, type: 'sine', volume: 0.15, delay: 0.06 });
-  playTone({ freq: 784, duration: 0.18, type: 'sine', volume: 0.18, delay: 0.12 });
+  playTone({ freq: 523, duration: 0.1, type: 'sine', volume: 0.4, delay: 0 });
+  playTone({ freq: 659, duration: 0.1, type: 'sine', volume: 0.4, delay: 0.06 });
+  playTone({ freq: 784, duration: 0.18, type: 'sine', volume: 0.45, delay: 0.12 });
 }
 
 function sfxUpgrade() {
-  playTone({ freq: 600, slideTo: 1300, duration: 0.2, type: 'sine', volume: 0.15 });
+  playTone({ freq: 600, slideTo: 1300, duration: 0.2, type: 'sine', volume: 0.4 });
 }
 
 function sfxCoin() {
   throttled('coin', 120, () => {
-    playTone({ freq: 1300, duration: 0.06, type: 'sine', volume: 0.07 });
+    playTone({ freq: 1300, duration: 0.08, type: 'sine', volume: 0.2 });
   });
 }
 
 function sfxBoss() {
-  playTone({ freq: 110, slideTo: 55, duration: 1.0, type: 'sawtooth', volume: 0.2 });
-  playTone({ freq: 220, slideTo: 110, duration: 0.8, type: 'triangle', volume: 0.12, delay: 0.1 });
+  playTone({ freq: 110, slideTo: 55, duration: 1.0, type: 'sawtooth', volume: 0.5 });
+  playTone({ freq: 220, slideTo: 110, duration: 0.8, type: 'triangle', volume: 0.3, delay: 0.1 });
 }
 
 function sfxGold() {
-  playTone({ freq: 392, duration: 0.15, type: 'sine', volume: 0.18, delay: 0 });
-  playTone({ freq: 523, duration: 0.15, type: 'sine', volume: 0.18, delay: 0.1 });
-  playTone({ freq: 659, duration: 0.15, type: 'sine', volume: 0.18, delay: 0.2 });
-  playTone({ freq: 784, duration: 0.4, type: 'sine', volume: 0.22, delay: 0.3 });
+  playTone({ freq: 392, duration: 0.15, type: 'sine', volume: 0.45, delay: 0 });
+  playTone({ freq: 523, duration: 0.15, type: 'sine', volume: 0.45, delay: 0.1 });
+  playTone({ freq: 659, duration: 0.15, type: 'sine', volume: 0.45, delay: 0.2 });
+  playTone({ freq: 784, duration: 0.4, type: 'sine', volume: 0.5, delay: 0.3 });
 }
 
 function sfxGameOver() {
-  playTone({ freq: 400, slideTo: 80, duration: 1.5, type: 'sawtooth', volume: 0.2 });
+  playTone({ freq: 400, slideTo: 80, duration: 1.5, type: 'sawtooth', volume: 0.5 });
 }
+
+// ============ 背景音樂（程序生成） ============
+const BGM_TEMPO = 0.32;        // 每個 8 分音符的秒數（約 94 BPM）
+const BGM_LOOKAHEAD = 0.12;    // 提前排程的秒數
+const BGM_INTERVAL = 25;       // 排程檢查頻率（毫秒）
+
+// 音名 → 頻率
+const NOTES = {
+  A2: 110.00, F2: 87.31, C3: 130.81, G2: 98.00,
+  A3: 220.00, C4: 261.63, E4: 329.63, G4: 392.00, B4: 493.88,
+  F3: 174.61, D4: 293.66, D5: 587.33, F4: 349.23, G3: 196.00,
+};
+
+// 主旋律：4 個小節，每小節 8 個 8 分音符
+// Am - F - C - G 進行（經典和聲）
+const BGM_MELODY = [
+  // Bar 1 (Am)
+  'A3','E4','A3','E4','A3','E4','A3','E4',
+  // Bar 2 (F)
+  'F3','C4','F3','C4','F3','C4','F3','C4',
+  // Bar 3 (C)
+  'C4','G4','C4','G4','C4','G4','C4','G4',
+  // Bar 4 (G)
+  'G3','D4','G3','D4','G3','D4','G3','D4',
+];
+
+// 低音：每小節一個音
+const BGM_BASS = ['A2', 'F2', 'C3', 'G2'];
+
+let bgmPlaying = false;
+let bgmTimer = null;
+let bgmNextTime = 0;
+let bgmStep = 0;
+
+function scheduleBgmNote(freq, time, duration, volume, type) {
+  if (!audioCtx || !musicGain) return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = type || 'triangle';
+    osc.frequency.setValueAtTime(freq, time);
+
+    gain.gain.setValueAtTime(0, time);
+    gain.gain.linearRampToValueAtTime(volume, time + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+    osc.connect(gain);
+    gain.connect(musicGain);
+    osc.start(time);
+    osc.stop(time + duration + 0.05);
+  } catch (e) {}
+}
+
+function bgmScheduler() {
+  if (!audioCtx || !bgmPlaying) return;
+  if (document.hidden) return;
+
+  const horizon = audioCtx.currentTime + BGM_LOOKAHEAD;
+
+  while (bgmNextTime < horizon) {
+    const step = bgmStep % 32;
+    const bar = Math.floor(step / 8);
+
+    // 主旋律
+    const melodyNote = BGM_MELODY[step];
+    if (melodyNote && NOTES[melodyNote]) {
+      scheduleBgmNote(NOTES[melodyNote], bgmNextTime, 0.45, 0.28, 'triangle');
+    }
+
+    // 低音：每小節第 0 和第 4 拍
+    if (step % 4 === 0) {
+      const bassNote = BGM_BASS[bar];
+      if (bassNote && NOTES[bassNote]) {
+        scheduleBgmNote(NOTES[bassNote], bgmNextTime, 1.2, 0.45, 'sine');
+      }
+    }
+
+    bgmNextTime += BGM_TEMPO;
+    bgmStep++;
+  }
+}
+
+function startBgm() {
+  if (bgmPlaying || !audioCtx || muted) return;
+  bgmPlaying = true;
+  bgmNextTime = audioCtx.currentTime + 0.1;
+  bgmStep = 0;
+  if (bgmTimer) clearInterval(bgmTimer);
+  bgmTimer = setInterval(bgmScheduler, BGM_INTERVAL);
+  console.log('[音樂] 開始播放');
+}
+
+function stopBgm() {
+  if (!bgmPlaying) return;
+  bgmPlaying = false;
+  if (bgmTimer) clearInterval(bgmTimer);
+  bgmTimer = null;
+  console.log('[音樂] 停止播放');
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopBgm();
+  } else if (musicEnabled && !muted && musicStarted) {
+    startBgm();
+  }
+});
 
 // ============ 塔位 ============
 const ROW_Y = [80, 240, 400];
@@ -758,6 +902,8 @@ let comboSequence = [];
 const GOLD_RECIPE = ['white', 'green', 'blue', 'purple', 'orange', 'red'];
 
 let drag = null;
+let inputMode = 'pointer';
+let lastDownTime = 0;
 
 // ============ 傷害統計 ============
 let damageStats = {};
@@ -789,6 +935,8 @@ const statsList = document.getElementById('statsList');
 const statsTotal = document.getElementById('statsTotal');
 const speedBtn = document.getElementById('speedBtn');
 const muteBtn = document.getElementById('muteBtn');
+const musicBtn = document.getElementById('musicBtn');
+const emuBtn = document.getElementById('emuBtn');
 const restartBtn = document.getElementById('restartBtn');
 const confirmModal = document.getElementById('confirmModal');
 const cancelRestart = document.getElementById('cancelRestart');
@@ -827,7 +975,6 @@ function previewLine(label, cur, next, unit = '', digits = 1) {
   }
   const diff = next - cur;
   const sign = diff > 0 ? '+' : '';
-  const arrow = diff > 0 ? '↑' : '↓';
   return `${label}：${curStr} → ${fmt(next, digits)}${unit} <span class="up">(${sign}${fmt(diff, digits)})</span>`;
 }
 
@@ -863,12 +1010,8 @@ function getTowerPreviewHTML(tower) {
     const nextDps = cfg.dps * Math.pow(1.5, nl - 1);
     const curBeams = cfg.beamCount + (lv - 1);
     const nextBeams = cfg.beamCount + (nl - 1);
-    lines.push(maxed
-      ? `DPS：${fmt(curDps, 0)}（MAX）`
-      : previewLine('DPS', curDps, nextDps, '', 0));
-    lines.push(maxed
-      ? `目標數：${curBeams}`
-      : previewLine('目標數', curBeams, nextBeams, '', 0));
+    lines.push(maxed ? `DPS：${fmt(curDps, 0)}（MAX）` : previewLine('DPS', curDps, nextDps, '', 0));
+    lines.push(maxed ? `目標數：${curBeams}` : previewLine('目標數', curBeams, nextBeams, '', 0));
     return lines.join('\n');
   }
 
@@ -998,11 +1141,7 @@ function saveGame() {
     for (let i = 0; i < SPOTS.length; i++) {
       const s = SPOTS[i];
       if (s.tower) {
-        towerData.push({
-          idx: i,
-          type: s.tower.type,
-          level: s.tower.level,
-        });
+        towerData.push({ idx: i, type: s.tower.type, level: s.tower.level });
       }
     }
     const data = {
@@ -1469,7 +1608,6 @@ class Tower {
   fire(target) {
     this.fireFlash = 1;
     bullets.push(new Bullet(this, target));
-    // 只有非高速塔播射擊音，避免噪音
     if (this.type !== 'blue') sfxShoot();
   }
 
@@ -1648,7 +1786,6 @@ class SilverTower {
   fire(targets) {
     this.fireFlash = 1;
     for (const target of targets) bullets.push(new SilverBullet(this, target));
-    // 銀塔不播射擊音，因為太快會很吵
   }
 
   drawBody(x, y, alpha = 1) {
@@ -2202,7 +2339,6 @@ class FireArrowTower {
     addDamage('fireArrow', actual);
     this.fireFlash = 1;
     this.beams.push({ target, timer: 0.06 });
-    // 火矢塔在 Boss 模式一秒 100 發，不播聲音避免噪音
   }
 
   drawBody(x, y, alpha = 1) {
@@ -2608,12 +2744,16 @@ function handleTowerTap(tower) {
   updateTowerPanel();
 }
 
-// ============ 指標事件 ============
-canvas.addEventListener('pointerdown', (e) => {
+// ============ 輸入處理 ============
+function startDragAt(x, y) {
   if (gameOver) return;
-  e.preventDefault();
   initAudio();
-  const pos = getPointerPos(e);
+
+  const rect = canvas.getBoundingClientRect();
+  const pos = {
+    x: (x - rect.left) * (BASE_W / rect.width),
+    y: (y - rect.top) * (BASE_H / rect.height),
+  };
   const spot = findSpotAt(pos.x, pos.y);
 
   if (!spot) {
@@ -2654,6 +2794,32 @@ canvas.addEventListener('pointerdown', (e) => {
   }
 
   if (spot.tower) {
+    if (inputMode === 'mouse') {
+      if (selectedTower && selectedTower !== spot.tower) {
+        const a = selectedTower;
+        const b = spot.tower;
+        if (canCombine(a, b)) {
+          combineTowers(a, b);
+          selectedTower = null;
+          return;
+        } else {
+          const aSpot = a.spot;
+          const bSpot = b.spot;
+          aSpot.tower = b;
+          bSpot.tower = a;
+          a.spot = bSpot;
+          b.spot = aSpot;
+          sfxPlace();
+          saveGame();
+          selectedTower = null;
+          updateTowerPanel();
+          return;
+        }
+      }
+      handleTowerTap(spot.tower);
+      return;
+    }
+
     drag = {
       tower: spot.tower,
       spot: spot,
@@ -2662,39 +2828,43 @@ canvas.addEventListener('pointerdown', (e) => {
       currentX: pos.x,
       currentY: pos.y,
       isDragging: false,
-      pointerId: e.pointerId,
     };
-    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
   } else {
     selectedTower = null;
     comboSequence = [];
     updateTowerPanel();
   }
-}, { passive: false });
+}
 
-canvas.addEventListener('pointermove', (e) => {
+function moveDragTo(x, y) {
   if (!drag) return;
-  e.preventDefault();
-  const pos = getPointerPos(e);
+  const rect = canvas.getBoundingClientRect();
+  const pos = {
+    x: (x - rect.left) * (BASE_W / rect.width),
+    y: (y - rect.top) * (BASE_H / rect.height),
+  };
   drag.currentX = pos.x;
   drag.currentY = pos.y;
 
   if (!drag.isDragging) {
     const dx = pos.x - drag.startX;
     const dy = pos.y - drag.startY;
-    if (Math.hypot(dx, dy) > 12) {
+    if (Math.hypot(dx, dy) > 8) {
       drag.isDragging = true;
       selectedTower = null;
       comboSequence = [];
       updateTowerPanel();
     }
   }
-}, { passive: false });
+}
 
-canvas.addEventListener('pointerup', (e) => {
+function endDragAt(x, y) {
   if (!drag) return;
-  e.preventDefault();
-  const pos = getPointerPos(e);
+  const rect = canvas.getBoundingClientRect();
+  const pos = {
+    x: (x - rect.left) * (BASE_W / rect.width),
+    y: (y - rect.top) * (BASE_H / rect.height),
+  };
 
   if (drag.isDragging) {
     const targetSpot = findSpotAt(pos.x, pos.y);
@@ -2725,9 +2895,56 @@ canvas.addEventListener('pointerup', (e) => {
   }
 
   drag = null;
+}
+
+// 觸控模式（pointer events）
+canvas.addEventListener('pointerdown', (e) => {
+  if (inputMode !== 'pointer') return;
+  e.preventDefault();
+  const now = performance.now();
+  if (now - lastDownTime < 60) return;
+  lastDownTime = now;
+  startDragAt(e.clientX, e.clientY);
 }, { passive: false });
 
-canvas.addEventListener('pointercancel', () => { drag = null; });
+document.addEventListener('pointermove', (e) => {
+  if (inputMode !== 'pointer') return;
+  if (!drag) return;
+  moveDragTo(e.clientX, e.clientY);
+}, { passive: false });
+
+document.addEventListener('pointerup', (e) => {
+  if (inputMode !== 'pointer') return;
+  if (!drag) return;
+  endDragAt(e.clientX, e.clientY);
+}, { passive: false });
+
+document.addEventListener('pointercancel', () => {
+  if (inputMode !== 'pointer') return;
+  drag = null;
+});
+
+// 滑鼠模式（模擬器友好）
+canvas.addEventListener('mousedown', (e) => {
+  if (inputMode !== 'mouse') return;
+  e.preventDefault();
+  const now = performance.now();
+  if (now - lastDownTime < 60) return;
+  lastDownTime = now;
+  startDragAt(e.clientX, e.clientY);
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (inputMode !== 'mouse') return;
+  if (!drag) return;
+  moveDragTo(e.clientX, e.clientY);
+});
+
+document.addEventListener('mouseup', (e) => {
+  if (inputMode !== 'mouse') return;
+  if (!drag) return;
+  endDragAt(e.clientX, e.clientY);
+});
 
 // ============ 商店 ============
 document.querySelectorAll('.shop-btn').forEach(btn => {
@@ -2803,6 +3020,37 @@ muteBtn.addEventListener('pointerdown', (e) => {
   muted = !muted;
   muteBtn.textContent = muted ? '🔇' : '🔊';
   muteBtn.classList.toggle('active', muted);
+  if (muted) {
+    stopBgm();
+  } else if (musicEnabled && musicStarted) {
+    startBgm();
+  }
+}, { passive: false });
+
+// ============ 音樂切換 ============
+musicBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  initAudio();
+  musicEnabled = !musicEnabled;
+  musicBtn.classList.toggle('active', !musicEnabled);
+  musicBtn.textContent = musicEnabled ? '🎵' : '🎵̸';
+  if (musicEnabled && !muted) {
+    musicStarted = true;
+    startBgm();
+  } else {
+    stopBgm();
+  }
+}, { passive: false });
+
+// ============ 模擬器模式切換 ============
+emuBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  initAudio();
+  inputMode = inputMode === 'pointer' ? 'mouse' : 'pointer';
+  emuBtn.classList.toggle('active', inputMode === 'mouse');
+  emuBtn.textContent = inputMode === 'mouse' ? '🖱✓' : '🖱';
+  drag = null;
+  log(inputMode === 'mouse' ? '滑鼠模式：點塔再點目標' : '觸控模式：拖曳合成');
 }, { passive: false });
 
 // ============ 重新開始 ============
@@ -3142,6 +3390,7 @@ function gameLoop(timestamp) {
       gameOver = true;
       clearSave();
       sfxGameOver();
+      stopBgm();
       setTimeout(() => alert('遊戲結束！重新整理頁面再來一次。'), 50);
     }
 
