@@ -514,6 +514,158 @@
     background: linear-gradient(135deg, #ffd700, #ff8800);
     color: #0a0a14; letter-spacing: 2px;
   }
+
+   /* ===== 新手教學 ===== */
+  #tutorialOverlay {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.72);
+    z-index: 500;
+    display: none;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 20px 16px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    backdrop-filter: blur(3px);
+  }
+  #tutorialOverlay.show { display: flex; }
+
+  #tutorialBox {
+    background: linear-gradient(180deg, #1a1a3a 0%, #08081a 100%);
+    border: 3px solid #ffd700;
+    border-radius: 16px;
+    padding: 16px 20px 18px;
+    max-width: 720px;
+    margin: 0 auto;
+    width: 100%;
+    display: flex;
+    gap: 14px;
+    box-shadow:
+      0 0 30px rgba(255, 215, 0, 0.4),
+      0 0 60px rgba(255, 215, 0, 0.15),
+      inset 0 0 20px rgba(255, 215, 0, 0.05);
+    position: relative;
+    animation: tutorialEnter 0.35s ease-out;
+  }
+  @keyframes tutorialEnter {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  #tutorialAvatar {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ffd700, #ff8800);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    flex-shrink: 0;
+    border: 2px solid #ffd700;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+    animation: avatarPulse 2s ease-in-out infinite;
+  }
+  @keyframes avatarPulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6); }
+    50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.9); }
+  }
+
+  #tutorialContent {
+    flex: 1;
+    position: relative;
+    min-width: 0;
+  }
+
+  #tutorialName {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffd700;
+    letter-spacing: 3px;
+    margin-bottom: 8px;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  }
+
+  #tutorialText {
+    font-size: 14px;
+    line-height: 1.75;
+    color: #f0f0f0;
+    min-height: 72px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  #tutorialIndicator {
+    position: absolute;
+    bottom: -14px;
+    right: 0;
+    font-size: 18px;
+    color: #ffd700;
+    animation: bounceInd 1s ease-in-out infinite;
+    display: none;
+    filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.8));
+  }
+  @keyframes bounceInd {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+
+  #tutorialProgress {
+    position: absolute;
+    top: -12px;
+    right: 0;
+    font-size: 11px;
+    color: #555;
+    letter-spacing: 1px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #tutorialSkip {
+    position: absolute;
+    top: -14px;
+    right: -6px;
+    background: rgba(60, 20, 20, 0.95);
+    border: 1px solid #a04040;
+    color: #c88;
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 1px;
+    transition: 0.15s;
+    z-index: 10;
+  }
+  #tutorialSkip:hover {
+    background: rgba(120, 30, 30, 0.95);
+    color: #fee;
+    border-color: #e74c3c;
+  }
+
+  /* 螢幕閃光（換步驟時觸發） */
+  #tutorialFlash {
+    position: fixed; inset: 0;
+    background: rgba(255, 215, 0, 0.15);
+    pointer-events: none;
+    opacity: 0;
+    z-index: 499;
+  }
+  #tutorialFlash.flash {
+    animation: tutorialFlashAnim 0.35s ease-out;
+  }
+  @keyframes tutorialFlashAnim {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  /* 主選單的教學按鈕 */
+  .menu-action.tutorial {
+    background: linear-gradient(135deg, #2a4a3a 0%, #1a2a3a 100%);
+    border-color: #3a6a4a;
+  }
+  .menu-action.tutorial:hover {
+    border-color: #2ecc71;
+    color: #2ecc71;
+  }
+ 
   #rotateNotice {
     position: fixed; inset: 0;
     display: none; flex-direction: column;
@@ -562,6 +714,7 @@
     </div>
   </button>
 
+  <button class="menu-action tutorial" id="tutorialBtn">📖 新手教學</button>
   <button class="menu-action" id="viewLeaderboardBtn">🏆 排行榜</button>
 </div>
 
@@ -667,6 +820,20 @@
   </label>
 </div>
 
+<div id="tutorialFlash"></div>
+<div id="tutorialOverlay">
+  <div id="tutorialBox">
+    <button id="tutorialSkip">跳過 ▶▶</button>
+    <div id="tutorialAvatar">👋</div>
+    <div id="tutorialContent">
+      <div id="tutorialName">塔防嚮導</div>
+      <div id="tutorialText"></div>
+      <div id="tutorialIndicator">▼</div>
+      <div id="tutorialProgress">1 / 14</div>
+    </div>
+  </div>
+</div>
+ 
 <div id="rotateNotice">
   <div class="icon">📱</div>
   <div>請將手機橫過來</div>
@@ -1475,6 +1642,12 @@ function startGame(difficulty) {
   if (loaded) log('已載入存檔（第 ' + wave + ' 波）', 2500);
   else log(cfg.label + '模式 開始！', 2000);
   if (musicEnabled && !muted && audioCtx) { musicStarted = true; startBgm(); }
+   // 第一次玩自動彈教學
+  try {
+    if (!localStorage.getItem(TUTORIAL_KEY)) {
+      setTimeout(function() { startTutorial(); }, 500);
+    }
+  } catch (e) {}
 }
 function backToMenu() {
   gameState = 'menu';
@@ -2886,6 +3059,184 @@ document.querySelectorAll('.lb-tab').forEach(function(tab) {
 });
 $('vOk').addEventListener('click', function() { victoryModal.classList.remove('show'); backToMenu(); });
 
+// ============================================================
+// 新手教學
+// ============================================================
+const TUTORIAL_KEY = 'towerDefenseTutorialDone_v1';
+
+const TUTORIAL_STEPS = [
+  {
+    avatar: '👋',
+    name: '塔防嚮導',
+    text: '嗨！歡迎來到塔防世界。我是你的嚮導，會帶你一步步認識這個遊戲。\n\n先花兩分鐘看完，你會少走很多冤枉路。',
+  },
+  {
+    avatar: '🎯',
+    name: '塔防嚮導',
+    text: '遊戲目標很簡單：阻止怪物從左邊走到右邊。\n\n走過去一隻扣 1 條命，BOSS 扣 10 條命。生命歸零就輸了。',
+  },
+  {
+    avatar: '🖱️',
+    name: '塔防嚮導',
+    text: '下方是商店。點一下塔的按鈕，再點場上的灰色格子，就能蓋塔。\n\n塔會自動攻擊範圍內的怪物，不用手動瞄準。',
+  },
+  {
+    avatar: '✨',
+    name: '塔防嚮導',
+    text: '最重要的技巧：\n\n按住一座塔，拖曳到另一座「同階」的塔上面放手，就可以合成更強的塔！\n\n（電腦模擬器可以按右上角 🖱 切換成「點塔再點目標」模式）',
+  },
+  {
+    avatar: '⚪',
+    name: '塔防嚮導',
+    text: '白塔：最便宜（10 元）。\n攻速慢、傷害低，但有 8% 機率直接秒殺怪物。\n\n前期很好用，後期主要當合成材料。',
+  },
+  {
+    avatar: '🟢',
+    name: '塔防嚮導',
+    text: '白 + 白 合成時：\n· 45% 出綠塔（均衡型）\n· 45% 出藍塔（高速但只有 5% 命中，命中即秒殺）\n· 5%  出青藍塔（專剋 BOSS，對王傷害 ×80）\n\n青藍塔是打王關鍵。',
+  },
+  {
+    avatar: '🟣',
+    name: '塔防嚮導',
+    text: '紫塔：命中敵人會讓牠減速。\n\n紫 + 紫 = 橙塔。橙塔每 3 秒隨機鎖定 3 隻敵人發射雷射。\n\n橙 + 橙 = 紅塔。紅塔自己不攻擊，但會隨機讓其他塔攻速爆增 5 秒。',
+  },
+  {
+    avatar: '🌟',
+    name: '塔防嚮導',
+    text: '隱藏配方：\n\n場上擺好白、綠、藍、紫、橙、紅各一座，然後「依序點它們」（白→綠→藍→紫→橙→紅）。\n\n會合成金色傳說——金塔！金塔會讓整條路變成倒退的輸送帶。',
+  },
+  {
+    avatar: '👑',
+    name: '塔防嚮導',
+    text: '每 10 波會出現 BOSS。\n\nBOSS 血量是一般怪的 20 倍、免疫秒殺、還會越來越快。\n\n記得用青藍塔 + 紫晶塔（+20% 爆擊率）+ 翠玉塔（+65% 爆擊傷害）的組合對付牠。',
+  },
+  {
+    avatar: '💰',
+    name: '塔防嚮導',
+    text: '賣掉塔會返還 50% 金幣。\n\n如果覺得某座塔位置不對，不要客氣，直接撤掉重蓋。',
+  },
+  {
+    avatar: '⚡',
+    name: '塔防嚮導',
+    text: '準備好就按「▶ 開始」出兵。\n\n想輕鬆一點，可以勾「自動」，波次會自動接續。\n覺得太慢就按「⏩ x1」變成 2 倍速。',
+  },
+  {
+    avatar: '📊',
+    name: '塔防嚮導',
+    text: '按右上角「📊」可以看每座塔的傷害統計。\n\n打開來看看哪座塔在划水、哪座在扛，是進步最快的方法。',
+  },
+  {
+    avatar: '🏆',
+    name: '塔防嚮導',
+    text: '三個難度：\n\n🌱 簡單（30 波）— 適合熟悉遊戲\n⚔️ 普通（50 波）— 標準挑戰\n💀 困難（100 波）— 給勇者的\n\n每個難度的路徑都不一樣，成績會上傳到排行榜。',
+  },
+  {
+    avatar: '⚔️',
+    name: '塔防嚮導',
+    text: '就是這樣！\n\n剩下的就靠你在戰場上摸索了。\n\n祝你好運，未來的塔防大師。',
+  },
+];
+
+let tutorialStep = 0;
+let tutorialTyping = false;
+let tutorialFullText = '';
+let tutorialCharIndex = 0;
+let tutorialTypeTimer = null;
+
+const tutorialOverlay = document.getElementById('tutorialOverlay');
+const tutorialBox = document.getElementById('tutorialBox');
+const tutorialAvatar = document.getElementById('tutorialAvatar');
+const tutorialName = document.getElementById('tutorialName');
+const tutorialText = document.getElementById('tutorialText');
+const tutorialIndicator = document.getElementById('tutorialIndicator');
+const tutorialProgress = document.getElementById('tutorialProgress');
+const tutorialSkip = document.getElementById('tutorialSkip');
+const tutorialFlash = document.getElementById('tutorialFlash');
+const tutorialBtn = document.getElementById('tutorialBtn');
+
+function startTutorial() {
+  tutorialStep = 0;
+  tutorialOverlay.classList.add('show');
+  showTutorialStep();
+}
+
+function showTutorialStep() {
+  if (tutorialStep >= TUTORIAL_STEPS.length) {
+    endTutorial();
+    return;
+  }
+  const step = TUTORIAL_STEPS[tutorialStep];
+  tutorialAvatar.textContent = step.avatar;
+  tutorialName.textContent = step.name;
+  tutorialFullText = step.text;
+  tutorialCharIndex = 0;
+  tutorialText.textContent = '';
+  tutorialTyping = true;
+  tutorialProgress.textContent = (tutorialStep + 1) + ' / ' + TUTORIAL_STEPS.length;
+  tutorialIndicator.style.display = 'none';
+
+  // 換步驟時閃一下
+  if (tutorialStep > 0) {
+    tutorialFlash.classList.remove('flash');
+    void tutorialFlash.offsetWidth;
+    tutorialFlash.classList.add('flash');
+  }
+
+  clearInterval(tutorialTypeTimer);
+  tutorialTypeTimer = setInterval(typeNextChar, 22);
+}
+
+function typeNextChar() {
+  if (tutorialCharIndex >= tutorialFullText.length) {
+    clearInterval(tutorialTypeTimer);
+    tutorialTyping = false;
+    tutorialIndicator.style.display = 'block';
+    return;
+  }
+  tutorialText.textContent += tutorialFullText[tutorialCharIndex];
+  tutorialCharIndex++;
+}
+
+function advanceTutorial() {
+  // 打字中 → 立刻全部顯示
+  if (tutorialTyping) {
+    clearInterval(tutorialTypeTimer);
+    tutorialText.textContent = tutorialFullText;
+    tutorialTyping = false;
+    tutorialIndicator.style.display = 'block';
+    return;
+  }
+  // 已顯示完 → 下一步
+  tutorialStep++;
+  showTutorialStep();
+}
+
+function endTutorial() {
+  clearInterval(tutorialTypeTimer);
+  tutorialOverlay.classList.remove('show');
+  try { localStorage.setItem(TUTORIAL_KEY, '1'); } catch (e) {}
+}
+
+tutorialOverlay.addEventListener('pointerdown', function(e) {
+  if (e.target === tutorialSkip) return;
+  e.preventDefault();
+  advanceTutorial();
+}, { passive: false });
+
+tutorialSkip.addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  endTutorial();
+}, { passive: false });
+
+// 主選單的「新手教學」按鈕
+if (tutorialBtn) {
+  tutorialBtn.addEventListener('click', function() {
+    initAudio();
+    startTutorial();
+  });
+}
+ 
 // 傷害統計
 let statsVisible = false;
 function renderStats() {
