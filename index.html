@@ -993,8 +993,16 @@ function throttled(key, ms, fn) {
   if (throttleMap[key] && now - throttleMap[key] < ms) return;
   throttleMap[key] = now; fn();
 }
-function sfxShoot() { throttled('s', 60, function() { playTone({ freq: 900, duration: 0.05, type: 'square', volume: 0.18 }); }); }
-function sfxHit() { throttled('h', 80, function() { playTone({ freq: 250, slideTo: 120, duration: 0.08, type: 'triangle', volume: 0.25 }); }); }
+function sfxShoot() {
+  throttled('s', 60, function() {
+    playTone({ freq: 500, duration: 0.05, type: 'sine', volume: 0.08 });
+  });
+}
+function sfxHit() {
+  throttled('h', 80, function() {
+    playTone({ freq: 180, slideTo: 80, duration: 0.1, type: 'sine', volume: 0.18 });
+  });
+}
 function sfxPlace() { playTone({ freq: 500, slideTo: 900, duration: 0.15, type: 'sine', volume: 0.4 }); }
 function sfxRemove() { playTone({ freq: 500, slideTo: 200, duration: 0.2, type: 'sawtooth', volume: 0.35 }); }
 function sfxCombine() {
@@ -1003,7 +1011,11 @@ function sfxCombine() {
   playTone({ freq: 784, duration: 0.18, type: 'sine', volume: 0.45, delay: 0.12 });
 }
 function sfxUpgrade() { playTone({ freq: 600, slideTo: 1300, duration: 0.2, type: 'sine', volume: 0.4 }); }
-function sfxCoin() { throttled('c', 120, function() { playTone({ freq: 1300, duration: 0.08, type: 'sine', volume: 0.2 }); }); }
+function sfxCoin() {
+  throttled('c', 120, function() {
+    playTone({ freq: 800, duration: 0.08, type: 'sine', volume: 0.12 });
+  });
+}
 function sfxBoss() {
   playTone({ freq: 110, slideTo: 55, duration: 1.0, type: 'sawtooth', volume: 0.5 });
   playTone({ freq: 220, slideTo: 110, duration: 0.8, type: 'triangle', volume: 0.3, delay: 0.1 });
@@ -1022,40 +1034,152 @@ function sfxVictory() {
 }
 function sfxGameOver() { playTone({ freq: 400, slideTo: 80, duration: 1.5, type: 'sawtooth', volume: 0.5 }); }
 
-// ============ BGM ============
-const BGM_TEMPO = 0.32, BGM_LOOKAHEAD = 0.12, BGM_INTERVAL = 25;
-const NOTES = { A2: 110, F2: 87.31, C3: 130.81, G2: 98, A3: 220, C4: 261.63, E4: 329.63, G4: 392, B4: 493.88, F3: 174.61, D4: 293.66, D5: 587.33, F4: 349.23, G3: 196 };
-const BGM_MELODY = ['A3','E4','A3','E4','A3','E4','A3','E4','F3','C4','F3','C4','F3','C4','F3','C4','C4','G4','C4','G4','C4','G4','C4','G4','G3','D4','G3','D4','G3','D4','G3','D4'];
-const BGM_BASS = ['A2','F2','C3','G2'];
-let bgmPlaying = false, bgmTimer = null, bgmNextTime = 0, bgmStep = 0;
-function scheduleBgmNote(freq, time, duration, volume, type) {
+// ============ BGM（宇宙空靈版）============
+const BGM_TEMPO = 0.32;
+const BGM_LOOKAHEAD = 0.12;
+const BGM_INTERVAL = 25;
+
+const NOTES = {
+  // 超低頻（Sub Bass）
+  A1: 55.00, F1: 43.65, C2: 65.41, G1: 49.00,
+  // 低音區
+  A2: 110.00, F2: 87.31, C3: 130.81, G2: 98.00,
+  // 中音區（旋律）
+  A3: 220.00, C4: 261.63, E4: 329.63, G4: 392.00, B4: 493.88,
+  F3: 174.61, D4: 293.66, F4: 349.23, G3: 196.00,
+  // 高音區（星光琶音）
+  C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880.00,
+  C6: 1046.50, E6: 1318.51, G6: 1567.98,
+};
+
+// 主旋律：Am - F - C - G
+const BGM_MELODY = [
+  'A3','E4','A3','E4','A3','E4','A3','E4',
+  'F3','C4','F3','C4','F3','C4','F3','C4',
+  'C4','G4','C4','G4','C4','G4','C4','G4',
+  'G3','D4','G3','D4','G3','D4','G3','D4',
+];
+
+// 低音根音
+const BGM_BASS = ['A2', 'F2', 'C3', 'G2'];
+
+// 超低頻墊底
+const BGM_SUB = ['A1', 'F1', 'C2', 'G1'];
+
+// 和弦墊（每小節一組三和音）
+const BGM_PADS = [
+  ['A3', 'C4', 'E4'],   // Am
+  ['F3', 'A3', 'C4'],   // F
+  ['C4', 'E4', 'G4'],   // C
+  ['G3', 'B4', 'D5'],   // G
+];
+
+// 星光琶音音池
+const BGM_STARS = ['C5', 'D5', 'E5', 'G5', 'A5', 'C6', 'E6'];
+
+let bgmPlaying = false;
+let bgmTimer = null;
+let bgmNextTime = 0;
+let bgmStep = 0;
+
+// 一般音符（可選 attack 時間，做出「飄」的進入感）
+function scheduleBgmNote(freq, time, duration, volume, type, attack) {
   if (!audioCtx || !musicGain) return;
   try {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    osc.type = type || 'triangle';
+    osc.type = type || 'sine';
     osc.frequency.setValueAtTime(freq, time);
+    const att = attack || 0.03;
     gain.gain.setValueAtTime(0, time);
-    gain.gain.linearRampToValueAtTime(volume, time + 0.03);
+    gain.gain.linearRampToValueAtTime(volume, time + att);
     gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
-    osc.connect(gain); gain.connect(musicGain);
-    osc.start(time); osc.stop(time + duration + 0.05);
+    osc.connect(gain);
+    gain.connect(musicGain);
+    osc.start(time);
+    osc.stop(time + duration + 0.05);
   } catch (e) {}
 }
+
+// 星光音：兩顆微微 detune 的 sine 疊在一起，做出 chorus 空靈感
+function scheduleShimmer(freq, time, duration, volume) {
+  if (!audioCtx || !musicGain) return;
+  try {
+    const osc1 = audioCtx.createOscillator();
+    const osc2 = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc1.type = 'sine';
+    osc2.type = 'sine';
+    osc1.frequency.setValueAtTime(freq, time);
+    osc2.frequency.setValueAtTime(freq * 1.005, time);
+    gain.gain.setValueAtTime(0, time);
+    gain.gain.linearRampToValueAtTime(volume, time + 0.5);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(musicGain);
+    osc1.start(time); osc1.stop(time + duration + 0.05);
+    osc2.start(time); osc2.stop(time + duration + 0.05);
+  } catch (e) {}
+}
+
 function bgmScheduler() {
   if (!audioCtx || !bgmPlaying || document.hidden) return;
   const horizon = audioCtx.currentTime + BGM_LOOKAHEAD;
+
   while (bgmNextTime < horizon) {
-    const step = bgmStep % 32, bar = Math.floor(step / 8);
-    const mn = BGM_MELODY[step];
-    if (mn && NOTES[mn]) scheduleBgmNote(NOTES[mn], bgmNextTime, 0.45, 0.28, 'triangle');
-    if (step % 4 === 0) {
-      const bn = BGM_BASS[bar];
-      if (bn && NOTES[bn]) scheduleBgmNote(NOTES[bn], bgmNextTime, 1.2, 0.45, 'sine');
+    const step = bgmStep % 32;
+    const bar = Math.floor(step / 8);
+    const stepInBar = step % 8;
+
+    // === 主旋律（triangle + 高八度輕微重疊）===
+    const melodyNote = BGM_MELODY[step];
+    if (melodyNote && NOTES[melodyNote]) {
+      scheduleBgmNote(NOTES[melodyNote], bgmNextTime, 0.5, 0.20, 'triangle', 0.02);
+      scheduleBgmNote(NOTES[melodyNote] * 2, bgmNextTime, 0.4, 0.05, 'sine', 0.05);
     }
-    bgmNextTime += BGM_TEMPO; bgmStep++;
+
+    // === 低音（每小節，長 sustain）===
+    if (stepInBar === 0) {
+      const bassNote = BGM_BASS[bar];
+      if (bassNote && NOTES[bassNote]) {
+        scheduleBgmNote(NOTES[bassNote], bgmNextTime, 1.6, 0.30, 'sine', 0.08);
+      }
+    }
+
+    // === 超低頻 Sub Bass（每小節，慢 attack 飄進來）===
+    if (stepInBar === 0) {
+      const subNote = BGM_SUB[bar];
+      if (subNote && NOTES[subNote]) {
+        scheduleBgmNote(NOTES[subNote], bgmNextTime, 2.5, 0.20, 'sine', 0.15);
+      }
+    }
+
+    // === Pad 和弦（每小節第一個音觸發，慢 attack 0.6 秒）===
+    if (stepInBar === 0) {
+      const chord = BGM_PADS[bar];
+      for (let i = 0; i < chord.length; i++) {
+        scheduleBgmNote(NOTES[chord[i]], bgmNextTime, 2.8, 0.06, 'sine', 0.6);
+      }
+    }
+
+    // === 星光琶音（每 4 步一次，很輕）===
+    if (step % 4 === 2) {
+      const starNote = BGM_STARS[Math.floor(Math.random() * BGM_STARS.length)];
+      scheduleShimmer(NOTES[starNote], bgmNextTime, 1.5, 0.022);
+    }
+
+    // === 高頻閃爍（稀疏，開場和過半各一次）===
+    if (step === 0 || step === 16) {
+      const freq = 1200 + Math.random() * 800;
+      scheduleShimmer(freq, bgmNextTime, 3.0, 0.012);
+    }
+
+    bgmNextTime += BGM_TEMPO;
+    bgmStep++;
   }
 }
+
 function startBgm() {
   if (bgmPlaying || !audioCtx || muted) return;
   bgmPlaying = true;
@@ -1064,6 +1188,7 @@ function startBgm() {
   if (bgmTimer) clearInterval(bgmTimer);
   bgmTimer = setInterval(bgmScheduler, BGM_INTERVAL);
 }
+
 function stopBgm() {
   if (!bgmPlaying) return;
   bgmPlaying = false;
