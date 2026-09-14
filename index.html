@@ -1225,19 +1225,55 @@ function getAdjacentSpots(spot) {
   return result;
 }
 
-// ============ 路徑 ============
-const PATH = [
-  { x: -40, y: 400 }, { x: 60, y: 400 }, { x: 60, y: 160 },
-  { x: 370, y: 160 }, { x: 370, y: 480 }, { x: 940, y: 480 },
-];
-const PATH_SEGMENTS = [];
+const PATHS = {
+  // 簡單：路徑最短，敵人走得快，塔位暴露少
+  easy: [
+    { x: -40, y: 400 },
+    { x: 60,  y: 400 },
+    { x: 60,  y: 160 },
+    { x: 690, y: 160 },
+    { x: 690, y: 480 },
+    { x: 940, y: 480 },
+  ],
+  // 普通：中段繞一下
+  normal: [
+    { x: -40, y: 400 },
+    { x: 60,  y: 400 },
+    { x: 60,  y: 160 },
+    { x: 370, y: 160 },
+    { x: 370, y: 320 },
+    { x: 610, y: 320 },
+    { x: 610, y: 480 },
+    { x: 940, y: 480 },
+  ],
+  // 困難：原本的（最長、最繞）
+  hard: [
+    { x: -40, y: 400 },
+    { x: 60,  y: 400 },
+    { x: 60,  y: 160 },
+    { x: 370, y: 160 },
+    { x: 370, y: 480 },
+    { x: 940, y: 480 },
+  ],
+};
+
+let PATH = PATHS.hard;
+let PATH_SEGMENTS = [];
 let PATH_TOTAL = 0;
-for (let i = 0; i < PATH.length - 1; i++) {
-  const a = PATH[i], b = PATH[i + 1];
-  const len = Math.hypot(b.x - a.x, b.y - a.y);
-  PATH_SEGMENTS.push({ a: a, b: b, len: len, start: PATH_TOTAL });
-  PATH_TOTAL += len;
+
+function setPath(difficulty) {
+  PATH = PATHS[difficulty] || PATHS.hard;
+  PATH_SEGMENTS = [];
+  PATH_TOTAL = 0;
+  for (let i = 0; i < PATH.length - 1; i++) {
+    const a = PATH[i], b = PATH[i + 1];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    PATH_SEGMENTS.push({ a: a, b: b, len: len, start: PATH_TOTAL });
+    PATH_TOTAL += len;
+  }
 }
+setPath('hard');
+ 
 function getPosOnPath(distance) {
   if (distance <= 0) {
     const a = PATH[0], b = PATH[1];
@@ -1402,6 +1438,7 @@ function clearSave() { try { localStorage.removeItem(getSaveKey()); } catch (e) 
 // ============ 遊戲流程 ============
 function startGame(difficulty) {
   currentDifficulty = difficulty;
+  setPath(difficulty);
   const cfg = DIFFICULTIES[difficulty];
   money = cfg.startMoney;
   lives = cfg.startLives;
@@ -1642,36 +1679,86 @@ Enemy.prototype.draw = function() {
   if (!this.alive) return;
   const p = this.getPos();
   const r = this.isBoss ? 22 : 13;
+
+  // Boss 暴走光暈
   if (this.isBoss && this.elapsed > 1) {
     const rage = Math.min(1, (this.elapsed - 1) / 20);
     const glow = 0.3 + 0.4 * Math.sin(this.elapsed * 6) * rage;
     ctx.fillStyle = 'rgba(231, 76, 60, ' + glow + ')';
-    ctx.beginPath(); ctx.arc(p.x, p.y, r + 10, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r + 10, 0, Math.PI * 2);
+    ctx.fill();
   }
+
+  // 本體漸層
   const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
-  if (this.isBoss) { grad.addColorStop(0, '#c68642'); grad.addColorStop(1, '#5a2e0a'); }
-  else { grad.addColorStop(0, '#ff7675'); grad.addColorStop(1, '#c0392b'); }
-  ctx.fillStyle = grad;
-  ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
   if (this.isBoss) {
-    ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
+    grad.addColorStop(0, '#c68642');
+    grad.addColorStop(1, '#5a2e0a');
+  } else {
+    grad.addColorStop(0, '#ff7675');
+    grad.addColorStop(1, '#c0392b');
+  }
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 外框
+  ctx.strokeStyle = this.isBoss ? '#ffd700' : 'rgba(80, 10, 10, 0.9)';
+  ctx.lineWidth = this.isBoss ? 2 : 1.5;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 「怪物」兩個字壓扁
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.scale(1.4, 0.72);
+
+  ctx.fillStyle = 'rgba(10, 0, 0, 0.94)';
+  ctx.font = 'bold ' + (r * 1.15) + 'px "Noto Sans CJK TC", "Microsoft JhengHei", "PingFang TC", "Hiragino Sans", "Yu Gothic", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  const offset = r * 0.575;
+  ctx.fillText('怪', 0, -offset);
+  ctx.fillText('物', 0, offset);
+  ctx.restore();
+
+  // Boss 王冠
+  if (this.isBoss) {
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 2;
     ctx.fillStyle = '#ffd700';
     const cy = p.y - r - 5, cw = r * 1.2;
     ctx.beginPath();
-    ctx.moveTo(p.x - cw/2, cy); ctx.lineTo(p.x - cw/2, cy - 7);
-    ctx.lineTo(p.x - cw/4, cy - 2); ctx.lineTo(p.x, cy - 10);
-    ctx.lineTo(p.x + cw/4, cy - 2); ctx.lineTo(p.x + cw/2, cy - 7);
-    ctx.lineTo(p.x + cw/2, cy); ctx.closePath(); ctx.fill();
+    ctx.moveTo(p.x - cw / 2, cy);
+    ctx.lineTo(p.x - cw / 2, cy - 7);
+    ctx.lineTo(p.x - cw / 4, cy - 2);
+    ctx.lineTo(p.x, cy - 10);
+    ctx.lineTo(p.x + cw / 4, cy - 2);
+    ctx.lineTo(p.x + cw / 2, cy - 7);
+    ctx.lineTo(p.x + cw / 2, cy);
+    ctx.closePath();
+    ctx.fill();
   }
+
+  // 緩速光環
   if (this.slowTimer > 0) {
     ctx.strokeStyle = 'rgba(155, 89, 182, 0.85)';
     ctx.lineWidth = this.isBoss ? 3 : 2;
-    ctx.beginPath(); ctx.arc(p.x, p.y, r + 3, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r + 3, 0, Math.PI * 2);
+    ctx.stroke();
   }
+
+  // 血條（非 Boss）
   if (!this.isBoss) {
-    const w = 24, hpPct = Math.max(0, this.hp / this.maxHp);
-    ctx.fillStyle = '#000000aa'; ctx.fillRect(p.x - w / 2, p.y - r - 8, w, 3);
+    const w = 24;
+    const hpPct = Math.max(0, this.hp / this.maxHp);
+    ctx.fillStyle = '#000000aa';
+    ctx.fillRect(p.x - w / 2, p.y - r - 8, w, 3);
     ctx.fillStyle = hpPct > 0.5 ? '#2ecc71' : hpPct > 0.25 ? '#f1c40f' : '#e74c3c';
     ctx.fillRect(p.x - w / 2, p.y - r - 8, w * hpPct, 3);
   }
