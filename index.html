@@ -63,6 +63,12 @@
     color: #2ecc71;
     box-shadow: 0 0 12px #2ecc7166;
   }
+  #muteBtn.active {
+    background: rgba(192, 57, 43, 0.15);
+    border-color: #e74c3c;
+    color: #e74c3c;
+    box-shadow: 0 0 12px #e74c3c66;
+  }
   #removeBtn.active {
     background: rgba(192, 57, 43, 0.9);
     border-color: #e74c3c;
@@ -383,6 +389,7 @@
   <div class="stat">🌊 <span id="wave">0</span></div>
   <div class="stat">🏗 <span id="towerCount">0</span>/15</div>
   <button id="speedBtn" class="topBtn">⏩ x1</button>
+  <button id="muteBtn" class="topBtn">🔊</button>
   <button id="statsBtn" class="topBtn">📊</button>
   <button id="removeBtn" class="topBtn">🗑</button>
   <button id="restartBtn" class="topBtn">🔄</button>
@@ -469,6 +476,117 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 resize();
+
+// ============ 音效系統 ============
+let audioCtx = null;
+let muted = false;
+
+function initAudio() {
+  if (!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+      audioCtx = null;
+    }
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+function playTone(opts) {
+  if (!audioCtx || muted) return;
+  const {
+    freq = 440,
+    slideTo = null,
+    duration = 0.1,
+    type = 'sine',
+    volume = 0.15,
+    delay = 0,
+  } = opts;
+
+  try {
+    const startTime = audioCtx.currentTime + delay;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, startTime);
+    if (slideTo) {
+      osc.frequency.exponentialRampToValueAtTime(slideTo, startTime + duration);
+    }
+
+    gain.gain.setValueAtTime(volume, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+  } catch (e) {}
+}
+
+// 節流器：避免同一種音效在一瞬間播太多次
+const throttleMap = {};
+function throttled(key, ms, fn) {
+  const now = performance.now();
+  if (throttleMap[key] && now - throttleMap[key] < ms) return;
+  throttleMap[key] = now;
+  fn();
+}
+
+// ===== 各音效 =====
+function sfxShoot() {
+  throttled('shoot', 60, () => {
+    playTone({ freq: 900, duration: 0.04, type: 'square', volume: 0.03 });
+  });
+}
+
+function sfxHit() {
+  throttled('hit', 80, () => {
+    playTone({ freq: 250, slideTo: 120, duration: 0.06, type: 'triangle', volume: 0.05 });
+  });
+}
+
+function sfxPlace() {
+  playTone({ freq: 500, slideTo: 900, duration: 0.15, type: 'sine', volume: 0.15 });
+}
+
+function sfxRemove() {
+  playTone({ freq: 500, slideTo: 200, duration: 0.2, type: 'sawtooth', volume: 0.12 });
+}
+
+function sfxCombine() {
+  playTone({ freq: 523, duration: 0.1, type: 'sine', volume: 0.15, delay: 0 });
+  playTone({ freq: 659, duration: 0.1, type: 'sine', volume: 0.15, delay: 0.06 });
+  playTone({ freq: 784, duration: 0.18, type: 'sine', volume: 0.18, delay: 0.12 });
+}
+
+function sfxUpgrade() {
+  playTone({ freq: 600, slideTo: 1300, duration: 0.2, type: 'sine', volume: 0.15 });
+}
+
+function sfxCoin() {
+  throttled('coin', 120, () => {
+    playTone({ freq: 1300, duration: 0.06, type: 'sine', volume: 0.07 });
+  });
+}
+
+function sfxBoss() {
+  playTone({ freq: 110, slideTo: 55, duration: 1.0, type: 'sawtooth', volume: 0.2 });
+  playTone({ freq: 220, slideTo: 110, duration: 0.8, type: 'triangle', volume: 0.12, delay: 0.1 });
+}
+
+function sfxGold() {
+  playTone({ freq: 392, duration: 0.15, type: 'sine', volume: 0.18, delay: 0 });
+  playTone({ freq: 523, duration: 0.15, type: 'sine', volume: 0.18, delay: 0.1 });
+  playTone({ freq: 659, duration: 0.15, type: 'sine', volume: 0.18, delay: 0.2 });
+  playTone({ freq: 784, duration: 0.4, type: 'sine', volume: 0.22, delay: 0.3 });
+}
+
+function sfxGameOver() {
+  playTone({ freq: 400, slideTo: 80, duration: 1.5, type: 'sawtooth', volume: 0.2 });
+}
 
 // ============ 塔位 ============
 const ROW_Y = [80, 240, 400];
@@ -670,6 +788,7 @@ const statsPanel = document.getElementById('statsPanel');
 const statsList = document.getElementById('statsList');
 const statsTotal = document.getElementById('statsTotal');
 const speedBtn = document.getElementById('speedBtn');
+const muteBtn = document.getElementById('muteBtn');
 const restartBtn = document.getElementById('restartBtn');
 const confirmModal = document.getElementById('confirmModal');
 const cancelRestart = document.getElementById('cancelRestart');
@@ -719,7 +838,6 @@ function getTowerPreviewHTML(tower) {
   const maxed = lv >= MAX_TOWER_LEVEL;
   let lines = [];
 
-  // 通用：爆擊資訊（如果有）
   if (tower.critRateBonus !== undefined && (tower.critRate > 0 || tower.critDmgBonus > 0)) {
     lines.push(`爆擊：${(tower.critRate * 100).toFixed(0)}% / ${(tower.critDamage * 100).toFixed(0)}%`);
   }
@@ -776,7 +894,6 @@ function getTowerPreviewHTML(tower) {
     return lines.join('\n');
   }
 
-  // 一般塔（含增益塔）
   if (cfg.damage !== undefined) {
     const curDmg = cfg.damage * Math.pow(1.5, lv - 1);
     const nextDmg = cfg.damage * Math.pow(1.5, nl - 1);
@@ -793,7 +910,6 @@ function getTowerPreviewHTML(tower) {
     lines.push(maxed ? `射程：${fmt(curR / 90, 1)} 格` : previewLine('射程', curR / 90, nextR / 90, ' 格'));
   }
 
-  // 特殊效果文字
   if (tower.type === 'white') lines.push(`秒殺：${(cfg.killChance * 100).toFixed(0)}% (不變)`);
   if (tower.type === 'blue') lines.push(`命中：5% (不變) ｜ 命中即秒殺`);
   if (tower.type === 'purple') lines.push(`緩速：${(100 - cfg.slowFactor * 100).toFixed(0)}% 持續 ${cfg.slowDuration}s`);
@@ -843,6 +959,7 @@ function upgradeTower(tower) {
   money -= cost;
   tower.level++;
   if (tower.applyLevel) tower.applyLevel();
+  sfxUpgrade();
   updateUI();
   updateTowerPanel();
   log(`${TOWER_TYPES[tower.type].name} → Lv.${tower.level}`);
@@ -897,9 +1014,7 @@ function saveGame() {
       timestamp: Date.now(),
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-  } catch (e) {
-    // localStorage 可能被禁用或滿了
-  }
+  } catch (e) {}
 }
 
 function loadGame() {
@@ -920,10 +1035,8 @@ function loadGame() {
       }
     }
 
-    // 清空所有塔
     for (const s of SPOTS) s.tower = null;
 
-    // 重建塔
     for (const t of (data.towers || [])) {
       const spot = SPOTS[t.idx];
       if (!spot) continue;
@@ -934,7 +1047,6 @@ function loadGame() {
       spot.tower = tower;
     }
 
-    // 更新商店按鈕鎖定狀態
     for (const type in unlocked) {
       const btn = document.querySelector(`.shop-btn[data-type="${type}"]`);
       if (!btn) continue;
@@ -1357,6 +1469,8 @@ class Tower {
   fire(target) {
     this.fireFlash = 1;
     bullets.push(new Bullet(this, target));
+    // 只有非高速塔播射擊音，避免噪音
+    if (this.type !== 'blue') sfxShoot();
   }
 
   drawBody(x, y, alpha = 1) {
@@ -1534,6 +1648,7 @@ class SilverTower {
   fire(targets) {
     this.fireFlash = 1;
     for (const target of targets) bullets.push(new SilverBullet(this, target));
+    // 銀塔不播射擊音，因為太快會很吵
   }
 
   drawBody(x, y, alpha = 1) {
@@ -1945,6 +2060,7 @@ class MagentaTower {
       const oldLevel = t.level;
       t.level = Math.min(MAX_TOWER_LEVEL, t.level + this.config.levelBoost);
       if (t.applyLevel) t.applyLevel();
+      sfxUpgrade();
       log(`💖 品紅塔成功！${TOWER_TYPES[t.type].name} Lv.${oldLevel} → Lv.${t.level}`, 3500);
     } else {
       log('💔 品紅塔失敗了...', 2500);
@@ -2086,6 +2202,7 @@ class FireArrowTower {
     addDamage('fireArrow', actual);
     this.fireFlash = 1;
     this.beams.push({ target, timer: 0.06 });
+    // 火矢塔在 Boss 模式一秒 100 發，不播聲音避免噪音
   }
 
   drawBody(x, y, alpha = 1) {
@@ -2243,6 +2360,7 @@ class Bullet {
           this.target.slowFactor = this.slowFactor;
           this.target.slowTimer = this.slowDuration;
         }
+        sfxHit();
       }
       this.alive = false;
     } else {
@@ -2353,6 +2471,7 @@ function combineTowers(a, b) {
 
   const newTower = createTower(spotA, resultType);
   spotA.tower = newTower;
+  sfxCombine();
 
   if (resultType === 'green' && !unlocked.green) {
     unlocked.green = true;
@@ -2388,6 +2507,7 @@ function combineGold(towerList) {
 
   goldBanner.classList.add('show');
   setTimeout(() => goldBanner.classList.remove('show'), 1800);
+  sfxGold();
 
   log('✨✨✨ 金色傳說！', 4000);
   selectedTower = null;
@@ -2421,6 +2541,7 @@ function startWave() {
       delay: count * 0.55 + 2.5, isBoss: true,
     });
     log(`⚠️ 第 ${wave} 波：BOSS！`, 3000);
+    sfxBoss();
   }
 
   spawnTimer = 0;
@@ -2491,6 +2612,7 @@ function handleTowerTap(tower) {
 canvas.addEventListener('pointerdown', (e) => {
   if (gameOver) return;
   e.preventDefault();
+  initAudio();
   const pos = getPointerPos(e);
   const spot = findSpotAt(pos.x, pos.y);
 
@@ -2509,6 +2631,7 @@ canvas.addEventListener('pointerdown', (e) => {
       spot.tower = null;
       selectedTower = null;
       comboSequence = [];
+      sfxRemove();
       updateUI();
       updateTowerPanel();
       log(`已撤除，返還 ${refund} 💰`);
@@ -2524,6 +2647,7 @@ canvas.addEventListener('pointerdown', (e) => {
     money -= cfg.cost;
     const newTower = createTower(spot, shopSelected);
     spot.tower = newTower;
+    sfxPlace();
     updateUI();
     saveGame();
     return;
@@ -2583,6 +2707,7 @@ canvas.addEventListener('pointerup', (e) => {
         aSpot.tower = null;
         targetSpot.tower = a;
         a.spot = targetSpot;
+        sfxPlace();
         saveGame();
       } else if (canCombine(a, b)) {
         combineTowers(a, b);
@@ -2591,6 +2716,7 @@ canvas.addEventListener('pointerup', (e) => {
         targetSpot.tower = a;
         a.spot = targetSpot;
         b.spot = aSpot;
+        sfxPlace();
         saveGame();
       }
     }
@@ -2607,6 +2733,7 @@ canvas.addEventListener('pointercancel', () => { drag = null; });
 document.querySelectorAll('.shop-btn').forEach(btn => {
   btn.addEventListener('pointerdown', (e) => {
     e.preventDefault();
+    initAudio();
     const type = btn.dataset.type;
     if (!unlocked[type]) {
       log('尚未解鎖');
@@ -2630,6 +2757,7 @@ document.querySelectorAll('.shop-btn').forEach(btn => {
 
 startWaveBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
+  initAudio();
   startWave();
 }, { passive: false });
 
@@ -2640,6 +2768,7 @@ autoNextEl.addEventListener('change', () => {
 
 removeBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
+  initAudio();
   removeMode = !removeMode;
   removeBtn.classList.toggle('active', removeMode);
   if (removeMode) {
@@ -2654,20 +2783,32 @@ removeBtn.addEventListener('pointerdown', (e) => {
 
 upgradeBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
+  initAudio();
   if (selectedTower) upgradeTower(selectedTower);
 }, { passive: false });
 
 // ============ 速度切換 ============
 speedBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
+  initAudio();
   speedMultiplier = speedMultiplier === 1 ? 2 : 1;
   speedBtn.textContent = `⏩ x${speedMultiplier}`;
   speedBtn.classList.toggle('active', speedMultiplier === 2);
 }, { passive: false });
 
+// ============ 靜音切換 ============
+muteBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  initAudio();
+  muted = !muted;
+  muteBtn.textContent = muted ? '🔇' : '🔊';
+  muteBtn.classList.toggle('active', muted);
+}, { passive: false });
+
 // ============ 重新開始 ============
 restartBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
+  initAudio();
   confirmModal.classList.add('show');
 }, { passive: false });
 
@@ -2728,6 +2869,7 @@ function renderStats() {
 
 statsBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
+  initAudio();
   statsVisible = !statsVisible;
   statsPanel.classList.toggle('hidden', !statsVisible);
   statsBtn.classList.toggle('active', statsVisible);
@@ -2953,7 +3095,6 @@ function gameLoop(timestamp) {
   let dt = Math.min((timestamp - lastTime) / 1000, 0.1);
   lastTime = timestamp;
 
-  // 套用速度倍率
   dt *= speedMultiplier;
 
   hasGoldTower = SPOTS.some(s => s.tower && s.tower.type === 'gold');
@@ -2985,8 +3126,12 @@ function gameLoop(timestamp) {
 
     for (const e of enemies) {
       if (!e.alive) {
-        if (e.reachedEnd) lives -= e.isBoss ? 10 : 1;
-        else money += e.isBoss ? 250 : 10;
+        if (e.reachedEnd) {
+          lives -= e.isBoss ? 10 : 1;
+        } else {
+          money += e.isBoss ? 250 : 10;
+          if (!e.isBoss) sfxCoin();
+        }
         updateUI();
       }
     }
@@ -2996,10 +3141,10 @@ function gameLoop(timestamp) {
     if (lives <= 0) {
       gameOver = true;
       clearSave();
+      sfxGameOver();
       setTimeout(() => alert('遊戲結束！重新整理頁面再來一次。'), 50);
     }
 
-    // 自動存檔
     saveTimer += dt;
     if (saveTimer >= SAVE_INTERVAL) {
       saveTimer = 0;
