@@ -20,6 +20,40 @@
     -webkit-user-select: none;
     -webkit-touch-callout: none;
   }
+
+   /* ===== UI 收起 ===== */
+  #topBar, #bottomBar {
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s ease;
+  }
+  body.ui-hidden #topBar {
+    transform: translateY(-130%);
+    opacity: 0;
+    pointer-events: none;
+  }
+  body.ui-hidden #bottomBar {
+    transform: translateY(130%);
+    opacity: 0;
+    pointer-events: none;
+  }
+  body.ui-hidden #statsPanel {
+    transform: translateX(130%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.3s, opacity 0.3s;
+  }
+  body.ui-hidden #bossBar {
+    transform: translate(-50%, -130%);
+    opacity: 0;
+    transition: transform 0.35s, opacity 0.3s;
+  }
+  #statsPanel {
+    transition: transform 0.3s, opacity 0.3s;
+  }
+  #bossBar {
+    transition: transform 0.35s, opacity 0.3s;
+  }
+ 
       #mainMenu {
     position: fixed; inset: 0;
     background:
@@ -1807,6 +1841,23 @@ let hasGoldTower = false;
 let comboSequence = [];
 const GOLD_RECIPE = ['white', 'green', 'blue', 'purple', 'orange', 'red'];
 let drag = null, inputMode = 'pointer', lastDownTime = 0;
+let uiHidden = false;
+
+function toggleUI() {
+  uiHidden = !uiHidden;
+  document.body.classList.toggle('ui-hidden', uiHidden);
+  sfxToggleUI();
+}
+
+function sfxToggleUI() {
+  playTone({
+    freq: uiHidden ? 500 : 300,
+    slideTo: uiHidden ? 220 : 500,
+    duration: 0.12,
+    type: 'sine',
+    volume: 0.22,
+  });
+}
 let damageStats = {};
 function addDamage(type, amount) {
   if (!amount || amount <= 0) return;
@@ -3777,7 +3828,24 @@ function startDragAt(x, y) {
   const rect = canvas.getBoundingClientRect();
   const pos = { x: (x - rect.left) * (BASE_W / rect.width), y: (y - rect.top) * (BASE_H / rect.height) };
   const spot = findSpotAt(pos.x, pos.y);
-  if (!spot) { selectedTower = null; comboSequence = []; updateTowerPanel(); return; }
+  if (!spot) {
+    // 如果目前有選中任何東西 → 只取消選中
+    if (selectedTower || shopSelected || removeMode) {
+      selectedTower = null;
+      comboSequence = [];
+      shopSelected = null;
+      removeMode = false;
+      removeBtn.classList.remove('active');
+      document.querySelectorAll('.shop-btn').forEach(function(b) {
+        b.classList.remove('selected');
+      });
+      updateTowerPanel();
+      return;
+    }
+    // 什麼都沒選 → 切換 UI 顯示
+    toggleUI();
+    return;
+  }
   if (removeMode) {
     if (spot.tower) {
       const t = spot.tower;
