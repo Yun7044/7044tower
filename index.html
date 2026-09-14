@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>塔防 - 手機版</title>
+<title>塔防</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
@@ -22,6 +22,326 @@
     -webkit-touch-callout: none;
   }
 
+  /* ===== 主選單 ===== */
+  #mainMenu {
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at top, #1a1a4a 0%, transparent 60%),
+      radial-gradient(ellipse at bottom, #2a1a3a 0%, transparent 60%),
+      #05050f;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 20px;
+    z-index: 50;
+    gap: 14px;
+    overflow-y: auto;
+  }
+  #mainMenu.show { display: flex; }
+
+  #mainMenu .stars {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  #mainMenu .stars::before,
+  #mainMenu .stars::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(2px 2px at 20% 30%, #fff, transparent),
+      radial-gradient(1px 1px at 60% 70%, #fff, transparent),
+      radial-gradient(1.5px 1.5px at 80% 20%, #fff, transparent),
+      radial-gradient(1px 1px at 35% 85%, #fff, transparent),
+      radial-gradient(1.5px 1.5px at 90% 60%, #fff, transparent),
+      radial-gradient(1px 1px at 15% 55%, #fff, transparent);
+    background-size: 100% 100%;
+    opacity: 0.5;
+    animation: twinkle 4s ease-in-out infinite;
+  }
+  #mainMenu .stars::after {
+    background-position: 50% 50%;
+    animation-delay: 2s;
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.7; }
+  }
+
+  #mainMenu h1 {
+    position: relative;
+    font-size: clamp(36px, 10vw, 56px);
+    font-weight: 900;
+    letter-spacing: 10px;
+    background: linear-gradient(180deg, #ffe680 0%, #ffd700 40%, #ff8800 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.6));
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  #mainMenu .subtitle {
+    position: relative;
+    font-size: 12px;
+    color: #888;
+    letter-spacing: 4px;
+    margin-bottom: 24px;
+  }
+
+  .diff-btn {
+    position: relative;
+    width: min(320px, 88vw);
+    padding: 16px 20px;
+    border-radius: 12px;
+    background: rgba(20, 20, 40, 0.85);
+    border: 2px solid #33335a;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: 0.2s;
+    font-family: inherit;
+    text-align: left;
+  }
+  .diff-btn:active { transform: scale(0.98); }
+  .diff-btn:hover {
+    border-color: #ffd700;
+    transform: translateX(4px);
+    box-shadow: 0 4px 24px rgba(255, 215, 0, 0.15);
+  }
+  .diff-btn .badge {
+    font-size: 28px;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+  }
+  .diff-btn[data-difficulty="easy"] .badge {
+    background: rgba(46, 204, 113, 0.15);
+    border: 1px solid rgba(46, 204, 113, 0.4);
+  }
+  .diff-btn[data-difficulty="normal"] .badge {
+    background: rgba(241, 196, 15, 0.15);
+    border: 1px solid rgba(241, 196, 15, 0.4);
+  }
+  .diff-btn[data-difficulty="hard"] .badge {
+    background: rgba(231, 76, 60, 0.15);
+    border: 1px solid rgba(231, 76, 60, 0.4);
+  }
+  .diff-btn .info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+  .diff-btn .title {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 2px;
+  }
+  .diff-btn .desc {
+    font-size: 11px;
+    color: #999;
+    letter-spacing: 1px;
+  }
+  .diff-btn .record {
+    font-size: 11px;
+    color: #ffd700;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+  .diff-btn[data-difficulty="easy"] { border-left: 5px solid #2ecc71; }
+  .diff-btn[data-difficulty="normal"] { border-left: 5px solid #f1c40f; }
+  .diff-btn[data-difficulty="hard"] { border-left: 5px solid #e74c3c; }
+
+  .menu-action {
+    position: relative;
+    width: min(320px, 88vw);
+    padding: 14px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #3a3a5a 0%, #1a1a3a 100%);
+    border: 2px solid #4a4a7a;
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    transition: 0.2s;
+    margin-top: 8px;
+  }
+  .menu-action:active { transform: scale(0.98); }
+  .menu-action:hover {
+    border-color: #ffd700;
+    color: #ffd700;
+  }
+
+  /* ===== 排行榜 ===== */
+  #leaderboardPanel {
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at top, #1a1a4a 0%, transparent 60%),
+      #05050f;
+    display: none;
+    flex-direction: column;
+    padding: 20px;
+    z-index: 60;
+    overflow-y: auto;
+    padding-top: max(20px, env(safe-area-inset-top));
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+  #leaderboardPanel.show { display: flex; }
+
+  .lb-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    max-width: 500px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .lb-header h2 {
+    font-size: 22px;
+    font-weight: 900;
+    background: linear-gradient(180deg, #ffe680, #ff8800);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 4px;
+  }
+  .lb-close {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(20, 20, 40, 0.9);
+    border: 2px solid #33335a;
+    color: #ccc;
+    font-size: 18px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: 0.15s;
+  }
+  .lb-close:hover { border-color: #ffd700; color: #ffd700; }
+
+  .lb-tabs {
+    display: flex;
+    gap: 8px;
+    max-width: 500px;
+    width: 100%;
+    margin: 0 auto 14px;
+  }
+  .lb-tab {
+    flex: 1;
+    padding: 10px 6px;
+    border-radius: 10px;
+    background: #16162a;
+    border: 2px solid #33335a;
+    color: #ccc;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 1px;
+    transition: 0.15s;
+  }
+  .lb-tab.active {
+    background: linear-gradient(180deg, #ffd700, #ff8800);
+    color: #0a0a14;
+    border-color: #ffd700;
+    box-shadow: 0 0 16px rgba(255, 215, 0, 0.4);
+  }
+
+  .lb-list {
+    max-width: 500px;
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .lb-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(20, 20, 40, 0.6);
+    border-radius: 10px;
+    border-left: 4px solid #333;
+  }
+  .lb-row.rank-1 {
+    border-left-color: #ffd700;
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.12), rgba(20, 20, 40, 0.6));
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.15);
+  }
+  .lb-row.rank-2 { border-left-color: #c0c0c0; }
+  .lb-row.rank-3 { border-left-color: #cd7f32; }
+
+  .lb-rank {
+    font-size: 15px;
+    font-weight: 900;
+    width: 30px;
+    text-align: center;
+    color: #888;
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+  }
+  .lb-row.rank-1 .lb-rank { color: #ffd700; }
+  .lb-row.rank-2 .lb-rank { color: #d0d0d0; }
+  .lb-row.rank-3 .lb-rank { color: #cd7f32; }
+
+  .lb-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .lb-wave {
+    font-weight: 800;
+    color: #fff;
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+  .lb-damage {
+    font-size: 12px;
+    color: #ffd700;
+    font-variant-numeric: tabular-nums;
+  }
+  .lb-date {
+    font-size: 10px;
+    color: #666;
+    text-align: right;
+    flex: 0 0 auto;
+  }
+
+  .lb-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #555;
+    font-size: 14px;
+    letter-spacing: 2px;
+  }
+  .lb-empty .icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.4;
+  }
+
+  /* ===== 遊戲 UI ===== */
   #topBar {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -55,6 +375,7 @@
     cursor: pointer;
     transition: 0.15s;
     white-space: nowrap;
+    font-family: inherit;
   }
   .topBtn.active {
     background: rgba(241, 196, 15, 0.15);
@@ -76,10 +397,9 @@
     box-shadow: 0 0 12px #e74c3c66;
   }
   #musicBtn.active {
-    background: rgba(52, 152, 219, 0.15);
-    border-color: #3498db;
-    color: #3498db;
-    box-shadow: 0 0 12px #3498db66;
+    background: rgba(192, 57, 43, 0.15);
+    border-color: #e74c3c;
+    color: #e74c3c;
   }
   #emuBtn.active {
     background: rgba(155, 89, 182, 0.15);
@@ -115,6 +435,7 @@
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     gap: 2px; transition: 0.12s; padding: 0;
+    font-family: inherit;
   }
   .shop-btn .dot {
     width: 14px; height: 14px;
@@ -155,6 +476,7 @@
     font-weight: 700; font-size: 13px;
     cursor: pointer; transition: 0.15s;
     white-space: nowrap;
+    font-family: inherit;
   }
   #startWave:disabled { opacity: 0.4; }
 
@@ -326,6 +648,7 @@
     font-weight: 700; cursor: pointer;
     font-size: 12px;
     flex: 0 0 auto;
+    font-family: inherit;
   }
   #upgradeBtn:disabled { opacity: 0.4; }
 
@@ -367,12 +690,69 @@
     font-weight: 700;
     font-size: 13px;
     cursor: pointer;
+    font-family: inherit;
   }
   #confirmBox .btn-cancel {
     background: #333; color: #ccc;
   }
   #confirmBox .btn-confirm {
     background: #e74c3c; color: #fff;
+  }
+
+  #victoryModal {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 200;
+    padding: 20px;
+  }
+  #victoryModal.show { display: flex; }
+  #victoryBox {
+    background: linear-gradient(180deg, rgba(40, 30, 10, 0.98), rgba(20, 20, 40, 0.98));
+    border: 2px solid #ffd700;
+    border-radius: 16px;
+    padding: 26px 24px;
+    max-width: 340px;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(255, 215, 0, 0.5);
+  }
+  #victoryBox .v-title {
+    font-size: 24px; font-weight: 900;
+    background: linear-gradient(180deg, #ffe680, #ff8800);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 6px;
+    margin-bottom: 16px;
+  }
+  #victoryBox .v-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+    font-size: 13px;
+  }
+  #victoryBox .v-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 6px;
+  }
+  #victoryBox .v-row span:first-child { color: #aaa; }
+  #victoryBox .v-row span:last-child { color: #ffd700; font-weight: 700; }
+  #victoryBox button {
+    padding: 12px 24px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    background: linear-gradient(135deg, #ffd700, #ff8800);
+    color: #0a0a14;
+    letter-spacing: 2px;
   }
 
   #rotateNotice {
@@ -393,13 +773,63 @@
     50% { transform: rotate(90deg); }
   }
   @media (orientation: portrait) {
-    #rotateNotice { display: flex; }
+    body:not(.in-menu) #rotateNotice { display: flex; }
   }
 </style>
 </head>
-<body>
+<body class="in-menu">
 
 <canvas id="game" width="960" height="540"></canvas>
+
+<!-- ===== 主選單 ===== -->
+<div id="mainMenu" class="show">
+  <div class="stars"></div>
+  <h1>塔防</h1>
+  <div class="subtitle">TOWER DEFENSE</div>
+
+  <button class="diff-btn" data-difficulty="easy">
+    <div class="badge">🌱</div>
+    <div class="info">
+      <div class="title">簡單模式</div>
+      <div class="desc">共 30 關 ｜ 適合新手</div>
+      <div class="record" id="recEasy"></div>
+    </div>
+  </button>
+
+  <button class="diff-btn" data-difficulty="normal">
+    <div class="badge">⚔️</div>
+    <div class="info">
+      <div class="title">普通模式</div>
+      <div class="desc">共 50 關 ｜ 標準挑戰</div>
+      <div class="record" id="recNormal"></div>
+    </div>
+  </button>
+
+  <button class="diff-btn" data-difficulty="hard">
+    <div class="badge">💀</div>
+    <div class="info">
+      <div class="title">困難模式</div>
+      <div class="desc">共 100 關 ｜ 給勇者</div>
+      <div class="record" id="recHard"></div>
+    </div>
+  </button>
+
+  <button class="menu-action" id="viewLeaderboardBtn">🏆 排行榜</button>
+</div>
+
+<!-- ===== 排行榜 ===== -->
+<div id="leaderboardPanel">
+  <div class="lb-header">
+    <h2>🏆 排行榜</h2>
+    <button class="lb-close" id="closeLeaderboard">✕</button>
+  </div>
+  <div class="lb-tabs">
+    <button class="lb-tab active" data-diff="easy">簡單</button>
+    <button class="lb-tab" data-diff="normal">普通</button>
+    <button class="lb-tab" data-diff="hard">困難</button>
+  </div>
+  <div class="lb-list" id="lbList"></div>
+</div>
 
 <div id="topBar">
   <div class="stat">💰 <span id="money">100</span></div>
@@ -413,6 +843,7 @@
   <button id="statsBtn" class="topBtn">📊</button>
   <button id="removeBtn" class="topBtn">🗑</button>
   <button id="restartBtn" class="topBtn">🔄</button>
+  <button id="homeBtn" class="topBtn">🏠</button>
 </div>
 
 <div id="statsPanel" class="hidden">
@@ -448,6 +879,18 @@
   </div>
 </div>
 
+<div id="victoryModal">
+  <div id="victoryBox">
+    <div class="v-title" id="vTitle">🎉 通關</div>
+    <div class="v-stats">
+      <div class="v-row"><span>模式</span><span id="vMode">-</span></div>
+      <div class="v-row"><span>到達波次</span><span id="vWave">0</span></div>
+      <div class="v-row"><span>總傷害</span><span id="vDamage">0</span></div>
+    </div>
+    <button id="vOk">回主選單</button>
+  </div>
+</div>
+
 <div id="bottomBar">
   <button class="shop-btn" data-type="white"><div class="dot"></div><div class="price">10</div></button>
   <button class="shop-btn locked" data-type="green"><div class="dot"></div><div class="price">20</div></button>
@@ -477,8 +920,16 @@ const BASE_W = 960;
 const BASE_H = 540;
 const MAX_TOWER_LEVEL = 8;
 const EMU_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif';
-const SAVE_KEY = 'towerDefenseSave_v1';
+const SAVE_KEY_PREFIX = 'towerDefenseSave_v1_';
+const LEADERBOARD_KEY = 'towerDefenseLeaderboard_v1';
 const SAVE_INTERVAL = 3.0;
+const LEADERBOARD_MAX = 20;
+
+const DIFFICULTIES = {
+  easy:   { name: '简单', label: '簡單', maxWave: 30,  hpGrowth: 1.15, startMoney: 120, startLives: 25, badge: '🌱' },
+  normal: { name: '普通', label: '普通', maxWave: 50,  hpGrowth: 1.20, startMoney: 100, startLives: 20, badge: '⚔️' },
+  hard:   { name: '困难', label: '困難', maxWave: 100, hpGrowth: 1.25, startMoney: 80,  startLives: 15, badge: '💀' },
+};
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -511,21 +962,18 @@ function initAudio() {
       musicGain = audioCtx.createGain();
       musicGain.gain.value = 0.35;
       musicGain.connect(audioCtx.destination);
-      console.log('[音效] AudioContext 建立, state =', audioCtx.state);
     } catch (e) {
-      console.error('[音效] AudioContext 建立失敗:', e);
       audioCtx = null;
     }
   }
   if (audioCtx && audioCtx.state === 'suspended') {
     audioCtx.resume().then(() => {
-      console.log('[音效] AudioContext 已 resume');
-      if (musicEnabled && !musicStarted) {
+      if (musicEnabled && !musicStarted && gameState === 'playing') {
         musicStarted = true;
         startBgm();
       }
     }).catch(() => {});
-  } else if (audioCtx && audioCtx.state === 'running' && musicEnabled && !musicStarted) {
+  } else if (audioCtx && audioCtx.state === 'running' && musicEnabled && !musicStarted && gameState === 'playing') {
     musicStarted = true;
     startBgm();
   }
@@ -534,32 +982,22 @@ function initAudio() {
 function playTone(opts) {
   if (!audioCtx || muted) return;
   const {
-    freq = 440,
-    slideTo = null,
-    duration = 0.1,
-    type = 'sine',
-    volume = 0.3,
-    delay = 0,
+    freq = 440, slideTo = null, duration = 0.1,
+    type = 'sine', volume = 0.3, delay = 0,
   } = opts;
-
   try {
-    const startTime = audioCtx.currentTime + delay;
+    const t = audioCtx.currentTime + delay;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-
     osc.type = type;
-    osc.frequency.setValueAtTime(freq, startTime);
-    if (slideTo) {
-      osc.frequency.exponentialRampToValueAtTime(slideTo, startTime + duration);
-    }
-
-    gain.gain.setValueAtTime(volume, startTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-
+    osc.frequency.setValueAtTime(freq, t);
+    if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t + duration);
+    gain.gain.setValueAtTime(volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-    osc.start(startTime);
-    osc.stop(startTime + duration);
+    osc.start(t);
+    osc.stop(t + duration);
   } catch (e) {}
 }
 
@@ -571,85 +1009,52 @@ function throttled(key, ms, fn) {
   fn();
 }
 
-// ===== 遊戲音效 =====
-function sfxShoot() {
-  throttled('shoot', 60, () => {
-    playTone({ freq: 900, duration: 0.05, type: 'square', volume: 0.18 });
-  });
-}
-
-function sfxHit() {
-  throttled('hit', 80, () => {
-    playTone({ freq: 250, slideTo: 120, duration: 0.08, type: 'triangle', volume: 0.25 });
-  });
-}
-
-function sfxPlace() {
-  playTone({ freq: 500, slideTo: 900, duration: 0.15, type: 'sine', volume: 0.4 });
-}
-
-function sfxRemove() {
-  playTone({ freq: 500, slideTo: 200, duration: 0.2, type: 'sawtooth', volume: 0.35 });
-}
-
+function sfxShoot() { throttled('s', 60, () => playTone({ freq: 900, duration: 0.05, type: 'square', volume: 0.18 })); }
+function sfxHit() { throttled('h', 80, () => playTone({ freq: 250, slideTo: 120, duration: 0.08, type: 'triangle', volume: 0.25 })); }
+function sfxPlace() { playTone({ freq: 500, slideTo: 900, duration: 0.15, type: 'sine', volume: 0.4 }); }
+function sfxRemove() { playTone({ freq: 500, slideTo: 200, duration: 0.2, type: 'sawtooth', volume: 0.35 }); }
 function sfxCombine() {
   playTone({ freq: 523, duration: 0.1, type: 'sine', volume: 0.4, delay: 0 });
   playTone({ freq: 659, duration: 0.1, type: 'sine', volume: 0.4, delay: 0.06 });
   playTone({ freq: 784, duration: 0.18, type: 'sine', volume: 0.45, delay: 0.12 });
 }
-
-function sfxUpgrade() {
-  playTone({ freq: 600, slideTo: 1300, duration: 0.2, type: 'sine', volume: 0.4 });
-}
-
-function sfxCoin() {
-  throttled('coin', 120, () => {
-    playTone({ freq: 1300, duration: 0.08, type: 'sine', volume: 0.2 });
-  });
-}
-
+function sfxUpgrade() { playTone({ freq: 600, slideTo: 1300, duration: 0.2, type: 'sine', volume: 0.4 }); }
+function sfxCoin() { throttled('c', 120, () => playTone({ freq: 1300, duration: 0.08, type: 'sine', volume: 0.2 })); }
 function sfxBoss() {
   playTone({ freq: 110, slideTo: 55, duration: 1.0, type: 'sawtooth', volume: 0.5 });
   playTone({ freq: 220, slideTo: 110, duration: 0.8, type: 'triangle', volume: 0.3, delay: 0.1 });
 }
-
 function sfxGold() {
   playTone({ freq: 392, duration: 0.15, type: 'sine', volume: 0.45, delay: 0 });
   playTone({ freq: 523, duration: 0.15, type: 'sine', volume: 0.45, delay: 0.1 });
   playTone({ freq: 659, duration: 0.15, type: 'sine', volume: 0.45, delay: 0.2 });
   playTone({ freq: 784, duration: 0.4, type: 'sine', volume: 0.5, delay: 0.3 });
 }
-
-function sfxGameOver() {
-  playTone({ freq: 400, slideTo: 80, duration: 1.5, type: 'sawtooth', volume: 0.5 });
+function sfxVictory() {
+  playTone({ freq: 523, duration: 0.2, type: 'sine', volume: 0.5, delay: 0 });
+  playTone({ freq: 659, duration: 0.2, type: 'sine', volume: 0.5, delay: 0.15 });
+  playTone({ freq: 784, duration: 0.2, type: 'sine', volume: 0.5, delay: 0.3 });
+  playTone({ freq: 1047, duration: 0.6, type: 'sine', volume: 0.55, delay: 0.45 });
 }
+function sfxGameOver() { playTone({ freq: 400, slideTo: 80, duration: 1.5, type: 'sawtooth', volume: 0.5 }); }
 
-// ============ 背景音樂（程序生成） ============
-const BGM_TEMPO = 0.32;        // 每個 8 分音符的秒數（約 94 BPM）
-const BGM_LOOKAHEAD = 0.12;    // 提前排程的秒數
-const BGM_INTERVAL = 25;       // 排程檢查頻率（毫秒）
+// ============ 背景音樂 ============
+const BGM_TEMPO = 0.32;
+const BGM_LOOKAHEAD = 0.12;
+const BGM_INTERVAL = 25;
 
-// 音名 → 頻率
 const NOTES = {
   A2: 110.00, F2: 87.31, C3: 130.81, G2: 98.00,
   A3: 220.00, C4: 261.63, E4: 329.63, G4: 392.00, B4: 493.88,
   F3: 174.61, D4: 293.66, D5: 587.33, F4: 349.23, G3: 196.00,
 };
 
-// 主旋律：4 個小節，每小節 8 個 8 分音符
-// Am - F - C - G 進行（經典和聲）
 const BGM_MELODY = [
-  // Bar 1 (Am)
   'A3','E4','A3','E4','A3','E4','A3','E4',
-  // Bar 2 (F)
   'F3','C4','F3','C4','F3','C4','F3','C4',
-  // Bar 3 (C)
   'C4','G4','C4','G4','C4','G4','C4','G4',
-  // Bar 4 (G)
   'G3','D4','G3','D4','G3','D4','G3','D4',
 ];
-
-// 低音：每小節一個音
 const BGM_BASS = ['A2', 'F2', 'C3', 'G2'];
 
 let bgmPlaying = false;
@@ -662,14 +1067,11 @@ function scheduleBgmNote(freq, time, duration, volume, type) {
   try {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-
     osc.type = type || 'triangle';
     osc.frequency.setValueAtTime(freq, time);
-
     gain.gain.setValueAtTime(0, time);
     gain.gain.linearRampToValueAtTime(volume, time + 0.03);
     gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
-
     osc.connect(gain);
     gain.connect(musicGain);
     osc.start(time);
@@ -680,27 +1082,20 @@ function scheduleBgmNote(freq, time, duration, volume, type) {
 function bgmScheduler() {
   if (!audioCtx || !bgmPlaying) return;
   if (document.hidden) return;
-
   const horizon = audioCtx.currentTime + BGM_LOOKAHEAD;
-
   while (bgmNextTime < horizon) {
     const step = bgmStep % 32;
     const bar = Math.floor(step / 8);
-
-    // 主旋律
     const melodyNote = BGM_MELODY[step];
     if (melodyNote && NOTES[melodyNote]) {
       scheduleBgmNote(NOTES[melodyNote], bgmNextTime, 0.45, 0.28, 'triangle');
     }
-
-    // 低音：每小節第 0 和第 4 拍
     if (step % 4 === 0) {
       const bassNote = BGM_BASS[bar];
       if (bassNote && NOTES[bassNote]) {
         scheduleBgmNote(NOTES[bassNote], bgmNextTime, 1.2, 0.45, 'sine');
       }
     }
-
     bgmNextTime += BGM_TEMPO;
     bgmStep++;
   }
@@ -713,7 +1108,6 @@ function startBgm() {
   bgmStep = 0;
   if (bgmTimer) clearInterval(bgmTimer);
   bgmTimer = setInterval(bgmScheduler, BGM_INTERVAL);
-  console.log('[音樂] 開始播放');
 }
 
 function stopBgm() {
@@ -721,15 +1115,11 @@ function stopBgm() {
   bgmPlaying = false;
   if (bgmTimer) clearInterval(bgmTimer);
   bgmTimer = null;
-  console.log('[音樂] 停止播放');
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    stopBgm();
-  } else if (musicEnabled && !muted && musicStarted) {
-    startBgm();
-  }
+  if (document.hidden) stopBgm();
+  else if (musicEnabled && !muted && musicStarted && gameState === 'playing') startBgm();
 });
 
 // ============ 塔位 ============
@@ -764,12 +1154,8 @@ function getAdjacentSpots(spot) {
 
 // ============ 路徑 ============
 const PATH = [
-  { x: -40, y: 400 },
-  { x: 60,  y: 400 },
-  { x: 60,  y: 160 },
-  { x: 370, y: 160 },
-  { x: 370, y: 480 },
-  { x: 940, y: 480 },
+  { x: -40, y: 400 }, { x: 60,  y: 400 }, { x: 60,  y: 160 },
+  { x: 370, y: 160 }, { x: 370, y: 480 }, { x: 940, y: 480 },
 ];
 
 const PATH_SEGMENTS = [];
@@ -784,22 +1170,19 @@ for (let i = 0; i < PATH.length - 1; i++) {
 function getPosOnPath(distance) {
   if (distance <= 0) {
     const a = PATH[0], b = PATH[1];
-    const angle = Math.atan2(b.y - a.y, b.x - a.x);
-    return { x: a.x, y: a.y, angle };
+    return { x: a.x, y: a.y, angle: Math.atan2(b.y - a.y, b.x - a.x) };
   }
   if (distance >= PATH_TOTAL) {
     const a = PATH[PATH.length - 2], b = PATH[PATH.length - 1];
-    const angle = Math.atan2(b.y - a.y, b.x - a.x);
-    return { x: b.x, y: b.y, angle };
+    return { x: b.x, y: b.y, angle: Math.atan2(b.y - a.y, b.x - a.x) };
   }
   for (const seg of PATH_SEGMENTS) {
     if (distance <= seg.start + seg.len) {
       const t = (distance - seg.start) / seg.len;
-      const angle = Math.atan2(seg.b.y - seg.a.y, seg.b.x - seg.a.x);
       return {
         x: seg.a.x + (seg.b.x - seg.a.x) * t,
         y: seg.a.y + (seg.b.y - seg.a.y) * t,
-        angle,
+        angle: Math.atan2(seg.b.y - seg.a.y, seg.b.x - seg.a.x),
       };
     }
   }
@@ -808,76 +1191,52 @@ function getPosOnPath(distance) {
 
 // ============ 塔設定 ============
 const TOWER_TYPES = {
-  white: {
-    name: '白塔', cost: 10, baseCost: 10, color: '#f0f0f0',
-    fireInterval: 1.5, damage: 6, hitChance: 1, killChance: 0.08, range: 220,
-  },
-  green: {
-    name: '綠塔', cost: 20, baseCost: 20, color: '#2ecc71',
-    fireInterval: 1.0, damage: 15, hitChance: 1, killChance: 0, range: 220,
-  },
-  blue: {
-    name: '藍塔', cost: 35, baseCost: 35, color: '#3498db',
-    fireInterval: 0.15, damage: 0, hitChance: 0.05, killChance: 1, range: 220,
-  },
-  purple: {
-    name: '紫塔', cost: 50, baseCost: 50, color: '#9b59b6',
+  white: { name: '白塔', cost: 10, baseCost: 10, color: '#f0f0f0',
+    fireInterval: 1.5, damage: 6, hitChance: 1, killChance: 0.08, range: 220 },
+  green: { name: '綠塔', cost: 20, baseCost: 20, color: '#2ecc71',
+    fireInterval: 1.0, damage: 15, hitChance: 1, killChance: 0, range: 220 },
+  blue: { name: '藍塔', cost: 35, baseCost: 35, color: '#3498db',
+    fireInterval: 0.15, damage: 0, hitChance: 0.05, killChance: 1, range: 220 },
+  purple: { name: '紫塔', cost: 50, baseCost: 50, color: '#9b59b6',
     fireInterval: 1.2, damage: 10, hitChance: 1, killChance: 0,
-    slowFactor: 0.4, slowDuration: 2.0, range: 220,
-  },
-  cyan: {
-    name: '青藍塔', cost: 0, baseCost: 50, color: '#00e5ff',
+    slowFactor: 0.4, slowDuration: 2.0, range: 220 },
+  cyan: { name: '青藍塔', cost: 0, baseCost: 50, color: '#00e5ff',
     fireInterval: 1.5, damage: 4, hitChance: 1, killChance: 0, range: 280,
-    antiBossMultiplier: 80,
-  },
-  orange: {
-    name: '橙塔', cost: 65, baseCost: 65, color: '#e67e22',
-    reacquireInterval: 3, dps: 25, beamCount: 3,
-  },
-  red: {
-    name: '紅塔', cost: 0, baseCost: 65, color: '#c0392b',
-    buffInterval: 5, buffDuration: 5, buffTargets: 2, buffFireInterval: 0.08,
-  },
-  gold: {
-    name: '金塔', cost: 0, baseCost: 100, color: '#f1c40f',
+    antiBossMultiplier: 80 },
+  orange: { name: '橙塔', cost: 65, baseCost: 65, color: '#e67e22',
+    reacquireInterval: 3, dps: 25, beamCount: 3 },
+  red: { name: '紅塔', cost: 0, baseCost: 65, color: '#c0392b',
+    buffInterval: 5, buffDuration: 5, buffTargets: 2, buffFireInterval: 0.08 },
+  gold: { name: '金塔', cost: 0, baseCost: 100, color: '#f1c40f',
     fireInterval: 0.8, damage: 80, hitChance: 1, killChance: 0, range: 280,
-    conveyorSpeed: -40, conveyorBossFactor: 0.3,
-  },
-  silver: {
-    name: '銀塔', cost: 100, baseCost: 100, color: '#c0c0c0',
+    conveyorSpeed: -40, conveyorBossFactor: 0.3 },
+  silver: { name: '銀塔', cost: 100, baseCost: 100, color: '#c0c0c0',
     fireInterval: 0.4, baseDamage: 8.5, range: 220,
-    maxLevel: 10, attacksPerLevel: 2, decayTime: 4.0,
-  },
-  amethyst: {
-    name: '紫晶塔', cost: 70, baseCost: 70, color: '#B088FF',
+    maxLevel: 10, attacksPerLevel: 2, decayTime: 4.0 },
+  amethyst: { name: '紫晶塔', cost: 70, baseCost: 70, color: '#B088FF',
     fireInterval: 1.2, damage: 12, hitChance: 1, killChance: 0, range: 220,
-    critRateBuff: 0.20,
-  },
-  jade: {
-    name: '翠玉塔', cost: 85, baseCost: 85, color: '#66FF66',
+    critRateBuff: 0.20 },
+  jade: { name: '翠玉塔', cost: 85, baseCost: 85, color: '#66FF66',
     fireInterval: 1.1, damage: 18, hitChance: 1, killChance: 0, range: 220,
-    critDmgBuff: 0.65,
-  },
-  magenta: {
-    name: '品紅塔', cost: 55, baseCost: 55, color: '#FF33CC',
-    triggerTime: 6.0, successRate: 0.65, levelBoost: 2,
-  },
-  fireArrow: {
-    name: '火矢塔', cost: 120, baseCost: 120, color: '#FF4500',
-    range: Infinity,
-    damage: 1.25,
-    fireIntervalNormal: 10,
-    fireIntervalBoss: 0.01,
-  },
+    critDmgBuff: 0.65 },
+  magenta: { name: '品紅塔', cost: 55, baseCost: 55, color: '#FF33CC',
+    triggerTime: 6.0, successRate: 0.65, levelBoost: 2 },
+  fireArrow: { name: '火矢塔', cost: 120, baseCost: 120, color: '#FF4500',
+    range: Infinity, damage: 1.25, fireIntervalNormal: 10, fireIntervalBoss: 0.01 },
 };
 
-const unlocked = {
+const DEFAULT_UNLOCKED = {
   white: true, green: false, blue: false, purple: true,
   orange: false, silver: true, amethyst: true, jade: true, magenta: true,
   fireArrow: true,
 };
 
+let unlocked = Object.assign({}, DEFAULT_UNLOCKED);
+
 // ============ 遊戲狀態 ============
+let gameState = 'menu';       // 'menu' | 'playing'
+let currentDifficulty = null;
+
 let money = 100;
 let lives = 20;
 let wave = 0;
@@ -888,12 +1247,12 @@ let spawnQueue = [];
 let spawnTimer = 0;
 let lastTime = 0;
 let gameOver = false;
+let victory = false;
 
 let shopSelected = null;
 let selectedTower = null;
 let removeMode = false;
 let speedMultiplier = 1;
-
 let autoNext = false;
 let autoNextTimer = 0;
 let hasGoldTower = false;
@@ -905,7 +1264,6 @@ let drag = null;
 let inputMode = 'pointer';
 let lastDownTime = 0;
 
-// ============ 傷害統計 ============
 let damageStats = {};
 function addDamage(type, amount) {
   if (!amount || amount <= 0) return;
@@ -913,34 +1271,40 @@ function addDamage(type, amount) {
 }
 
 // ============ DOM ============
-const moneyEl = document.getElementById('money');
-const livesEl = document.getElementById('lives');
-const waveEl = document.getElementById('wave');
-const towerCountEl = document.getElementById('towerCount');
-const startWaveBtn = document.getElementById('startWave');
-const logEl = document.getElementById('log');
-const bossBar = document.getElementById('bossBar');
-const bossHpEl = document.getElementById('bossHp');
-const autoNextEl = document.getElementById('autoNext');
-const autoToggle = document.getElementById('autoToggle');
-const goldBanner = document.getElementById('goldBanner');
-const towerPanel = document.getElementById('towerPanel');
-const towerName = document.getElementById('towerName');
-const towerStats = document.getElementById('towerStats');
-const upgradeBtn = document.getElementById('upgradeBtn');
-const removeBtn = document.getElementById('removeBtn');
-const statsBtn = document.getElementById('statsBtn');
-const statsPanel = document.getElementById('statsPanel');
-const statsList = document.getElementById('statsList');
-const statsTotal = document.getElementById('statsTotal');
-const speedBtn = document.getElementById('speedBtn');
-const muteBtn = document.getElementById('muteBtn');
-const musicBtn = document.getElementById('musicBtn');
-const emuBtn = document.getElementById('emuBtn');
-const restartBtn = document.getElementById('restartBtn');
-const confirmModal = document.getElementById('confirmModal');
-const cancelRestart = document.getElementById('cancelRestart');
-const confirmRestart = document.getElementById('confirmRestart');
+const $ = id => document.getElementById(id);
+const moneyEl = $('money');
+const livesEl = $('lives');
+const waveEl = $('wave');
+const towerCountEl = $('towerCount');
+const startWaveBtn = $('startWave');
+const logEl = $('log');
+const bossBar = $('bossBar');
+const bossHpEl = $('bossHp');
+const autoNextEl = $('autoNext');
+const autoToggle = $('autoToggle');
+const goldBanner = $('goldBanner');
+const towerPanel = $('towerPanel');
+const towerName = $('towerName');
+const towerStats = $('towerStats');
+const upgradeBtn = $('upgradeBtn');
+const removeBtn = $('removeBtn');
+const statsBtn = $('statsBtn');
+const statsPanel = $('statsPanel');
+const statsList = $('statsList');
+const statsTotal = $('statsTotal');
+const speedBtn = $('speedBtn');
+const muteBtn = $('muteBtn');
+const musicBtn = $('musicBtn');
+const emuBtn = $('emuBtn');
+const restartBtn = $('restartBtn');
+const homeBtn = $('homeBtn');
+const confirmModal = $('confirmModal');
+const cancelRestart = $('cancelRestart');
+const confirmRestart = $('confirmRestart');
+const mainMenu = $('mainMenu');
+const leaderboardPanel = $('leaderboardPanel');
+const lbList = $('lbList');
+const victoryModal = $('victoryModal');
 
 let logTimer = null;
 function log(msg, ms = 2200) {
@@ -960,6 +1324,309 @@ function updateUI() {
 function getUpgradeCost(tower) {
   const baseCost = TOWER_TYPES[tower.type].baseCost || 50;
   return Math.floor(baseCost * tower.level * 1.5);
+}
+
+// ============ 排行榜系統 ============
+function getLeaderboard() {
+  try {
+    const raw = localStorage.getItem(LEADERBOARD_KEY);
+    if (!raw) return { easy: [], normal: [], hard: [] };
+    const data = JSON.parse(raw);
+    if (!data.easy) data.easy = [];
+    if (!data.normal) data.normal = [];
+    if (!data.hard) data.hard = [];
+    return data;
+  } catch (e) {
+    return { easy: [], normal: [], hard: [] };
+  }
+}
+
+function saveLeaderboard(lb) {
+  try {
+    localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(lb));
+  } catch (e) {}
+}
+
+function recordScore(difficulty, waveReached, totalDamage, towerStats, didVictory) {
+  const lb = getLeaderboard();
+  if (!lb[difficulty]) lb[difficulty] = [];
+  lb[difficulty].push({
+    date: Date.now(),
+    wave: waveReached,
+    damage: Math.floor(totalDamage),
+    towerStats: towerStats || {},
+    victory: !!didVictory,
+  });
+  lb[difficulty].sort((a, b) => {
+    if (b.wave !== a.wave) return b.wave - a.wave;
+    return b.damage - a.damage;
+  });
+  lb[difficulty] = lb[difficulty].slice(0, LEADERBOARD_MAX);
+  saveLeaderboard(lb);
+}
+
+function getBestRecord(difficulty) {
+  const lb = getLeaderboard();
+  const list = lb[difficulty] || [];
+  if (list.length === 0) return null;
+  return list[0];
+}
+
+function updateMenuRecords() {
+  for (const diff of ['easy', 'normal', 'hard']) {
+    const rec = getBestRecord(diff);
+    const el = $('rec' + diff.charAt(0).toUpperCase() + diff.slice(1));
+    if (!el) continue;
+    if (!rec) {
+      el.textContent = '尚無紀錄';
+    } else {
+      const v = rec.victory ? ' 👑' : '';
+      el.textContent = `最佳：第 ${rec.wave} 波 ｜ 傷害 ${formatNum(rec.damage)}${v}`;
+    }
+  }
+}
+
+function formatNum(n) {
+  n = Math.floor(n);
+  if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return n.toString();
+}
+
+function formatDate(ts) {
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${y}/${m}/${day} ${h}:${min}`;
+}
+
+let lbCurrentTab = 'easy';
+
+function renderLeaderboard() {
+  const lb = getLeaderboard();
+  const list = lb[lbCurrentTab] || [];
+
+  if (list.length === 0) {
+    lbList.innerHTML = `
+      <div class="lb-empty">
+        <div class="icon">🏆</div>
+        <div>還沒有紀錄</div>
+        <div style="font-size:12px;margin-top:6px;color:#444;">去挑戰一下吧</div>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  for (let i = 0; i < list.length; i++) {
+    const rec = list[i];
+    const rank = i + 1;
+    const crown = rec.victory ? ' 👑' : '';
+    const cls = rank <= 3 ? ` rank-${rank}` : '';
+    html += `
+      <div class="lb-row${cls}">
+        <div class="lb-rank">${rank}</div>
+        <div class="lb-info">
+          <div class="lb-wave">第 ${rec.wave} 波${crown}</div>
+          <div class="lb-damage">傷害 ${formatNum(rec.damage)}</div>
+        </div>
+        <div class="lb-date">${formatDate(rec.date)}</div>
+      </div>
+    `;
+  }
+  lbList.innerHTML = html;
+}
+
+// ============ 存檔系統 ============
+function getSaveKey() {
+  return SAVE_KEY_PREFIX + (currentDifficulty || 'default');
+}
+
+function saveGame() {
+  if (!currentDifficulty || gameState !== 'playing') return;
+  try {
+    const towerData = [];
+    for (let i = 0; i < SPOTS.length; i++) {
+      const s = SPOTS[i];
+      if (s.tower) towerData.push({ idx: i, type: s.tower.type, level: s.tower.level });
+    }
+    const data = {
+      version: 1,
+      difficulty: currentDifficulty,
+      money, lives, wave,
+      damageStats,
+      unlocked: Object.assign({}, unlocked),
+      towers: towerData,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(getSaveKey(), JSON.stringify(data));
+  } catch (e) {}
+}
+
+function loadGame() {
+  if (!currentDifficulty) return false;
+  try {
+    const raw = localStorage.getItem(getSaveKey());
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data || data.version !== 1) return false;
+    if (data.difficulty !== currentDifficulty) return false;
+    if (data.wave === 0) return false;
+
+    money = data.money ?? DIFFICULTIES[currentDifficulty].startMoney;
+    lives = data.lives ?? DIFFICULTIES[currentDifficulty].startLives;
+    wave = data.wave ?? 0;
+    damageStats = data.damageStats || {};
+
+    if (data.unlocked) {
+      for (const k in data.unlocked) {
+        if (unlocked.hasOwnProperty(k)) unlocked[k] = data.unlocked[k];
+      }
+    }
+
+    for (const s of SPOTS) s.tower = null;
+    for (const t of (data.towers || [])) {
+      const spot = SPOTS[t.idx];
+      if (!spot) continue;
+      const tower = createTower(spot, t.type);
+      if (!tower) continue;
+      tower.level = Math.min(t.level || 1, MAX_TOWER_LEVEL);
+      if (tower.applyLevel) tower.applyLevel();
+      spot.tower = tower;
+    }
+
+    for (const type in unlocked) {
+      const btn = document.querySelector(`.shop-btn[data-type="${type}"]`);
+      if (!btn) continue;
+      if (unlocked[type]) btn.classList.remove('locked');
+      else btn.classList.add('locked');
+    }
+
+    updateUI();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function clearSave() {
+  if (!currentDifficulty) return;
+  try { localStorage.removeItem(getSaveKey()); } catch (e) {}
+}
+
+function hasSave(difficulty) {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY_PREFIX + difficulty);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    return data && data.wave > 0;
+  } catch (e) { return false; }
+}
+
+// ============ 遊戲開始/結束 ============
+function startGame(difficulty) {
+  currentDifficulty = difficulty;
+  const cfg = DIFFICULTIES[difficulty];
+
+  money = cfg.startMoney;
+  lives = cfg.startLives;
+  wave = 0;
+  enemies = [];
+  bullets = [];
+  waveActive = false;
+  spawnQueue = [];
+  spawnTimer = 0;
+  gameOver = false;
+  victory = false;
+  damageStats = {};
+  comboSequence = [];
+  selectedTower = null;
+  shopSelected = null;
+  removeMode = false;
+  speedMultiplier = 1;
+  autoNext = false;
+  autoNextTimer = 0;
+  drag = null;
+
+  unlocked = Object.assign({}, DEFAULT_UNLOCKED);
+
+  for (const s of SPOTS) s.tower = null;
+  for (const type in unlocked) {
+    const btn = document.querySelector(`.shop-btn[data-type="${type}"]`);
+    if (!btn) continue;
+    btn.classList.toggle('locked', !unlocked[type]);
+    btn.classList.remove('selected');
+  }
+
+  speedBtn.textContent = '⏩ x1';
+  speedBtn.classList.remove('active');
+  removeBtn.classList.remove('active');
+  autoToggle.classList.remove('active');
+  autoNextEl.checked = false;
+  statsVisible = false;
+  statsPanel.classList.add('hidden');
+  statsBtn.classList.remove('active');
+
+  gameState = 'playing';
+  mainMenu.classList.remove('show');
+  leaderboardPanel.classList.remove('show');
+  document.body.classList.remove('in-menu');
+
+  updateUI();
+
+  const loaded = loadGame();
+  if (loaded) {
+    log(`已載入存檔（第 ${wave} 波）`, 2500);
+  } else {
+    log(`${cfg.label}模式 開始！`, 2000);
+  }
+
+  if (musicEnabled && !muted && audioCtx) {
+    musicStarted = true;
+    startBgm();
+  }
+}
+
+function backToMenu() {
+  gameState = 'menu';
+  stopBgm();
+  saveGame();
+  mainMenu.classList.add('show');
+  document.body.classList.add('in-menu');
+  towerPanel.classList.add('hidden');
+  bossBar.classList.remove('show');
+  statsPanel.classList.add('hidden');
+  victoryModal.classList.remove('show');
+  updateMenuRecords();
+}
+
+function finishGame(didVictory) {
+  if (gameOver) return;
+  gameOver = true;
+  victory = didVictory;
+
+  let totalDamage = 0;
+  for (const k in damageStats) totalDamage += damageStats[k];
+
+  recordScore(currentDifficulty, wave, totalDamage, Object.assign({}, damageStats), didVictory);
+  clearSave();
+
+  stopBgm();
+  if (didVictory) sfxVictory();
+  else sfxGameOver();
+
+  const cfg = DIFFICULTIES[currentDifficulty];
+  $('vTitle').textContent = didVictory ? '🎉 通關！' : '💀 遊戲結束';
+  $('vMode').textContent = cfg.label + '模式';
+  $('vWave').textContent = `第 ${wave} 波`;
+  $('vDamage').textContent = formatNum(totalDamage);
+
+  setTimeout(() => {
+    victoryModal.classList.add('show');
+  }, 400);
 }
 
 // ============ 升級數值預覽 ============
@@ -997,14 +1664,12 @@ function getTowerPreviewHTML(tower) {
     lines.push(`距離降等：${(cfg.decayTime - tower.idleTimer).toFixed(1)}s`);
     return lines.join('\n');
   }
-
   if (tower.type === 'magenta') {
     lines.push(`倒數：${Math.max(0, tower.timer).toFixed(1)}s`);
     lines.push(`成功：${(cfg.successRate * 100).toFixed(0)}%`);
     lines.push(`效果：隨機塔 +${cfg.levelBoost} 級`);
     return lines.join('\n');
   }
-
   if (tower.type === 'orange') {
     const curDps = cfg.dps * Math.pow(1.5, lv - 1);
     const nextDps = cfg.dps * Math.pow(1.5, nl - 1);
@@ -1014,7 +1679,6 @@ function getTowerPreviewHTML(tower) {
     lines.push(maxed ? `目標數：${curBeams}` : previewLine('目標數', curBeams, nextBeams, '', 0));
     return lines.join('\n');
   }
-
   if (tower.type === 'red') {
     const curT = cfg.buffTargets + (lv - 1);
     const nextT = cfg.buffTargets + (nl - 1);
@@ -1027,7 +1691,6 @@ function getTowerPreviewHTML(tower) {
     lines.push(maxed ? `間隔：${curI}s` : previewLine('間隔', curI, nextI, 's'));
     return lines.join('\n');
   }
-
   if (tower.type === 'fireArrow') {
     const curDmg = cfg.damage * Math.pow(1.5, lv - 1);
     const nextDmg = cfg.damage * Math.pow(1.5, nl - 1);
@@ -1052,25 +1715,26 @@ function getTowerPreviewHTML(tower) {
     const nextR = cfg.range + 20 * nl - 20;
     lines.push(maxed ? `射程：${fmt(curR / 90, 1)} 格` : previewLine('射程', curR / 90, nextR / 90, ' 格'));
   }
-
   if (tower.type === 'white') lines.push(`秒殺：${(cfg.killChance * 100).toFixed(0)}% (不變)`);
   if (tower.type === 'blue') lines.push(`命中：5% (不變) ｜ 命中即秒殺`);
   if (tower.type === 'purple') lines.push(`緩速：${(100 - cfg.slowFactor * 100).toFixed(0)}% 持續 ${cfg.slowDuration}s`);
   if (tower.type === 'cyan') lines.push(`對 Boss 傷害 ×${cfg.antiBossMultiplier}`);
   if (tower.type === 'amethyst') lines.push(`增益：周圍 +${(cfg.critRateBuff * 100).toFixed(0)}% 爆擊率`);
   if (tower.type === 'jade') lines.push(`增益：周圍 +${(cfg.critDmgBuff * 100).toFixed(0)}% 爆擊傷害`);
-
   return lines.join('\n');
 }
 
 function updateTowerPanel() {
+  if (gameState !== 'playing') {
+    towerPanel.classList.add('hidden');
+    return;
+  }
   if (!selectedTower || !SPOTS.some(s => s.tower === selectedTower)) {
     towerPanel.classList.add('hidden');
     return;
   }
   towerPanel.classList.remove('hidden');
   const cfg = TOWER_TYPES[selectedTower.type];
-
   towerName.textContent = `${cfg.name} Lv.${selectedTower.level}`;
   towerStats.innerHTML = getTowerPreviewHTML(selectedTower);
 
@@ -1134,76 +1798,6 @@ function recomputeBuffs() {
   }
 }
 
-// ============ 存檔 ============
-function saveGame() {
-  try {
-    const towerData = [];
-    for (let i = 0; i < SPOTS.length; i++) {
-      const s = SPOTS[i];
-      if (s.tower) {
-        towerData.push({ idx: i, type: s.tower.type, level: s.tower.level });
-      }
-    }
-    const data = {
-      version: 1,
-      money, lives, wave,
-      damageStats,
-      unlocked: Object.assign({}, unlocked),
-      towers: towerData,
-      timestamp: Date.now(),
-    };
-    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-  } catch (e) {}
-}
-
-function loadGame() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return false;
-    const data = JSON.parse(raw);
-    if (!data || data.version !== 1) return false;
-
-    money = data.money ?? 100;
-    lives = data.lives ?? 20;
-    wave = data.wave ?? 0;
-    damageStats = data.damageStats || {};
-
-    if (data.unlocked) {
-      for (const k in data.unlocked) {
-        if (unlocked.hasOwnProperty(k)) unlocked[k] = data.unlocked[k];
-      }
-    }
-
-    for (const s of SPOTS) s.tower = null;
-
-    for (const t of (data.towers || [])) {
-      const spot = SPOTS[t.idx];
-      if (!spot) continue;
-      const tower = createTower(spot, t.type);
-      if (!tower) continue;
-      tower.level = Math.min(t.level || 1, MAX_TOWER_LEVEL);
-      if (tower.applyLevel) tower.applyLevel();
-      spot.tower = tower;
-    }
-
-    for (const type in unlocked) {
-      const btn = document.querySelector(`.shop-btn[data-type="${type}"]`);
-      if (!btn) continue;
-      if (unlocked[type]) btn.classList.remove('locked');
-      else btn.classList.add('locked');
-    }
-
-    updateUI();
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-function clearSave() {
-  try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
-}
-
 // ============ 敵人 ============
 class Enemy {
   constructor(hp, speed, isBoss = false) {
@@ -1219,112 +1813,68 @@ class Enemy {
     this.elapsed = 0;
     this.damageReduction = isBoss ? 0.4 : 0;
   }
-
   takeDamage(amount) {
     const actual = amount * (1 - this.damageReduction);
     this.hp -= actual;
     if (this.hp <= 0) this.alive = false;
     return actual;
   }
-
   update(dt) {
     if (!this.alive) return;
     if (this.hp <= 0) { this.alive = false; return; }
-
     this.elapsed += dt;
-
     let rageMultiplier = 1;
     if (this.isBoss) rageMultiplier = Math.min(2.2, 1 + this.elapsed * 0.025);
-
     if (this.slowTimer > 0) {
       this.slowTimer -= dt;
       if (this.slowTimer <= 0) this.slowFactor = 1;
     }
-
-    let effectiveSlow = this.slowFactor;
-    if (this.isBoss) effectiveSlow = 1 - (1 - this.slowFactor) * 0.5;
-
-    let speed = this.baseSpeed * effectiveSlow * rageMultiplier;
-
+    let effSlow = this.slowFactor;
+    if (this.isBoss) effSlow = 1 - (1 - this.slowFactor) * 0.5;
+    let speed = this.baseSpeed * effSlow * rageMultiplier;
     if (hasGoldTower) {
-      const conveyor = TOWER_TYPES.gold.conveyorSpeed *
-        (this.isBoss ? TOWER_TYPES.gold.conveyorBossFactor : 1);
-      speed += conveyor;
+      speed += TOWER_TYPES.gold.conveyorSpeed * (this.isBoss ? TOWER_TYPES.gold.conveyorBossFactor : 1);
     }
-
     this.distance += speed * dt;
-
-    if (this.distance >= PATH_TOTAL) {
-      this.alive = false;
-      this.reachedEnd = true;
-    }
+    if (this.distance >= PATH_TOTAL) { this.alive = false; this.reachedEnd = true; }
     if (this.distance < 0) this.distance = 0;
   }
-
   getPos() { return getPosOnPath(this.distance); }
-
   draw() {
     if (!this.alive) return;
     const p = this.getPos();
     const r = this.isBoss ? 22 : 13;
-
     if (this.isBoss && this.elapsed > 1) {
       const rage = Math.min(1, (this.elapsed - 1) / 20);
       const glow = 0.3 + 0.4 * Math.sin(this.elapsed * 6) * rage;
       ctx.fillStyle = `rgba(231, 76, 60, ${glow})`;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 10, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x, p.y, r + 10, 0, Math.PI * 2); ctx.fill();
     }
-
     const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
-    if (this.isBoss) {
-      grad.addColorStop(0, '#c68642');
-      grad.addColorStop(1, '#5a2e0a');
-    } else {
-      grad.addColorStop(0, '#ff7675');
-      grad.addColorStop(1, '#c0392b');
-    }
+    if (this.isBoss) { grad.addColorStop(0, '#c68642'); grad.addColorStop(1, '#5a2e0a'); }
+    else { grad.addColorStop(0, '#ff7675'); grad.addColorStop(1, '#c0392b'); }
     ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-    ctx.fill();
-
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
     if (this.isBoss) {
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-      ctx.stroke();
-
+      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = '#ffd700';
-      const crownY = p.y - r - 5;
-      const cw = r * 1.2;
+      const crownY = p.y - r - 5, cw = r * 1.2;
       ctx.beginPath();
-      ctx.moveTo(p.x - cw/2, crownY);
-      ctx.lineTo(p.x - cw/2, crownY - 7);
-      ctx.lineTo(p.x - cw/4, crownY - 2);
-      ctx.lineTo(p.x, crownY - 10);
-      ctx.lineTo(p.x + cw/4, crownY - 2);
-      ctx.lineTo(p.x + cw/2, crownY - 7);
-      ctx.lineTo(p.x + cw/2, crownY);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(p.x - cw/2, crownY); ctx.lineTo(p.x - cw/2, crownY - 7);
+      ctx.lineTo(p.x - cw/4, crownY - 2); ctx.lineTo(p.x, crownY - 10);
+      ctx.lineTo(p.x + cw/4, crownY - 2); ctx.lineTo(p.x + cw/2, crownY - 7);
+      ctx.lineTo(p.x + cw/2, crownY); ctx.closePath(); ctx.fill();
     }
-
     if (this.slowTimer > 0) {
       ctx.strokeStyle = 'rgba(155, 89, 182, 0.85)';
       ctx.lineWidth = this.isBoss ? 3 : 2;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 3, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(p.x, p.y, r + 3, 0, Math.PI * 2); ctx.stroke();
     }
-
     if (!this.isBoss) {
       const w = 24;
       const hpPct = Math.max(0, this.hp / this.maxHp);
-      ctx.fillStyle = '#000000aa';
-      ctx.fillRect(p.x - w / 2, p.y - r - 8, w, 3);
+      ctx.fillStyle = '#000000aa'; ctx.fillRect(p.x - w / 2, p.y - r - 8, w, 3);
       ctx.fillStyle = hpPct > 0.5 ? '#2ecc71' : hpPct > 0.25 ? '#f1c40f' : '#e74c3c';
       ctx.fillRect(p.x - w / 2, p.y - r - 8, w * hpPct, 3);
     }
@@ -1337,21 +1887,14 @@ function drawTowerIcon(type, x, y, size) {
   switch (type) {
     case 'white':
       ctx.fillStyle = '#555';
-      ctx.beginPath();
-      ctx.arc(x, y, size * 0.16, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, size * 0.16, 0, Math.PI * 2); ctx.fill();
       break;
     case 'green': {
       ctx.fillStyle = '#0a4d26';
-      const h = size * 0.32;
-      const s = size * 0.3;
+      const h = size * 0.32, s = size * 0.3;
       ctx.beginPath();
-      ctx.moveTo(x, y - h);
-      ctx.lineTo(x - s, y + h * 0.6);
-      ctx.lineTo(x + s, y + h * 0.6);
-      ctx.closePath();
-      ctx.fill();
-      break;
+      ctx.moveTo(x, y - h); ctx.lineTo(x - s, y + h * 0.6); ctx.lineTo(x + s, y + h * 0.6);
+      ctx.closePath(); ctx.fill(); break;
     }
     case 'blue': {
       ctx.fillStyle = '#0a2d5c';
@@ -1362,40 +1905,29 @@ function drawTowerIcon(type, x, y, size) {
       ctx.lineTo(x - size * 0.06, y + size * 0.28);
       ctx.lineTo(x + size * 0.14, y - size * 0.04);
       ctx.lineTo(x + size * 0.02, y - size * 0.04);
-      ctx.closePath();
-      ctx.fill();
-      break;
+      ctx.closePath(); ctx.fill(); break;
     }
     case 'purple': {
       ctx.fillStyle = '#2d1445';
       ctx.beginPath();
-      const outer = size * 0.3;
-      const inner = size * 0.13;
+      const outer = size * 0.3, inner = size * 0.13;
       for (let i = 0; i < 10; i++) {
         const a = -Math.PI / 2 + i * Math.PI / 5;
         const r = i % 2 === 0 ? outer : inner;
-        const px = x + Math.cos(a) * r;
-        const py = y + Math.sin(a) * r;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+        const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
-      ctx.closePath();
-      ctx.fill();
-      break;
+      ctx.closePath(); ctx.fill(); break;
     }
-    case 'cyan': {
+    case 'cyan':
       ctx.fillStyle = '#003d4d';
       ctx.fillRect(x - size * 0.07, y - size * 0.28, size * 0.14, size * 0.56);
       ctx.fillRect(x - size * 0.28, y - size * 0.07, size * 0.56, size * 0.14);
       break;
-    }
     case 'orange': {
       ctx.fillStyle = '#4d2200';
-      ctx.beginPath();
-      ctx.arc(x, y, size * 0.16, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#4d2200';
-      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x, y, size * 0.16, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#4d2200'; ctx.lineWidth = 3;
       for (let i = 0; i < 8; i++) {
         const a = i * Math.PI / 4;
         ctx.beginPath();
@@ -1408,106 +1940,61 @@ function drawTowerIcon(type, x, y, size) {
     case 'red':
       ctx.fillStyle = '#ffd700';
       ctx.font = `bold ${size * 0.55}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('$', x, y + 1);
-      break;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('$', x, y + 1); break;
     case 'gold': {
-      ctx.save();
-      ctx.shadowColor = '#ffd700';
-      ctx.shadowBlur = 12;
+      ctx.save(); ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 12;
       ctx.fillStyle = '#8b6914';
       ctx.beginPath();
-      const outer = size * 0.32;
-      const inner = size * 0.14;
+      const outer = size * 0.32, inner = size * 0.14;
       for (let i = 0; i < 10; i++) {
         const a = -Math.PI / 2 + i * Math.PI / 5;
         const r = i % 2 === 0 ? outer : inner;
-        const px = x + Math.cos(a) * r;
-        const py = y + Math.sin(a) * r;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+        const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-      break;
+      ctx.closePath(); ctx.fill(); ctx.restore(); break;
     }
-    case 'silver': {
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(x, y, size * 0.22, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(x, y, size * 0.12, 0, Math.PI * 2);
-      ctx.stroke();
+    case 'silver':
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x, y, size * 0.22, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, size * 0.12, 0, Math.PI * 2); ctx.stroke();
       break;
-    }
-    case 'amethyst': {
+    case 'amethyst':
       ctx.fillStyle = '#3d1a5c';
       ctx.beginPath();
-      ctx.moveTo(x, y - size * 0.28);
-      ctx.lineTo(x + size * 0.22, y);
-      ctx.lineTo(x, y + size * 0.28);
-      ctx.lineTo(x - size * 0.22, y);
-      ctx.closePath();
-      ctx.fill();
-      break;
-    }
+      ctx.moveTo(x, y - size * 0.28); ctx.lineTo(x + size * 0.22, y);
+      ctx.lineTo(x, y + size * 0.28); ctx.lineTo(x - size * 0.22, y);
+      ctx.closePath(); ctx.fill(); break;
     case 'jade': {
       ctx.fillStyle = '#003300';
       ctx.beginPath();
       const r = size * 0.28;
       for (let i = 0; i < 6; i++) {
         const a = i * Math.PI / 3 - Math.PI / 2;
-        const px = x + Math.cos(a) * r;
-        const py = y + Math.sin(a) * r;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+        const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
-      ctx.closePath();
-      ctx.fill();
-      break;
+      ctx.closePath(); ctx.fill(); break;
     }
-    case 'magenta': {
+    case 'magenta':
       ctx.fillStyle = '#ffffff';
       ctx.font = `${size * 0.5}px ${EMU_FONT}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('♥', x, y + 1);
-      break;
-    }
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('♥', x, y + 1); break;
     case 'fireArrow': {
       ctx.fillStyle = '#ffd700';
       ctx.beginPath();
       ctx.moveTo(x, y - size * 0.3);
-      ctx.bezierCurveTo(
-        x + size * 0.22, y - size * 0.1,
-        x + size * 0.18, y + size * 0.18,
-        x, y + size * 0.3
-      );
-      ctx.bezierCurveTo(
-        x - size * 0.18, y + size * 0.18,
-        x - size * 0.22, y - size * 0.1,
-        x, y - size * 0.3
-      );
+      ctx.bezierCurveTo(x + size * 0.22, y - size * 0.1, x + size * 0.18, y + size * 0.18, x, y + size * 0.3);
+      ctx.bezierCurveTo(x - size * 0.18, y + size * 0.18, x - size * 0.22, y - size * 0.1, x, y - size * 0.3);
       ctx.fill();
       ctx.fillStyle = '#ff4500';
       ctx.beginPath();
       ctx.moveTo(x, y - size * 0.18);
-      ctx.bezierCurveTo(
-        x + size * 0.12, y - size * 0.05,
-        x + size * 0.1, y + size * 0.1,
-        x, y + size * 0.18
-      );
-      ctx.bezierCurveTo(
-        x - size * 0.1, y + size * 0.1,
-        x - size * 0.12, y - size * 0.05,
-        x, y - size * 0.18
-      );
-      ctx.fill();
-      break;
+      ctx.bezierCurveTo(x + size * 0.12, y - size * 0.05, x + size * 0.1, y + size * 0.1, x, y + size * 0.18);
+      ctx.bezierCurveTo(x - size * 0.1, y + size * 0.1, x - size * 0.12, y - size * 0.05, x, y - size * 0.18);
+      ctx.fill(); break;
     }
   }
   ctx.restore();
@@ -1515,25 +2002,17 @@ function drawTowerIcon(type, x, y, size) {
 
 function drawLevelStars(level, x, y, size) {
   if (level <= 1) return;
-
   let stars = [];
-  if (level <= 3) {
-    stars = new Array(level).fill('⭐');
-  } else if (level <= 6) {
-    stars = new Array(level - 3).fill('🌟');
-  } else {
-    stars = ['💫', '💫'];
-  }
-
+  if (level <= 3) stars = new Array(level).fill('⭐');
+  else if (level <= 6) stars = new Array(level - 3).fill('🌟');
+  else stars = ['💫', '💫'];
   const fontSize = size * 0.4;
   const spacing = fontSize * 0.95;
   const totalWidth = (stars.length - 1) * spacing;
-
   ctx.save();
   ctx.font = `${fontSize}px ${EMU_FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-
   for (let i = 0; i < stars.length; i++) {
     const sx = x - totalWidth / 2 + i * spacing;
     ctx.fillText(stars[i], sx, y);
@@ -1559,7 +2038,6 @@ class Tower {
   get y() { return this.spot.y; }
   get critRate() { return Math.min(1.0, this.critRateBonus); }
   get critDamage() { return Math.min(5.0, 2.0 + this.critDmgBonus); }
-
   applyLevel() {
     const lv = this.level;
     this.damage = this.config.damage * Math.pow(1.5, lv - 1);
@@ -1572,12 +2050,10 @@ class Tower {
     this.slowDuration = this.config.slowDuration;
     this.antiBossMultiplier = this.config.antiBossMultiplier;
   }
-
   applyHaste(duration, newInterval) {
     this.fireInterval = newInterval;
     this.hastedTimer = duration;
   }
-
   update(dt) {
     this.fireFlash = Math.max(0, this.fireFlash - dt * 6);
     if (this.hastedTimer > 0) {
@@ -1587,15 +2063,10 @@ class Tower {
     this.cooldown -= dt;
     if (this.cooldown > 0) return;
     const target = this.findTarget();
-    if (target) {
-      this.fire(target);
-      this.cooldown = this.fireInterval;
-    }
+    if (target) { this.fire(target); this.cooldown = this.fireInterval; }
   }
-
   findTarget() {
-    let best = null;
-    let bestDist = this.range;
+    let best = null, bestDist = this.range;
     for (const e of enemies) {
       if (!e.alive) continue;
       const p = e.getPos();
@@ -1604,100 +2075,57 @@ class Tower {
     }
     return best;
   }
-
   fire(target) {
     this.fireFlash = 1;
     bullets.push(new Bullet(this, target));
     if (this.type !== 'blue') sfxShoot();
   }
-
   drawBody(x, y, alpha = 1) {
-    const size = 70;
-    const half = size / 2;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(x, y);
-
+    const size = 70, half = size / 2;
+    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
     ctx.fillStyle = '#00000066';
     ctx.fillRect(-half + 2, -half + 3, size, size);
-
     if (this.type === 'gold') {
       const grad = ctx.createLinearGradient(-half, -half, half, half);
-      grad.addColorStop(0, '#fff6b0');
-      grad.addColorStop(0.5, '#f1c40f');
-      grad.addColorStop(1, '#b8860b');
+      grad.addColorStop(0, '#fff6b0'); grad.addColorStop(0.5, '#f1c40f'); grad.addColorStop(1, '#b8860b');
       ctx.fillStyle = grad;
-    } else {
-      ctx.fillStyle = this.config.color;
-    }
+    } else ctx.fillStyle = this.config.color;
     ctx.fillRect(-half, -half, size, size);
-
     ctx.strokeStyle = this.type === 'gold' ? '#fff6b0' :
       (this.type === 'cyan' ? '#7ff7ff' : '#00000066');
     ctx.lineWidth = 2;
     ctx.strokeRect(-half, -half, size, size);
     ctx.restore();
-
     drawTowerIcon(this.type, x, y, size);
   }
-
   draw() {
     const x = this.x, y = this.y;
-    const size = 70;
-    const half = size / 2;
-
+    const size = 70, half = size / 2;
     if (selectedTower === this) {
       ctx.fillStyle = 'rgba(255, 215, 0, 0.08)';
-      ctx.beginPath();
-      ctx.arc(x, y, this.range, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, this.range, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)'; ctx.lineWidth = 2; ctx.stroke();
     }
-
     if (this.type === 'amethyst' || this.type === 'jade') {
       const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 300);
-      ctx.save();
-      ctx.shadowColor = this.config.color;
-      ctx.shadowBlur = 18 * pulse;
-      ctx.strokeStyle = this.config.color;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 8, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.save(); ctx.shadowColor = this.config.color; ctx.shadowBlur = 18 * pulse;
+      ctx.strokeStyle = this.config.color; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x, y, half + 8, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
-
     if (this.critRateBonus > 0) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 3, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.save(); ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, half + 3, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
     if (this.critDmgBonus > 0) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 6, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.save(); ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, half + 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
-
     const isDragging = drag && drag.tower === this && drag.isDragging;
     if (!isDragging) {
-      ctx.save();
-      ctx.translate(x, y);
+      ctx.save(); ctx.translate(x, y);
       const scale = 1 + this.fireFlash * 0.08;
-      ctx.scale(scale, scale);
-      ctx.translate(-x, -y);
-      this.drawBody(x, y, 1);
-      ctx.restore();
-
+      ctx.scale(scale, scale); ctx.translate(-x, -y);
+      this.drawBody(x, y, 1); ctx.restore();
       if (this.fireFlash > 0) {
         ctx.save();
         ctx.fillStyle = `rgba(255,255,255,${this.fireFlash * 0.4})`;
@@ -1705,19 +2133,12 @@ class Tower {
         ctx.restore();
       }
     }
-
     drawLevelStars(this.level, x, y - half - 12, size);
-
     if (this.hastedTimer > 0) {
-      ctx.save();
-      ctx.shadowColor = '#e74c3c';
-      ctx.shadowBlur = 14;
+      ctx.save(); ctx.shadowColor = '#e74c3c'; ctx.shadowBlur = 14;
       ctx.strokeStyle = `rgba(231, 76, 60, ${0.6 + 0.4 * Math.sin(this.hastedTimer * 12)})`;
       ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 5, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.beginPath(); ctx.arc(x, y, half + 5, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
   }
 }
@@ -1742,23 +2163,18 @@ class SilverTower {
   get y() { return this.spot.y; }
   get critRate() { return Math.min(1.0, this.critRateBonus); }
   get critDamage() { return Math.min(5.0, 2.0 + this.critDmgBonus); }
-
   update(dt) {
     this.pulse += dt;
     this.fireFlash = Math.max(0, this.fireFlash - dt * 5);
-
     this.idleTimer += dt;
     if (this.idleTimer >= this.config.decayTime) {
       this.idleTimer = 0;
       if (this.level > 1) this.level--;
     }
-
     this.cooldown -= dt;
     if (this.cooldown > 0) return;
-
     const targets = this.findTargets(this.level);
     if (targets.length === 0) return;
-
     this.fire(targets);
     this.cooldown = this.config.fireInterval;
     this.idleTimer = 0;
@@ -1768,7 +2184,6 @@ class SilverTower {
       if (this.level < this.config.maxLevel) this.level++;
     }
   }
-
   findTargets(count) {
     const inRange = [];
     for (const e of enemies) {
@@ -1782,105 +2197,58 @@ class SilverTower {
     for (const e of inRange) if (e.hp > focus.hp) focus = e;
     return new Array(count).fill(focus);
   }
-
   fire(targets) {
     this.fireFlash = 1;
     for (const target of targets) bullets.push(new SilverBullet(this, target));
   }
-
   drawBody(x, y, alpha = 1) {
-    const size = 70;
-    const half = size / 2;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(x, y);
-
+    const size = 70, half = size / 2;
+    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
     ctx.fillStyle = '#00000066';
     ctx.fillRect(-half + 2, -half + 3, size, size);
-
     const grad = ctx.createLinearGradient(-half, -half, half, half);
-    grad.addColorStop(0, '#f0f0f0');
-    grad.addColorStop(0.5, '#c0c0c0');
-    grad.addColorStop(1, '#707070');
+    grad.addColorStop(0, '#f0f0f0'); grad.addColorStop(0.5, '#c0c0c0'); grad.addColorStop(1, '#707070');
     ctx.fillStyle = grad;
     ctx.fillRect(-half, -half, size, size);
-
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
     ctx.strokeRect(-half, -half, size, size);
     ctx.restore();
-
     drawTowerIcon('silver', x, y, size);
   }
-
   draw() {
     const x = this.x, y = this.y;
-    const size = 70;
-    const half = size / 2;
-
+    const size = 70, half = size / 2;
     if (selectedTower === this) {
       ctx.fillStyle = 'rgba(255, 215, 0, 0.08)';
-      ctx.beginPath();
-      ctx.arc(x, y, this.range, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, this.range, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)'; ctx.lineWidth = 2; ctx.stroke();
     }
-
     if (this.critRateBonus > 0) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 3, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.save(); ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, half + 3, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
     if (this.critDmgBonus > 0) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 6, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.save(); ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, half + 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
-
     if (this.level > 1) {
       const intensity = this.level / this.config.maxLevel;
-      ctx.save();
-      ctx.shadowColor = '#c0c0c0';
-      ctx.shadowBlur = 8 + intensity * 16;
+      ctx.save(); ctx.shadowColor = '#c0c0c0'; ctx.shadowBlur = 8 + intensity * 16;
       ctx.fillStyle = `rgba(220, 220, 240, ${0.08 + intensity * 0.25})`;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+      ctx.beginPath(); ctx.arc(x, y, half + 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
     }
-
     const isDragging = drag && drag.tower === this && drag.isDragging;
     if (!isDragging) {
-      ctx.save();
-      ctx.translate(x, y);
+      ctx.save(); ctx.translate(x, y);
       const scale = 1 + this.fireFlash * 0.12;
-      ctx.scale(scale, scale);
-      ctx.translate(-x, -y);
-      this.drawBody(x, y, 1);
-      ctx.restore();
+      ctx.scale(scale, scale); ctx.translate(-x, -y);
+      this.drawBody(x, y, 1); ctx.restore();
     }
-
     if (this.level > 1) {
-      ctx.save();
-      ctx.fillStyle = '#ffd700';
+      ctx.save(); ctx.fillStyle = '#ffd700';
       ctx.font = `bold 14px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`Lv${this.level}`, x, y - half - 12);
-      ctx.restore();
-    }
-
-    if (this.level > 1) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(`Lv${this.level}`, x, y - half - 12); ctx.restore();
       const remain = this.config.decayTime - this.idleTimer;
       if (remain < 0.8) {
         ctx.save();
@@ -1888,8 +2256,7 @@ class SilverTower {
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.arc(x, y, half + 5, -Math.PI / 2, -Math.PI / 2 + (remain / 0.8) * Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
+        ctx.stroke(); ctx.restore();
       }
     }
   }
@@ -1912,33 +2279,27 @@ class BeamTower {
   }
   get x() { return this.spot.x; }
   get y() { return this.spot.y; }
-
   applyLevel() {
     const lv = this.level;
     this.dps = this.config.dps * Math.pow(1.5, lv - 1);
     this.beamCount = this.config.beamCount + (lv - 1);
   }
-
   applyHaste(duration) { this.hastedTimer = duration; }
-
   update(dt) {
     this.pulse += dt;
     this.reacquireTimer -= dt;
     if (this.hastedTimer > 0) this.hastedTimer -= dt;
-
     if (this.reacquireTimer <= 0) {
       this.beamTargets = this.pickRandom(this.beamCount);
       this.reacquireTimer = this.config.reacquireInterval;
     }
     this.beamTargets = this.beamTargets.filter(e => e.alive);
-
     const dpsMult = this.hastedTimer > 0 ? 3 : 1;
     for (const target of this.beamTargets) {
       const actual = target.takeDamage(this.dps * dt * dpsMult);
       addDamage('orange', actual);
     }
   }
-
   pickRandom(n) {
     const alive = enemies.filter(e => e.alive);
     for (let i = alive.length - 1; i > 0; i--) {
@@ -1947,100 +2308,57 @@ class BeamTower {
     }
     return alive.slice(0, n);
   }
-
   drawBody(x, y, alpha = 1) {
-    const size = 70;
-    const half = size / 2;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-
+    const size = 70, half = size / 2;
+    ctx.save(); ctx.globalAlpha = alpha;
     ctx.fillStyle = '#00000066';
     ctx.fillRect(x - half + 2, y - half + 3, size, size);
     ctx.fillStyle = this.config.color;
     ctx.fillRect(x - half, y - half, size, size);
-    ctx.strokeStyle = '#00000066';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#00000066'; ctx.lineWidth = 2;
     ctx.strokeRect(x - half, y - half, size, size);
     ctx.restore();
-
     drawTowerIcon('orange', x, y, size);
-
     ctx.save();
     const glow = 0.6 + 0.4 * Math.sin(this.pulse * 8);
     ctx.fillStyle = `rgba(255, 220, 120, ${glow * 0.6})`;
-    ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   }
-
   draw() {
     const x = this.x, y = this.y;
-    const size = 70;
-    const half = size / 2;
-
+    const size = 70, half = size / 2;
     if (selectedTower === this) {
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
       ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
     }
-
     if (this.critRateBonus > 0) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 3, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.save(); ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, half + 3, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
     if (this.critDmgBonus > 0) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 6, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.save(); ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, half + 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
-
     const isDragging = drag && drag.tower === this && drag.isDragging;
     if (!isDragging) this.drawBody(x, y, 1);
-
     if (!isDragging) {
-      ctx.save();
-      ctx.shadowColor = '#e67e22';
-      ctx.shadowBlur = 12;
-      ctx.lineWidth = 3;
+      ctx.save(); ctx.shadowColor = '#e67e22'; ctx.shadowBlur = 12; ctx.lineWidth = 3;
       for (const target of this.beamTargets) {
         if (!target.alive) continue;
         const tp = target.getPos();
         ctx.strokeStyle = `rgba(255, 180, 80, ${0.7 + 0.3 * Math.sin(this.pulse * 12)})`;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(tp.x, tp.y);
-        ctx.stroke();
-
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tp.x, tp.y); ctx.stroke();
         ctx.fillStyle = 'rgba(255, 200, 120, 0.9)';
-        ctx.beginPath();
-        ctx.arc(tp.x, tp.y, 8, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(tp.x, tp.y, 8, 0, Math.PI * 2); ctx.fill();
       }
       ctx.restore();
     }
-
     drawLevelStars(this.level, x, y - half - 12, size);
-
     if (this.hastedTimer > 0) {
-      ctx.save();
-      ctx.shadowColor = '#e74c3c';
-      ctx.shadowBlur = 14;
+      ctx.save(); ctx.shadowColor = '#e74c3c'; ctx.shadowBlur = 14;
       ctx.strokeStyle = `rgba(231, 76, 60, ${0.6 + 0.4 * Math.sin(this.pulse * 12)})`;
       ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 5, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.beginPath(); ctx.arc(x, y, half + 5, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
   }
 }
@@ -2061,34 +2379,27 @@ class BossTower {
   }
   get x() { return this.spot.x; }
   get y() { return this.spot.y; }
-
   applyLevel() {
     const lv = this.level;
     this.buffTargets = this.config.buffTargets + (lv - 1);
     this.buffDuration = this.config.buffDuration + (lv - 1) * 2;
     this.buffInterval = Math.max(2, this.config.buffInterval - (lv - 1) * 0.5);
   }
-
   update(dt) {
     this.buffFlash = Math.max(0, this.buffFlash - dt * 3);
     for (const buff of this.activeBuffs) buff.timer -= dt;
     this.activeBuffs = this.activeBuffs.filter(b =>
-      b.timer > 0 && SPOTS.some(s => s.tower === b.tower)
-    );
-
+      b.timer > 0 && SPOTS.some(s => s.tower === b.tower));
     this.buffTimer -= dt;
     if (this.buffTimer <= 0) {
       this.triggerBuff();
       this.buffTimer = this.buffInterval;
     }
   }
-
   triggerBuff() {
-    const others = SPOTS
-      .map(s => s.tower)
+    const others = SPOTS.map(s => s.tower)
       .filter(t => t && t !== this && typeof t.applyHaste === 'function');
     if (others.length === 0) return;
-
     for (let i = others.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [others[i], others[j]] = [others[j], others[i]];
@@ -2103,45 +2414,31 @@ class BossTower {
     }
     this.buffFlash = 1;
   }
-
   drawBody(x, y, alpha = 1) {
-    const size = 70;
-    const half = size / 2;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(x, y);
-
+    const size = 70, half = size / 2;
+    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
     ctx.fillStyle = '#00000066';
     ctx.fillRect(-half + 2, -half + 3, size, size);
     ctx.fillStyle = '#7b1f1f';
     ctx.fillRect(-half, -half, size, size);
-    ctx.strokeStyle = '#00000066';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#00000066'; ctx.lineWidth = 2;
     ctx.strokeRect(-half, -half, size, size);
-
     if (this.buffFlash > 0) {
       ctx.fillStyle = `rgba(231, 76, 60, ${this.buffFlash * 0.6})`;
       ctx.fillRect(-half, -half, size, size);
     }
     ctx.restore();
-
     drawTowerIcon('red', x, y, size);
   }
-
   draw() {
     const x = this.x, y = this.y;
-    const size = 70;
-    const half = size / 2;
-
+    const size = 70, half = size / 2;
     const isDragging = drag && drag.tower === this && drag.isDragging;
     if (!isDragging) this.drawBody(x, y, 1);
-
     if (selectedTower === this) {
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
       ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
     }
-
     drawLevelStars(this.level, x, y - half - 12, size);
   }
 }
@@ -2163,34 +2460,19 @@ class MagentaTower {
   get y() { return this.spot.y; }
   get critRate() { return 0; }
   get critDamage() { return 2.0; }
-
   applyLevel() {}
-
   update(dt) {
     if (this.triggered) return;
     this.pulse += dt;
     this.timer -= dt;
-    if (this.timer <= 0) {
-      this.trigger();
-      this.triggered = true;
-    }
+    if (this.timer <= 0) { this.trigger(); this.triggered = true; }
   }
-
   trigger() {
     this.spot.tower = null;
     const candidates = SPOTS.filter(s =>
-      s.tower &&
-      s.tower !== this &&
-      s.tower.type !== 'magenta' &&
-      s.tower.type !== 'silver' &&
-      s.tower.level < MAX_TOWER_LEVEL
-    );
-
-    if (candidates.length === 0) {
-      log('品紅塔：沒有可升級的目標', 2500);
-      return;
-    }
-
+      s.tower && s.tower !== this && s.tower.type !== 'magenta' &&
+      s.tower.type !== 'silver' && s.tower.level < MAX_TOWER_LEVEL);
+    if (candidates.length === 0) { log('品紅塔：沒有可升級的目標', 2500); return; }
     if (Math.random() < this.config.successRate) {
       const targetSpot = candidates[Math.floor(Math.random() * candidates.length)];
       const t = targetSpot.tower;
@@ -2199,72 +2481,46 @@ class MagentaTower {
       if (t.applyLevel) t.applyLevel();
       sfxUpgrade();
       log(`💖 品紅塔成功！${TOWER_TYPES[t.type].name} Lv.${oldLevel} → Lv.${t.level}`, 3500);
-    } else {
-      log('💔 品紅塔失敗了...', 2500);
-    }
+    } else log('💔 品紅塔失敗了...', 2500);
   }
-
   drawBody(x, y, alpha = 1) {
-    const size = 70;
-    const half = size / 2;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(x, y);
-
+    const size = 70, half = size / 2;
+    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
     ctx.fillStyle = '#00000066';
     ctx.fillRect(-half + 2, -half + 3, size, size);
-
     const grad = ctx.createLinearGradient(-half, -half, half, half);
-    grad.addColorStop(0, '#FF66DD');
-    grad.addColorStop(1, '#CC0099');
+    grad.addColorStop(0, '#FF66DD'); grad.addColorStop(1, '#CC0099');
     ctx.fillStyle = grad;
     ctx.fillRect(-half, -half, size, size);
-
-    ctx.strokeStyle = '#ffd6f5';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ffd6f5'; ctx.lineWidth = 2;
     ctx.strokeRect(-half, -half, size, size);
-
     ctx.fillStyle = '#ffffff';
     ctx.font = `bold ${size * 0.55}px system-ui`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(Math.ceil(Math.max(0, this.timer)), 0, 1);
     ctx.restore();
   }
-
   draw() {
     const x = this.x, y = this.y;
-    const size = 70;
-    const half = size / 2;
-
+    const size = 70, half = size / 2;
     if (selectedTower === this) {
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
       ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
     }
-
     const progress = 1 - Math.max(0, this.timer) / this.config.triggerTime;
     const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 100);
-
-    ctx.save();
-    ctx.shadowColor = '#FF33CC';
+    ctx.save(); ctx.shadowColor = '#FF33CC';
     ctx.shadowBlur = 10 + progress * 25 + pulse * 8;
     ctx.fillStyle = `rgba(255, 51, 204, ${0.15 + progress * 0.4})`;
-    ctx.beginPath();
-    ctx.arc(x, y, half + 6 + progress * 8, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, half + 6 + progress * 8, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
-
     const isDragging = drag && drag.tower === this && drag.isDragging;
     if (!isDragging) this.drawBody(x, y, 1);
-
     ctx.save();
-    ctx.strokeStyle = 'rgba(255, 51, 204, 0.9)';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(255, 51, 204, 0.9)'; ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(x, y, half + 5, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
+    ctx.stroke(); ctx.restore();
   }
 }
 
@@ -2288,41 +2544,26 @@ class FireArrowTower {
   get y() { return this.spot.y; }
   get critRate() { return Math.min(1.0, this.critRateBonus); }
   get critDamage() { return Math.min(5.0, 2.0 + this.critDmgBonus); }
-
   applyLevel() {
-    const lv = this.level;
-    this.damage = this.config.damage * Math.pow(1.5, lv - 1);
+    this.damage = this.config.damage * Math.pow(1.5, this.level - 1);
   }
-
-  applyHaste(duration) {
-    this.hastedTimer = duration;
-  }
-
+  applyHaste(duration) { this.hastedTimer = duration; }
   update(dt) {
     this.pulse += dt;
     this.fireFlash = Math.max(0, this.fireFlash - dt * 20);
-
     for (const b of this.beams) b.timer -= dt;
     this.beams = this.beams.filter(b => b.timer > 0 && b.target && b.target.alive);
-
     this.cooldown -= dt;
     if (this.cooldown > 0) return;
-
     const target = this.findTarget();
     if (!target) return;
-
     this.fireAt(target);
-
     const hasBoss = enemies.some(e => e.isBoss && e.alive);
     this.cooldown = hasBoss ? this.config.fireIntervalBoss : this.config.fireIntervalNormal;
   }
-
   findTarget() {
-    for (const e of enemies) {
-      if (e.alive && e.isBoss) return e;
-    }
-    let best = null;
-    let bestDist = Infinity;
+    for (const e of enemies) if (e.alive && e.isBoss) return e;
+    let best = null, bestDist = Infinity;
     for (const e of enemies) {
       if (!e.alive) continue;
       const p = e.getPos();
@@ -2331,7 +2572,6 @@ class FireArrowTower {
     }
     return best;
   }
-
   fireAt(target) {
     let dmg = this.damage;
     if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
@@ -2340,104 +2580,60 @@ class FireArrowTower {
     this.fireFlash = 1;
     this.beams.push({ target, timer: 0.06 });
   }
-
   drawBody(x, y, alpha = 1) {
-    const size = 70;
-    const half = size / 2;
+    const size = 70, half = size / 2;
     const hasBoss = enemies.some(e => e.isBoss && e.alive);
-
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(x, y);
-
+    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
     ctx.fillStyle = '#00000066';
     ctx.fillRect(-half + 2, -half + 3, size, size);
-
     const grad = ctx.createLinearGradient(-half, -half, half, half);
     if (hasBoss) {
-      grad.addColorStop(0, '#ffcc66');
-      grad.addColorStop(0.5, '#ff6600');
-      grad.addColorStop(1, '#991100');
+      grad.addColorStop(0, '#ffcc66'); grad.addColorStop(0.5, '#ff6600'); grad.addColorStop(1, '#991100');
     } else {
-      grad.addColorStop(0, '#cc4400');
-      grad.addColorStop(0.5, '#882200');
-      grad.addColorStop(1, '#441100');
+      grad.addColorStop(0, '#cc4400'); grad.addColorStop(0.5, '#882200'); grad.addColorStop(1, '#441100');
     }
     ctx.fillStyle = grad;
     ctx.fillRect(-half, -half, size, size);
-
-    ctx.strokeStyle = hasBoss ? '#ffd700' : '#552200';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = hasBoss ? '#ffd700' : '#552200'; ctx.lineWidth = 2;
     ctx.strokeRect(-half, -half, size, size);
     ctx.restore();
-
     drawTowerIcon('fireArrow', x, y, size);
-
     if (hasBoss) {
       ctx.save();
       const glow = 0.6 + 0.4 * Math.sin(this.pulse * 20);
-      ctx.shadowColor = '#FF4500';
-      ctx.shadowBlur = 20 * glow;
-      ctx.strokeStyle = `rgba(255, 200, 100, ${glow})`;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 4, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.shadowColor = '#FF4500'; ctx.shadowBlur = 20 * glow;
+      ctx.strokeStyle = `rgba(255, 200, 100, ${glow})`; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x, y, half + 4, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
   }
-
   draw() {
     const x = this.x, y = this.y;
-    const size = 70;
-    const half = size / 2;
-
+    const size = 70, half = size / 2;
     if (selectedTower === this) {
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
       ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
     }
-
     if (this.critRateBonus > 0) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 3, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.save(); ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, half + 3, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
     if (this.critDmgBonus > 0) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, half + 6, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.save(); ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, half + 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
-
     const isDragging = drag && drag.tower === this && drag.isDragging;
     if (!isDragging) this.drawBody(x, y, 1);
-
     if (!isDragging) {
-      ctx.save();
-      ctx.shadowColor = '#FF4500';
-      ctx.shadowBlur = 14;
+      ctx.save(); ctx.shadowColor = '#FF4500'; ctx.shadowBlur = 14;
       for (const b of this.beams) {
         if (!b.target || !b.target.alive) continue;
         const tp = b.target.getPos();
         const alpha = b.timer / 0.06;
-        ctx.strokeStyle = `rgba(255, 180, 50, ${alpha})`;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(tp.x, tp.y);
-        ctx.stroke();
+        ctx.strokeStyle = `rgba(255, 180, 50, ${alpha})`; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tp.x, tp.y); ctx.stroke();
       }
       ctx.restore();
     }
-
     drawLevelStars(this.level, x, y - half - 12, size);
   }
 }
@@ -2445,14 +2641,12 @@ class FireArrowTower {
 // ============ 子彈 ============
 class Bullet {
   constructor(tower, target) {
-    this.x = tower.x;
-    this.y = tower.y;
+    this.x = tower.x; this.y = tower.y;
     this.target = target;
     this.alive = true;
     this.speed = 600;
     this.color = tower.config.color;
     this.towerType = tower.type;
-
     this.damage = tower.damage;
     this.killChance = tower.killChance || 0;
     this.slowFactor = tower.slowFactor;
@@ -2462,17 +2656,12 @@ class Bullet {
     this.critRate = tower.critRate || 0;
     this.critDamage = tower.critDamage || 2.0;
   }
-
   update(dt) {
     if (!this.alive) return;
     if (!this.target.alive) { this.alive = false; return; }
-
     const tp = this.target.getPos();
-    const dx = tp.x - this.x;
-    const dy = tp.y - this.y;
-    const dist = Math.hypot(dx, dy);
-    const move = this.speed * dt;
-
+    const dx = tp.x - this.x, dy = tp.y - this.y;
+    const dist = Math.hypot(dx, dy), move = this.speed * dt;
     if (dist <= move) {
       if (this.isHit) {
         const procsKill = this.killChance > 0 && Math.random() < this.killChance;
@@ -2504,20 +2693,16 @@ class Bullet {
       this.y += (dy / dist) * move;
     }
   }
-
   draw() {
     if (!this.alive) return;
     ctx.fillStyle = this.color;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI * 2); ctx.fill();
   }
 }
 
 class SilverBullet {
   constructor(tower, target) {
-    this.x = tower.x;
-    this.y = tower.y;
+    this.x = tower.x; this.y = tower.y;
     this.target = target;
     this.alive = true;
     this.speed = 900;
@@ -2527,17 +2712,12 @@ class SilverBullet {
     this.critRate = tower.critRate || 0;
     this.critDamage = tower.critDamage || 2.0;
   }
-
   update(dt) {
     if (!this.alive) return;
     if (!this.target.alive) { this.alive = false; return; }
-
     const tp = this.target.getPos();
-    const dx = tp.x - this.x;
-    const dy = tp.y - this.y;
-    const dist = Math.hypot(dx, dy);
-    const move = this.speed * dt;
-
+    const dx = tp.x - this.x, dy = tp.y - this.y;
+    const dist = Math.hypot(dx, dy), move = this.speed * dt;
     if (dist <= move) {
       let dmg = this.damage;
       if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
@@ -2549,13 +2729,10 @@ class SilverBullet {
       this.y += (dy / dist) * move;
     }
   }
-
   draw() {
     if (!this.alive) return;
     ctx.fillStyle = this.color;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2); ctx.fill();
   }
 }
 
@@ -2575,8 +2752,7 @@ function canCombine(a, b) {
   if (!a || !b) return false;
   if (a === b) return false;
   if (a.type === 'magenta' || b.type === 'magenta') return false;
-  const key = a.type + '+' + b.type;
-  return !!COMBOS[key];
+  return !!COMBOS[a.type + '+' + b.type];
 }
 
 function createTower(spot, type) {
@@ -2600,27 +2776,18 @@ function unlockButton(type) {
 function combineTowers(a, b) {
   const key = a.type + '+' + b.type;
   const resultType = COMBOS[key]();
-  const spotA = a.spot;
-  const spotB = b.spot;
-  spotA.tower = null;
-  spotB.tower = null;
-
+  const spotA = a.spot, spotB = b.spot;
+  spotA.tower = null; spotB.tower = null;
   const newTower = createTower(spotA, resultType);
   spotA.tower = newTower;
   sfxCombine();
 
   if (resultType === 'green' && !unlocked.green) {
-    unlocked.green = true;
-    unlockButton('green');
-    log('✨ 綠塔解鎖！');
+    unlocked.green = true; unlockButton('green'); log('✨ 綠塔解鎖！');
   } else if (resultType === 'blue' && !unlocked.blue) {
-    unlocked.blue = true;
-    unlockButton('blue');
-    log('💙 藍塔解鎖！');
+    unlocked.blue = true; unlockButton('blue'); log('💙 藍塔解鎖！');
   } else if (resultType === 'orange' && !unlocked.orange) {
-    unlocked.orange = true;
-    unlockButton('orange');
-    log('🔥 橙塔解鎖！');
+    unlocked.orange = true; unlockButton('orange'); log('🔥 橙塔解鎖！');
   } else if (resultType === 'cyan') {
     log('⚡ 青藍塔！專剋 Boss', 3000);
   } else if (resultType === 'red') {
@@ -2640,11 +2807,9 @@ function combineGold(towerList) {
   for (const t of towerList) t.spot.tower = null;
   const newTower = new Tower(firstSpot, 'gold');
   firstSpot.tower = newTower;
-
   goldBanner.classList.add('show');
   setTimeout(() => goldBanner.classList.remove('show'), 1800);
   sfxGold();
-
   log('✨✨✨ 金色傳說！', 4000);
   selectedTower = null;
   updateTowerPanel();
@@ -2654,13 +2819,16 @@ function combineGold(towerList) {
 
 // ============ 波次 ============
 function startWave() {
-  if (waveActive || gameOver) return;
+  if (waveActive || gameOver || gameState !== 'playing') return;
+  const cfg = DIFFICULTIES[currentDifficulty];
+  if (wave >= cfg.maxWave) return;
+
   wave++;
   waveActive = true;
   autoNextTimer = 0;
 
   const isBossWave = wave % 10 === 0;
-  const baseHp = Math.floor(45 * Math.pow(1.20, wave - 1));
+  const baseHp = Math.floor(45 * Math.pow(cfg.hpGrowth, wave - 1));
   const baseSpeed = Math.min(180, 70 + (wave - 1) * 4);
   const count = 5 + Math.floor(wave * 1.5);
 
@@ -2668,7 +2836,6 @@ function startWave() {
   for (let i = 0; i < count; i++) {
     spawnQueue.push({ hp: baseHp, speed: baseSpeed, delay: i * 0.55, isBoss: false });
   }
-
   if (isBossWave) {
     const bossHp = Math.floor(baseHp * 20);
     const bossSpeed = baseSpeed * 0.6;
@@ -2709,16 +2876,11 @@ function handleTowerTap(tower) {
     updateTowerPanel();
     return;
   }
-
   comboSequence.push({ type: tower.type, tower });
-
   if (comboSequence.length === GOLD_RECIPE.length) {
     let fullMatch = true;
     for (let i = 0; i < GOLD_RECIPE.length; i++) {
-      if (comboSequence[i].type !== GOLD_RECIPE[i]) {
-        fullMatch = false;
-        break;
-      }
+      if (comboSequence[i].type !== GOLD_RECIPE[i]) { fullMatch = false; break; }
     }
     if (fullMatch) {
       combineGold(comboSequence.map(c => c.tower));
@@ -2726,43 +2888,33 @@ function handleTowerTap(tower) {
       return;
     }
   }
-
   let isPrefix = true;
   for (let i = 0; i < comboSequence.length; i++) {
-    if (comboSequence[i].type !== GOLD_RECIPE[i]) {
-      isPrefix = false;
-      break;
-    }
+    if (comboSequence[i].type !== GOLD_RECIPE[i]) { isPrefix = false; break; }
   }
   if (!isPrefix) {
-    comboSequence = tower.type === GOLD_RECIPE[0]
-      ? [{ type: tower.type, tower }]
-      : [];
+    comboSequence = tower.type === GOLD_RECIPE[0] ? [{ type: tower.type, tower }] : [];
   }
-
   selectedTower = tower;
   updateTowerPanel();
 }
 
 // ============ 輸入處理 ============
 function startDragAt(x, y) {
-  if (gameOver) return;
+  if (gameOver || gameState !== 'playing') return;
   initAudio();
-
   const rect = canvas.getBoundingClientRect();
   const pos = {
     x: (x - rect.left) * (BASE_W / rect.width),
     y: (y - rect.top) * (BASE_H / rect.height),
   };
   const spot = findSpotAt(pos.x, pos.y);
-
   if (!spot) {
     selectedTower = null;
     comboSequence = [];
     updateTowerPanel();
     return;
   }
-
   if (removeMode) {
     if (spot.tower) {
       const t = spot.tower;
@@ -2779,36 +2931,29 @@ function startDragAt(x, y) {
     }
     return;
   }
-
   if (shopSelected) {
     if (spot.tower) return;
     const cfg = TOWER_TYPES[shopSelected];
     if (money < cfg.cost) { log('金幣不足'); return; }
     money -= cfg.cost;
-    const newTower = createTower(spot, shopSelected);
-    spot.tower = newTower;
+    spot.tower = createTower(spot, shopSelected);
     sfxPlace();
     updateUI();
     saveGame();
     return;
   }
-
   if (spot.tower) {
     if (inputMode === 'mouse') {
       if (selectedTower && selectedTower !== spot.tower) {
-        const a = selectedTower;
-        const b = spot.tower;
+        const a = selectedTower, b = spot.tower;
         if (canCombine(a, b)) {
           combineTowers(a, b);
           selectedTower = null;
           return;
         } else {
-          const aSpot = a.spot;
-          const bSpot = b.spot;
-          aSpot.tower = b;
-          bSpot.tower = a;
-          a.spot = bSpot;
-          b.spot = aSpot;
+          const aSpot = a.spot, bSpot = b.spot;
+          aSpot.tower = b; bSpot.tower = a;
+          a.spot = bSpot; b.spot = aSpot;
           sfxPlace();
           saveGame();
           selectedTower = null;
@@ -2819,14 +2964,10 @@ function startDragAt(x, y) {
       handleTowerTap(spot.tower);
       return;
     }
-
     drag = {
-      tower: spot.tower,
-      spot: spot,
-      startX: pos.x,
-      startY: pos.y,
-      currentX: pos.x,
-      currentY: pos.y,
+      tower: spot.tower, spot: spot,
+      startX: pos.x, startY: pos.y,
+      currentX: pos.x, currentY: pos.y,
       isDragging: false,
     };
   } else {
@@ -2845,10 +2986,8 @@ function moveDragTo(x, y) {
   };
   drag.currentX = pos.x;
   drag.currentY = pos.y;
-
   if (!drag.isDragging) {
-    const dx = pos.x - drag.startX;
-    const dy = pos.y - drag.startY;
+    const dx = pos.x - drag.startX, dy = pos.y - drag.startY;
     if (Math.hypot(dx, dy) > 8) {
       drag.isDragging = true;
       selectedTower = null;
@@ -2865,14 +3004,11 @@ function endDragAt(x, y) {
     x: (x - rect.left) * (BASE_W / rect.width),
     y: (y - rect.top) * (BASE_H / rect.height),
   };
-
   if (drag.isDragging) {
     const targetSpot = findSpotAt(pos.x, pos.y);
     if (targetSpot && targetSpot !== drag.spot) {
-      const a = drag.tower;
-      const aSpot = drag.spot;
+      const a = drag.tower, aSpot = drag.spot;
       const b = targetSpot.tower;
-
       if (!b) {
         aSpot.tower = null;
         targetSpot.tower = a;
@@ -2893,56 +3029,44 @@ function endDragAt(x, y) {
   } else {
     handleTowerTap(drag.tower);
   }
-
   drag = null;
 }
 
-// 觸控模式（pointer events）
 canvas.addEventListener('pointerdown', (e) => {
-  if (inputMode !== 'pointer') return;
+  if (inputMode !== 'pointer' || gameState !== 'playing') return;
   e.preventDefault();
   const now = performance.now();
   if (now - lastDownTime < 60) return;
   lastDownTime = now;
   startDragAt(e.clientX, e.clientY);
 }, { passive: false });
-
 document.addEventListener('pointermove', (e) => {
-  if (inputMode !== 'pointer') return;
-  if (!drag) return;
+  if (inputMode !== 'pointer' || !drag) return;
   moveDragTo(e.clientX, e.clientY);
 }, { passive: false });
-
 document.addEventListener('pointerup', (e) => {
-  if (inputMode !== 'pointer') return;
-  if (!drag) return;
+  if (inputMode !== 'pointer' || !drag) return;
   endDragAt(e.clientX, e.clientY);
 }, { passive: false });
-
 document.addEventListener('pointercancel', () => {
   if (inputMode !== 'pointer') return;
   drag = null;
 });
 
-// 滑鼠模式（模擬器友好）
 canvas.addEventListener('mousedown', (e) => {
-  if (inputMode !== 'mouse') return;
+  if (inputMode !== 'mouse' || gameState !== 'playing') return;
   e.preventDefault();
   const now = performance.now();
   if (now - lastDownTime < 60) return;
   lastDownTime = now;
   startDragAt(e.clientX, e.clientY);
 });
-
 document.addEventListener('mousemove', (e) => {
-  if (inputMode !== 'mouse') return;
-  if (!drag) return;
+  if (inputMode !== 'mouse' || !drag) return;
   moveDragTo(e.clientX, e.clientY);
 });
-
 document.addEventListener('mouseup', (e) => {
-  if (inputMode !== 'mouse') return;
-  if (!drag) return;
+  if (inputMode !== 'mouse' || !drag) return;
   endDragAt(e.clientX, e.clientY);
 });
 
@@ -2950,12 +3074,10 @@ document.addEventListener('mouseup', (e) => {
 document.querySelectorAll('.shop-btn').forEach(btn => {
   btn.addEventListener('pointerdown', (e) => {
     e.preventDefault();
+    if (gameState !== 'playing') return;
     initAudio();
     const type = btn.dataset.type;
-    if (!unlocked[type]) {
-      log('尚未解鎖');
-      return;
-    }
+    if (!unlocked[type]) { log('尚未解鎖'); return; }
     if (shopSelected === type) {
       shopSelected = null;
       btn.classList.remove('selected');
@@ -3004,7 +3126,6 @@ upgradeBtn.addEventListener('pointerdown', (e) => {
   if (selectedTower) upgradeTower(selectedTower);
 }, { passive: false });
 
-// ============ 速度切換 ============
 speedBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   initAudio();
@@ -3013,36 +3134,27 @@ speedBtn.addEventListener('pointerdown', (e) => {
   speedBtn.classList.toggle('active', speedMultiplier === 2);
 }, { passive: false });
 
-// ============ 靜音切換 ============
 muteBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   initAudio();
   muted = !muted;
   muteBtn.textContent = muted ? '🔇' : '🔊';
   muteBtn.classList.toggle('active', muted);
-  if (muted) {
-    stopBgm();
-  } else if (musicEnabled && musicStarted) {
-    startBgm();
-  }
+  if (muted) stopBgm();
+  else if (musicEnabled && musicStarted && gameState === 'playing') startBgm();
 }, { passive: false });
 
-// ============ 音樂切換 ============
 musicBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   initAudio();
   musicEnabled = !musicEnabled;
   musicBtn.classList.toggle('active', !musicEnabled);
-  musicBtn.textContent = musicEnabled ? '🎵' : '🎵̸';
-  if (musicEnabled && !muted) {
+  if (musicEnabled && !muted && gameState === 'playing') {
     musicStarted = true;
     startBgm();
-  } else {
-    stopBgm();
-  }
+  } else stopBgm();
 }, { passive: false });
 
-// ============ 模擬器模式切換 ============
 emuBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   initAudio();
@@ -3050,10 +3162,9 @@ emuBtn.addEventListener('pointerdown', (e) => {
   emuBtn.classList.toggle('active', inputMode === 'mouse');
   emuBtn.textContent = inputMode === 'mouse' ? '🖱✓' : '🖱';
   drag = null;
-  log(inputMode === 'mouse' ? '滑鼠模式：點塔再點目標' : '觸控模式：拖曳合成');
+  log(inputMode === 'mouse' ? '滑鼠模式' : '觸控模式');
 }, { passive: false });
 
-// ============ 重新開始 ============
 restartBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   initAudio();
@@ -3068,48 +3179,79 @@ cancelRestart.addEventListener('pointerdown', (e) => {
 confirmRestart.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   clearSave();
-  location.reload();
+  confirmModal.classList.remove('show');
+  if (currentDifficulty) startGame(currentDifficulty);
 }, { passive: false });
+
+homeBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  initAudio();
+  stopBgm();
+  if (gameState === 'playing' && !gameOver) {
+    // 保存并返回主菜单
+    saveGame();
+  }
+  backToMenu();
+}, { passive: false });
+
+// ============ 主選單 ============
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    initAudio();
+    const diff = btn.dataset.difficulty;
+    startGame(diff);
+  });
+});
+
+$('viewLeaderboardBtn').addEventListener('click', () => {
+  initAudio();
+  renderLeaderboard();
+  leaderboardPanel.classList.add('show');
+});
+
+$('closeLeaderboard').addEventListener('click', () => {
+  leaderboardPanel.classList.remove('show');
+});
+
+document.querySelectorAll('.lb-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    lbCurrentTab = tab.dataset.diff;
+    renderLeaderboard();
+  });
+});
+
+$('vOk').addEventListener('click', () => {
+  victoryModal.classList.remove('show');
+  backToMenu();
+});
 
 // ============ 傷害統計面板 ============
 let statsVisible = false;
 
-function formatNum(n) {
-  n = Math.floor(n);
-  if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
-  return n.toString();
-}
-
 function renderStats() {
   if (!statsVisible) return;
-
-  const entries = Object.entries(damageStats)
-    .filter(([_, v]) => v > 0)
+  const entries = Object.entries(damageStats).filter(([_, v]) => v > 0)
     .sort((a, b) => b[1] - a[1]);
-
   const total = entries.reduce((sum, [_, v]) => sum + v, 0);
-
   if (entries.length === 0) {
     statsList.innerHTML = '<div style="color:#666;text-align:center;padding:12px 0;">還沒有傷害紀錄</div>';
     statsTotal.textContent = '0';
     return;
   }
-
   let html = '';
   for (const [type, dmg] of entries) {
     const cfg = TOWER_TYPES[type];
     const name = cfg ? cfg.name : type;
     const color = cfg ? cfg.color : '#666';
     const pct = ((dmg / total) * 100).toFixed(1);
-    html += `
-      <div class="stats-row">
-        <div class="stats-dot" style="background:${color};"></div>
-        <div class="stats-name">${name}</div>
-        <div class="stats-num">${formatNum(dmg)}</div>
-        <div class="stats-pct">${pct}%</div>
-      </div>
-    `;
+    html += `<div class="stats-row">
+      <div class="stats-dot" style="background:${color};"></div>
+      <div class="stats-name">${name}</div>
+      <div class="stats-num">${formatNum(dmg)}</div>
+      <div class="stats-pct">${pct}%</div>
+    </div>`;
   }
   statsList.innerHTML = html;
   statsTotal.textContent = formatNum(total);
@@ -3132,15 +3274,12 @@ function drawBackground() {
   grad.addColorStop(1, '#050510');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, BASE_W, BASE_H);
-
   ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
   for (let i = 0; i < 60; i++) {
     const sx = (i * 137.5) % BASE_W;
     const sy = (i * 73.3) % BASE_H;
     const sr = 0.5 + ((i * 17) % 10) / 10;
-    ctx.beginPath();
-    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fill();
   }
 }
 
@@ -3148,17 +3287,12 @@ function drawPath() {
   ctx.beginPath();
   ctx.moveTo(PATH[0].x, PATH[0].y);
   for (let i = 1; i < PATH.length; i++) ctx.lineTo(PATH[i].x, PATH[i].y);
-
   ctx.strokeStyle = hasGoldTower ? '#2a1f0a' : '#23233d';
-  ctx.lineWidth = 42;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
+  ctx.lineWidth = 42; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.stroke();
-
   ctx.strokeStyle = hasGoldTower ? '#4a3a15' : '#2e2e50';
   ctx.lineWidth = 32;
   ctx.stroke();
-
   if (hasGoldTower) {
     ctx.save();
     ctx.setLineDash([12, 18]);
@@ -3166,7 +3300,6 @@ function drawPath() {
     ctx.strokeStyle = 'rgba(120, 90, 10, 0.6)';
     ctx.lineWidth = 32;
     ctx.stroke();
-
     ctx.setLineDash([6, 24]);
     ctx.lineDashOffset = (performance.now() / 25) % 30;
     ctx.strokeStyle = 'rgba(241, 196, 15, 0.7)';
@@ -3178,72 +3311,47 @@ function drawPath() {
 
 function drawSpot(spot) {
   const x = spot.x, y = spot.y;
-  const size = SPOT_SIZE;
-  const half = size / 2;
-
+  const size = SPOT_SIZE, half = size / 2;
   if (spot.special === 'glow') {
     ctx.save();
-    ctx.shadowColor = '#ffffff';
-    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 20;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     ctx.fillRect(x - half, y - half, size, size);
     ctx.restore();
-
     ctx.fillStyle = '#2ecc71';
-    ctx.strokeStyle = '#27ae60';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#27ae60'; ctx.lineWidth = 2;
     for (let i = 0; i < 3; i++) {
-      const ax = x - 20 + i * 20;
-      const ay = y + 10;
+      const ax = x - 20 + i * 20, ay = y + 10;
       ctx.beginPath();
-      ctx.moveTo(ax, ay);
-      ctx.lineTo(ax - 8, ay + 12);
-      ctx.lineTo(ax - 4, ay + 12);
-      ctx.lineTo(ax - 4, ay + 22);
-      ctx.lineTo(ax + 4, ay + 22);
-      ctx.lineTo(ax + 4, ay + 12);
-      ctx.lineTo(ax + 8, ay + 12);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
+      ctx.moveTo(ax, ay); ctx.lineTo(ax - 8, ay + 12); ctx.lineTo(ax - 4, ay + 12);
+      ctx.lineTo(ax - 4, ay + 22); ctx.lineTo(ax + 4, ay + 22); ctx.lineTo(ax + 4, ay + 12);
+      ctx.lineTo(ax + 8, ay + 12); ctx.closePath();
+      ctx.fill(); ctx.stroke();
     }
     return;
   }
-
   if (spot.special === 'void') {
     const grad = ctx.createRadialGradient(x, y, 0, x, y, half);
-    grad.addColorStop(0, '#000000');
-    grad.addColorStop(0.6, '#0a0a14');
-    grad.addColorStop(1, '#1a1a30');
+    grad.addColorStop(0, '#000000'); grad.addColorStop(0.6, '#0a0a14'); grad.addColorStop(1, '#1a1a30');
     ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(x, y, half, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = 'rgba(80, 50, 120, 0.4)';
-    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x, y, half, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(80, 50, 120, 0.4)'; ctx.lineWidth = 1.5;
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
       const startR = 5 + i * 12;
       for (let a = 0; a < Math.PI * 4; a += 0.2) {
         const r = startR + a * 2;
         if (r > half) break;
-        const px = x + Math.cos(a + i) * r;
-        const py = y + Math.sin(a + i) * r;
-        if (a === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+        const px = x + Math.cos(a + i) * r, py = y + Math.sin(a + i) * r;
+        if (a === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
       ctx.stroke();
     }
     return;
   }
-
   const grad = ctx.createLinearGradient(x - half, y - half, x + half, y + half);
-  grad.addColorStop(0, '#c8c8c8');
-  grad.addColorStop(0.5, '#b0b0b0');
-  grad.addColorStop(1, '#888888');
+  grad.addColorStop(0, '#c8c8c8'); grad.addColorStop(0.5, '#b0b0b0'); grad.addColorStop(1, '#888888');
   ctx.fillStyle = grad;
-
   const r = 6;
   ctx.beginPath();
   ctx.moveTo(x - half + r, y - half);
@@ -3257,27 +3365,16 @@ function drawSpot(spot) {
   ctx.quadraticCurveTo(x - half, y - half, x - half + r, y - half);
   ctx.closePath();
   ctx.fill();
-
-  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 2; ctx.stroke();
 }
 
-// ============ 拖曳幽靈 ============
 function drawDragGhost() {
   if (!drag || !drag.isDragging) return;
-
-  const x = drag.currentX;
-  const y = drag.currentY;
+  const x = drag.currentX, y = drag.currentY;
   const t = drag.tower;
-  const size = 70;
-  const half = size / 2;
-
+  const size = 70, half = size / 2;
   const targetSpot = findSpotAt(x, y);
-  let targetValid = false;
-  let targetSwap = false;
-  let targetSpotPos = null;
-
+  let targetValid = false, targetSwap = false, targetSpotPos = null;
   if (targetSpot && targetSpot !== drag.spot) {
     if (!targetSpot.tower) {
       targetValid = true;
@@ -3290,47 +3387,27 @@ function drawDragGhost() {
       targetSpotPos = { x: targetSpot.x, y: targetSpot.y };
     }
   }
-
   if (targetSpotPos) {
     ctx.save();
-    if (targetValid) {
-      ctx.strokeStyle = '#2ecc71';
-      ctx.shadowColor = '#2ecc71';
-    } else if (targetSwap) {
-      ctx.strokeStyle = '#f1c40f';
-      ctx.shadowColor = '#f1c40f';
-    } else {
-      ctx.strokeStyle = '#e74c3c';
-      ctx.shadowColor = '#e74c3c';
-    }
-    ctx.lineWidth = 4;
-    ctx.shadowBlur = 12;
-    ctx.strokeRect(
-      targetSpotPos.x - half - 5,
-      targetSpotPos.y - half - 5,
-      size + 10,
-      size + 10
-    );
+    if (targetValid) { ctx.strokeStyle = '#2ecc71'; ctx.shadowColor = '#2ecc71'; }
+    else if (targetSwap) { ctx.strokeStyle = '#f1c40f'; ctx.shadowColor = '#f1c40f'; }
+    else { ctx.strokeStyle = '#e74c3c'; ctx.shadowColor = '#e74c3c'; }
+    ctx.lineWidth = 4; ctx.shadowBlur = 12;
+    ctx.strokeRect(targetSpotPos.x - half - 5, targetSpotPos.y - half - 5, size + 10, size + 10);
     ctx.restore();
   }
-
   ctx.save();
   ctx.globalAlpha = 0.75;
   ctx.translate(x, y);
-
   ctx.fillStyle = '#00000088';
   ctx.fillRect(-half + 2, -half + 3, size, size);
-
   let color = '#ffffff';
   if (TOWER_TYPES[t.type]) color = TOWER_TYPES[t.type].color;
   ctx.fillStyle = color;
   ctx.fillRect(-half, -half, size, size);
-
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
   ctx.strokeRect(-half, -half, size, size);
   ctx.restore();
-
   drawTowerIcon(t.type, x, y, size);
 }
 
@@ -3343,8 +3420,12 @@ function gameLoop(timestamp) {
   let dt = Math.min((timestamp - lastTime) / 1000, 0.1);
   lastTime = timestamp;
 
-  dt *= speedMultiplier;
+  if (gameState !== 'playing') {
+    requestAnimationFrame(gameLoop);
+    return;
+  }
 
+  dt *= speedMultiplier;
   hasGoldTower = SPOTS.some(s => s.tower && s.tower.type === 'gold');
   recomputeBuffs();
 
@@ -3360,6 +3441,12 @@ function gameLoop(timestamp) {
         startWaveBtn.disabled = false;
         if (autoNext) autoNextTimer = 2.0;
         saveGame();
+
+        // 通關判定
+        const cfg = DIFFICULTIES[currentDifficulty];
+        if (wave >= cfg.maxWave) {
+          finishGame(true);
+        }
       }
     } else if (autoNext && autoNextTimer > 0) {
       autoNextTimer -= dt;
@@ -3374,9 +3461,8 @@ function gameLoop(timestamp) {
 
     for (const e of enemies) {
       if (!e.alive) {
-        if (e.reachedEnd) {
-          lives -= e.isBoss ? 10 : 1;
-        } else {
+        if (e.reachedEnd) lives -= e.isBoss ? 10 : 1;
+        else {
           money += e.isBoss ? 250 : 10;
           if (!e.isBoss) sfxCoin();
         }
@@ -3386,12 +3472,8 @@ function gameLoop(timestamp) {
     enemies = enemies.filter(e => e.alive);
     bullets = bullets.filter(b => b.alive);
 
-    if (lives <= 0) {
-      gameOver = true;
-      clearSave();
-      sfxGameOver();
-      stopBgm();
-      setTimeout(() => alert('遊戲結束！重新整理頁面再來一次。'), 50);
+    if (lives <= 0 && !gameOver) {
+      finishGame(false);
     }
 
     saveTimer += dt;
@@ -3411,34 +3493,25 @@ function gameLoop(timestamp) {
 
   drawBackground();
   drawPath();
-
   for (const spot of SPOTS) drawSpot(spot);
   for (const spot of SPOTS) {
     if (spot.tower) spot.tower.draw();
   }
-
   for (const e of enemies) e.draw();
   for (const b of bullets) b.draw();
-
   drawDragGhost();
 
   const boss = enemies.find(e => e.isBoss && e.alive);
   if (boss) {
     bossBar.classList.add('show');
     bossHpEl.style.width = Math.max(0, boss.hp / boss.maxHp * 100) + '%';
-  } else {
-    bossBar.classList.remove('show');
-  }
+  } else bossBar.classList.remove('show');
 
   requestAnimationFrame(gameLoop);
 }
 
 // ============ 初始化 ============
-const loaded = loadGame();
-updateUI();
-if (loaded) {
-  log(`已載入存檔（第 ${wave} 波）`, 3000);
-}
+updateMenuRecords();
 requestAnimationFrame(gameLoop);
 </script>
 </body>
