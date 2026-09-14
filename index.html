@@ -20,26 +20,259 @@
     -webkit-user-select: none;
     -webkit-touch-callout: none;
   }
-  #mainMenu {
+    #mainMenu {
     position: fixed; inset: 0;
     background:
-      radial-gradient(ellipse at top, #1a1a4a 0%, transparent 60%),
-      radial-gradient(ellipse at bottom, #2a1a3a 0%, transparent 60%),
-      #05050f;
+      radial-gradient(ellipse at 50% 0%, #2a1a5a 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 100%, #1a0a3a 0%, transparent 60%),
+      linear-gradient(180deg, #0a0518 0%, #05050f 100%);
     display: none; flex-direction: column;
     align-items: center; justify-content: center;
-    padding: 30px 20px; z-index: 50; gap: 14px;
+    padding: 30px 20px; z-index: 50; gap: 12px;
     overflow-y: auto;
   }
   #mainMenu.show { display: flex; }
+
+  #mainMenu::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(1px 1px at 15% 20%, #fff, transparent),
+      radial-gradient(1px 1px at 80% 15%, #ffe680, transparent),
+      radial-gradient(2px 2px at 25% 70%, #fff, transparent),
+      radial-gradient(1px 1px at 65% 85%, #fff, transparent),
+      radial-gradient(1.5px 1.5px at 90% 60%, #ffe680, transparent),
+      radial-gradient(1px 1px at 40% 40%, #fff, transparent),
+      radial-gradient(1.5px 1.5px at 55% 25%, #fff, transparent);
+    background-size: 100% 100%;
+    opacity: 0.6;
+    animation: starTwinkle 5s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes starTwinkle {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+  }
+
   #mainMenu h1 {
-    font-size: clamp(36px, 10vw, 56px);
-    font-weight: 900; letter-spacing: 10px;
-    background: linear-gradient(180deg, #ffe680 0%, #ffd700 40%, #ff8800 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    position: relative;
+    font-size: clamp(48px, 14vw, 76px);
+    font-weight: 900;
+    letter-spacing: 14px;
+    background: linear-gradient(180deg, #fff6c0 0%, #ffd700 35%, #e8a000 65%, #b87000 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
     background-clip: text;
-    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.6));
-    margin-bottom: 8px; text-align: center;
+    filter:
+      drop-shadow(0 0 24px rgba(255, 215, 0, 0.85))
+      drop-shadow(0 0 50px rgba(255, 180, 0, 0.4));
+    margin-bottom: 4px;
+    text-align: center;
+    padding-left: 14px;
+  }
+
+  #mainMenu .subtitle {
+    position: relative;
+    font-size: 13px;
+    color: #e8d48a;
+    letter-spacing: 8px;
+    margin-bottom: 4px;
+    text-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+  }
+  #mainMenu .subtitle::before,
+  #mainMenu .subtitle::after {
+    content: '◆';
+    color: #ffd700;
+    font-size: 9px;
+    margin: 0 12px;
+    vertical-align: middle;
+    text-shadow: 0 0 8px #ffd700;
+  }
+
+  #mainMenu .player-name {
+    position: relative;
+    font-size: 13px;
+    color: #ffd700;
+    margin-bottom: 14px;
+    padding: 7px 22px;
+    border-radius: 20px;
+    background: rgba(20, 15, 40, 0.85);
+    border: 1.5px solid rgba(255, 215, 0, 0.55);
+    box-shadow:
+      0 0 16px rgba(255, 215, 0, 0.25),
+      inset 0 0 12px rgba(255, 215, 0, 0.08);
+    letter-spacing: 2px;
+    cursor: pointer;
+  }
+  #mainMenu .player-name::before {
+    content: '👑 ';
+    color: #ffd700;
+  }
+
+  .diff-btn {
+    position: relative;
+    width: min(340px, 88vw);
+    padding: 14px 20px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(30, 20, 60, 0.95) 0%, rgba(15, 10, 35, 0.95) 100%);
+    color: #fff; cursor: pointer;
+    display: flex; align-items: center; gap: 14px;
+    transition: 0.25s;
+    font-family: inherit; text-align: left;
+    overflow: hidden;
+  }
+  .diff-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    pointer-events: none;
+    background:
+      linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.05) 50%, transparent 100%);
+  }
+  .diff-btn:active { transform: scale(0.985); }
+  .diff-btn:hover { transform: translateX(3px); }
+
+  .diff-btn[data-difficulty="easy"] {
+    border: 2px solid #3a7a4a;
+    box-shadow:
+      0 0 0 1px rgba(46, 204, 113, 0.2),
+      0 4px 20px rgba(46, 204, 113, 0.15),
+      inset 0 0 24px rgba(46, 204, 113, 0.08);
+  }
+  .diff-btn[data-difficulty="easy"]:hover {
+    border-color: #4ec472;
+    box-shadow:
+      0 0 0 1px rgba(46, 204, 113, 0.4),
+      0 6px 28px rgba(46, 204, 113, 0.35),
+      inset 0 0 30px rgba(46, 204, 113, 0.15);
+  }
+  .diff-btn[data-difficulty="normal"] {
+    border: 2px solid #8a6a1a;
+    box-shadow:
+      0 0 0 1px rgba(241, 196, 15, 0.2),
+      0 4px 20px rgba(241, 196, 15, 0.15),
+      inset 0 0 24px rgba(241, 196, 15, 0.08);
+  }
+  .diff-btn[data-difficulty="normal"]:hover {
+    border-color: #ffd700;
+    box-shadow:
+      0 0 0 1px rgba(255, 215, 0, 0.4),
+      0 6px 28px rgba(255, 215, 0, 0.35),
+      inset 0 0 30px rgba(255, 215, 0, 0.15);
+  }
+  .diff-btn[data-difficulty="hard"] {
+    border: 2px solid #8a2020;
+    box-shadow:
+      0 0 0 1px rgba(231, 76, 60, 0.2),
+      0 4px 20px rgba(231, 76, 60, 0.15),
+      inset 0 0 24px rgba(231, 76, 60, 0.08);
+  }
+  .diff-btn[data-difficulty="hard"]:hover {
+    border-color: #ff4444;
+    box-shadow:
+      0 0 0 1px rgba(231, 76, 60, 0.4),
+      0 6px 28px rgba(231, 76, 60, 0.35),
+      inset 0 0 30px rgba(231, 76, 60, 0.15);
+  }
+
+  .diff-btn .badge {
+    font-size: 26px;
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex: 0 0 auto;
+    position: relative;
+  }
+  .diff-btn[data-difficulty="easy"] .badge {
+    background: radial-gradient(circle, rgba(46, 204, 113, 0.3) 0%, rgba(46, 204, 113, 0.05) 100%);
+    border: 1.5px solid rgba(46, 204, 113, 0.6);
+    box-shadow: 0 0 16px rgba(46, 204, 113, 0.5), inset 0 0 12px rgba(46, 204, 113, 0.2);
+  }
+  .diff-btn[data-difficulty="normal"] .badge {
+    background: radial-gradient(circle, rgba(241, 196, 15, 0.3) 0%, rgba(241, 196, 15, 0.05) 100%);
+    border: 1.5px solid rgba(241, 196, 15, 0.6);
+    box-shadow: 0 0 16px rgba(241, 196, 15, 0.5), inset 0 0 12px rgba(241, 196, 15, 0.2);
+  }
+  .diff-btn[data-difficulty="hard"] .badge {
+    background: radial-gradient(circle, rgba(231, 76, 60, 0.3) 0%, rgba(231, 76, 60, 0.05) 100%);
+    border: 1.5px solid rgba(231, 76, 60, 0.6);
+    box-shadow: 0 0 16px rgba(231, 76, 60, 0.5), inset 0 0 12px rgba(231, 76, 60, 0.2);
+  }
+
+  .diff-btn .info { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .diff-btn .title {
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+  }
+  .diff-btn[data-difficulty="easy"] .title { color: #b8ffcc; text-shadow: 0 0 10px rgba(46, 204, 113, 0.5); }
+  .diff-btn[data-difficulty="normal"] .title { color: #fff2a8; text-shadow: 0 0 10px rgba(241, 196, 15, 0.5); }
+  .diff-btn[data-difficulty="hard"] .title { color: #ffb8b8; text-shadow: 0 0 10px rgba(231, 76, 60, 0.5); }
+
+  .diff-btn .desc {
+    font-size: 11px;
+    color: #998;
+    letter-spacing: 1px;
+  }
+  .diff-btn .record {
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 3px;
+    letter-spacing: 1px;
+    color: #bbb;
+    text-align: right;
+  }
+  .diff-btn[data-difficulty="easy"] .record { color: #7ec894; }
+  .diff-btn[data-difficulty="normal"] .record { color: #d4b84a; }
+  .diff-btn[data-difficulty="hard"] .record { color: #d88080; }
+
+  .menu-action {
+    position: relative;
+    width: min(160px, 45vw);
+    padding: 14px 10px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(30, 20, 60, 0.95) 0%, rgba(15, 10, 35, 0.95) 100%);
+    color: #fff; cursor: pointer;
+    font-family: inherit;
+    font-size: 14px; font-weight: 800;
+    letter-spacing: 2px;
+    transition: 0.25s;
+    text-align: center;
+  }
+  .menu-action:active { transform: scale(0.985); }
+  #tutorialBtn {
+    border: 2px solid #2a6a4a;
+    color: #a8e8c0;
+    box-shadow:
+      0 0 0 1px rgba(46, 204, 113, 0.2),
+      0 4px 20px rgba(46, 204, 113, 0.15),
+      inset 0 0 24px rgba(46, 204, 113, 0.08);
+  }
+  #tutorialBtn:hover {
+    border-color: #4ec472;
+    box-shadow: 0 0 0 1px rgba(46, 204, 113, 0.4), 0 6px 28px rgba(46, 204, 113, 0.35);
+  }
+  #viewLeaderboardBtn {
+    border: 2px solid #3a5a8a;
+    color: #a8c8e8;
+    box-shadow:
+      0 0 0 1px rgba(52, 152, 219, 0.2),
+      0 4px 20px rgba(52, 152, 219, 0.15),
+      inset 0 0 24px rgba(52, 152, 219, 0.08);
+  }
+  #viewLeaderboardBtn:hover {
+    border-color: #4a8ad4;
+    box-shadow: 0 0 0 1px rgba(52, 152, 219, 0.4), 0 6px 28px rgba(52, 152, 219, 0.35);
+  }
+
+  .menu-row {
+    display: flex; gap: 10px;
+    justify-content: center;
+    width: min(340px, 88vw);
+    margin-top: 6px;
   }
   #mainMenu .subtitle {
     font-size: 12px; color: #888;
@@ -311,17 +544,57 @@
     scrollbar-width: none;
   }
   #bottomBar::-webkit-scrollbar { display: none; }
-  .shop-btn {
-    flex: 0 0 auto; width: 52px; height: 46px;
-    border-radius: 8px; background: #16162a;
-    border: 2px solid #33335a;
+    .shop-btn {
+    flex: 0 0 auto; width: 56px; height: 56px;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #2a1f3f 0%, #15101f 100%);
+    border: 1.5px solid #4a3a6a;
     color: #ccc; font-size: 11px; font-weight: 700;
     cursor: pointer;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    gap: 2px; transition: 0.12s; padding: 0;
+    gap: 1px; transition: 0.15s; padding: 0;
     font-family: inherit;
+    position: relative;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 -2px 6px rgba(0, 0, 0, 0.5),
+      0 2px 8px rgba(0, 0, 0, 0.4);
   }
+  .shop-btn::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 5px;
+    border: 1px solid rgba(120, 90, 180, 0.35);
+    pointer-events: none;
+  }
+  .shop-btn .dot {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.6);
+    box-shadow: 0 0 8px currentColor;
+  }
+  .shop-btn .price { font-size: 10px; color: #ffd700; margin-top: 1px; }
+  .shop-btn.selected {
+    border-color: #ffd700;
+    box-shadow:
+      0 0 12px #ffd700aa,
+      inset 0 0 12px rgba(255, 215, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+  }
+  .shop-btn.locked { opacity: 0.28; cursor: not-allowed; }
+  .shop-btn[data-type="white"] .dot { background: radial-gradient(circle at 30% 30%, #fff, #a0a0a0); color: #fff; }
+  .shop-btn[data-type="green"] .dot { background: radial-gradient(circle at 30% 30%, #a8ffd0, #2ecc71); color: #2ecc71; }
+  .shop-btn[data-type="blue"] .dot { background: radial-gradient(circle at 30% 30%, #a8e0ff, #3498db); color: #3498db; }
+  .shop-btn[data-type="purple"] .dot { background: radial-gradient(circle at 30% 30%, #d8a8ff, #9b59b6); color: #9b59b6; }
+  .shop-btn[data-type="orange"] .dot { background: radial-gradient(circle at 30% 30%, #ffc880, #e67e22); color: #e67e22; }
+  .shop-btn[data-type="silver"] .dot { background: radial-gradient(circle at 30% 30%, #f0f0f0, #808080); color: #c0c0c0; }
+  .shop-btn[data-type="amethyst"] .dot { background: radial-gradient(circle at 30% 30%, #e8c8ff, #B088FF); color: #B088FF; }
+  .shop-btn[data-type="jade"] .dot { background: radial-gradient(circle at 30% 30%, #d8ffb8, #66FF66); color: #66FF66; }
+  .shop-btn[data-type="magenta"] .dot { background: radial-gradient(circle at 30% 30%, #ffb8e8, #FF33CC); color: #FF33CC; }
+  .shop-btn[data-type="fireArrow"] .dot { background: radial-gradient(circle at 30% 30%, #ffcc80, #FF4500); color: #FF4500; }
   .shop-btn .dot { width: 14px; height: 14px; border-radius: 4px; border: 1px solid #00000066; }
   .shop-btn .price { font-size: 10px; color: #ffd700; }
   .shop-btn.selected { border-color: #ffd700; box-shadow: 0 0 10px #ffd70088; background: #22224a; }
@@ -714,8 +987,10 @@
     </div>
   </button>
 
-  <button class="menu-action tutorial" id="tutorialBtn">📖 新手教學</button>
-  <button class="menu-action" id="viewLeaderboardBtn">🏆 排行榜</button>
+  <div class="menu-row">
+    <button class="menu-action tutorial" id="tutorialBtn">📖 教學</button>
+    <button class="menu-action" id="viewLeaderboardBtn">🏆 排行</button>
+  </div>
 </div>
 
 <div id="leaderboardPanel">
@@ -1940,107 +2215,151 @@ Enemy.prototype.draw = function() {
 // ============ 塔圖案 ============
 function drawTowerIcon(type, x, y, size) {
   ctx.save();
+  const s = size;
   let i, a, r, px, py;
+
+  // 通用：水晶柱繪製
+  function crystal(fill1, fill2, glowColor, scale) {
+    scale = scale || 1;
+    const h = s * 0.36 * scale;
+    const w = s * 0.16 * scale;
+    // 主體
+    ctx.beginPath();
+    ctx.moveTo(x, y - h);
+    ctx.lineTo(x - w, y - h * 0.25);
+    ctx.lineTo(x - w * 0.6, y + h * 0.85);
+    ctx.lineTo(x + w * 0.6, y + h * 0.85);
+    ctx.lineTo(x + w, y - h * 0.25);
+    ctx.closePath();
+    const g = ctx.createLinearGradient(x - w, y - h, x + w, y + h);
+    g.addColorStop(0, fill1);
+    g.addColorStop(0.5, fill2);
+    g.addColorStop(1, fill1);
+    ctx.fillStyle = g;
+    ctx.fill();
+    // 亮面
+    ctx.beginPath();
+    ctx.moveTo(x, y - h);
+    ctx.lineTo(x - w * 0.5, y - h * 0.2);
+    ctx.lineTo(x - w * 0.3, y + h * 0.7);
+    ctx.lineTo(x, y + h * 0.8);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.fill();
+    // 發光
+    if (glowColor) {
+      ctx.save();
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = 10;
+      ctx.strokeStyle = glowColor;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, y - h);
+      ctx.lineTo(x - w, y - h * 0.25);
+      ctx.lineTo(x - w * 0.6, y + h * 0.85);
+      ctx.lineTo(x + w * 0.6, y + h * 0.85);
+      ctx.lineTo(x + w, y - h * 0.25);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   switch (type) {
     case 'white':
-      ctx.fillStyle = '#555';
-      ctx.beginPath(); ctx.arc(x, y, size * 0.16, 0, Math.PI * 2); ctx.fill(); break;
+      crystal('#ffffff', '#c0c0c0', 'rgba(255,255,255,0.7)');
+      break;
     case 'green':
-      ctx.fillStyle = '#0a4d26';
-      const h = size * 0.32, s = size * 0.3;
-      ctx.beginPath();
-      ctx.moveTo(x, y - h); ctx.lineTo(x - s, y + h * 0.6); ctx.lineTo(x + s, y + h * 0.6);
-      ctx.closePath(); ctx.fill(); break;
+      crystal('#a8ffd0', '#2ecc71', 'rgba(46,204,113,0.9)');
+      break;
     case 'blue':
-      ctx.fillStyle = '#0a2d5c';
-      ctx.beginPath();
-      ctx.moveTo(x + size * 0.02, y - size * 0.28);
-      ctx.lineTo(x - size * 0.14, y + size * 0.02);
-      ctx.lineTo(x - size * 0.02, y + size * 0.02);
-      ctx.lineTo(x - size * 0.06, y + size * 0.28);
-      ctx.lineTo(x + size * 0.14, y - size * 0.04);
-      ctx.lineTo(x + size * 0.02, y - size * 0.04);
-      ctx.closePath(); ctx.fill(); break;
+      crystal('#a8e0ff', '#3498db', 'rgba(52,152,219,0.9)');
+      break;
     case 'purple':
-      ctx.fillStyle = '#2d1445';
-      ctx.beginPath();
-      const outer = size * 0.3, inner = size * 0.13;
-      for (i = 0; i < 10; i++) {
-        a = -Math.PI / 2 + i * Math.PI / 5;
-        r = i % 2 === 0 ? outer : inner;
-        px = x + Math.cos(a) * r; py = y + Math.sin(a) * r;
-        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-      }
-      ctx.closePath(); ctx.fill(); break;
+      crystal('#d8a8ff', '#9b59b6', 'rgba(155,89,182,0.9)');
+      break;
     case 'cyan':
-      ctx.fillStyle = '#003d4d';
-      ctx.fillRect(x - size * 0.07, y - size * 0.28, size * 0.14, size * 0.56);
-      ctx.fillRect(x - size * 0.28, y - size * 0.07, size * 0.56, size * 0.14); break;
-    case 'orange':
-      ctx.fillStyle = '#4d2200';
-      ctx.beginPath(); ctx.arc(x, y, size * 0.16, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#4d2200'; ctx.lineWidth = 3;
-      for (i = 0; i < 8; i++) {
-        a = i * Math.PI / 4;
-        ctx.beginPath();
-        ctx.moveTo(x + Math.cos(a) * size * 0.2, y + Math.sin(a) * size * 0.2);
-        ctx.lineTo(x + Math.cos(a) * size * 0.3, y + Math.sin(a) * size * 0.3);
-        ctx.stroke();
-      } break;
-    case 'red':
-      ctx.fillStyle = '#ffd700';
-      ctx.font = 'bold ' + (size * 0.55) + 'px system-ui';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('$', x, y + 1); break;
-    case 'gold':
-      ctx.save(); ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 12;
-      ctx.fillStyle = '#8b6914';
-      ctx.beginPath();
-      for (i = 0; i < 10; i++) {
-        a = -Math.PI / 2 + i * Math.PI / 5;
-        r = i % 2 === 0 ? size * 0.32 : size * 0.14;
-        px = x + Math.cos(a) * r; py = y + Math.sin(a) * r;
-        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-      }
-      ctx.closePath(); ctx.fill(); ctx.restore(); break;
-    case 'silver':
-      ctx.strokeStyle = '#333'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(x, y, size * 0.22, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(x, y, size * 0.12, 0, Math.PI * 2); ctx.stroke(); break;
+      crystal('#c8ffff', '#00e5ff', 'rgba(0,229,255,0.9)');
+      break;
     case 'amethyst':
-      ctx.fillStyle = '#3d1a5c';
-      ctx.beginPath();
-      ctx.moveTo(x, y - size * 0.28); ctx.lineTo(x + size * 0.22, y);
-      ctx.lineTo(x, y + size * 0.28); ctx.lineTo(x - size * 0.22, y);
-      ctx.closePath(); ctx.fill(); break;
+      crystal('#e8c8ff', '#B088FF', 'rgba(176,136,255,0.9)');
+      break;
     case 'jade':
-      ctx.fillStyle = '#003300';
+      crystal('#d8ffb8', '#66FF66', 'rgba(102,255,102,0.9)');
+      break;
+    case 'gold':
+      crystal('#fff6b0', '#f1c40f', 'rgba(255,215,0,0.95)', 1.15);
+      break;
+    case 'silver':
+      crystal('#f0f0f0', '#909090', 'rgba(220,220,240,0.8)');
+      break;
+    case 'orange': {
+      // 橘色塔：水晶 + 火焰
+      crystal('#ffc880', '#e67e22', 'rgba(230,126,34,0.9)');
+      ctx.fillStyle = 'rgba(255, 200, 100, 0.9)';
       ctx.beginPath();
-      const r6 = size * 0.28;
-      for (i = 0; i < 6; i++) {
-        a = i * Math.PI / 3 - Math.PI / 2;
-        px = x + Math.cos(a) * r6; py = y + Math.sin(a) * r6;
-        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-      }
-      ctx.closePath(); ctx.fill(); break;
-    case 'magenta':
-      ctx.fillStyle = '#ffffff';
-      ctx.font = (size * 0.5) + 'px ' + EMU_FONT;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('♥', x, y + 1); break;
-    case 'fireArrow':
-      ctx.fillStyle = '#ffd700';
-      ctx.beginPath();
-      ctx.moveTo(x, y - size * 0.3);
-      ctx.bezierCurveTo(x + size * 0.22, y - size * 0.1, x + size * 0.18, y + size * 0.18, x, y + size * 0.3);
-      ctx.bezierCurveTo(x - size * 0.18, y + size * 0.18, x - size * 0.22, y - size * 0.1, x, y - size * 0.3);
+      ctx.arc(x, y - s * 0.4, s * 0.06, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#ff4500';
+      break;
+    }
+    case 'red': {
+      // 紅塔：石柱 + $ 字
+      const h = s * 0.34, w = s * 0.14;
       ctx.beginPath();
-      ctx.moveTo(x, y - size * 0.18);
-      ctx.bezierCurveTo(x + size * 0.12, y - size * 0.05, x + size * 0.1, y + size * 0.1, x, y + size * 0.18);
-      ctx.bezierCurveTo(x - size * 0.1, y + size * 0.1, x - size * 0.12, y - size * 0.05, x, y - size * 0.18);
-      ctx.fill(); break;
+      ctx.moveTo(x, y - h);
+      ctx.lineTo(x - w, y - h * 0.3);
+      ctx.lineTo(x - w, y + h * 0.85);
+      ctx.lineTo(x + w, y + h * 0.85);
+      ctx.lineTo(x + w, y - h * 0.3);
+      ctx.closePath();
+      const g = ctx.createLinearGradient(x - w, y, x + w, y);
+      g.addColorStop(0, '#7b1f1f');
+      g.addColorStop(0.5, '#c0392b');
+      g.addColorStop(1, '#7b1f1f');
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#ffd700';
+      ctx.font = 'bold ' + (s * 0.42) + 'px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('$', x, y + 2);
+      break;
+    }
+    case 'magenta':
+      crystal('#ffb8e8', '#FF33CC', 'rgba(255,51,204,0.9)');
+      ctx.fillStyle = '#ffffff';
+      ctx.font = (s * 0.28) + 'px ' + EMU_FONT;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('♥', x, y + 2);
+      break;
+    case 'fireArrow': {
+      // 火焰水晶
+      const h = s * 0.36, w = s * 0.14;
+      ctx.beginPath();
+      ctx.moveTo(x, y - h);
+      ctx.quadraticCurveTo(x + w * 1.3, y - h * 0.3, x + w * 0.9, y + h * 0.4);
+      ctx.quadraticCurveTo(x + w * 0.5, y + h * 0.85, x, y + h * 0.9);
+      ctx.quadraticCurveTo(x - w * 0.5, y + h * 0.85, x - w * 0.9, y + h * 0.4);
+      ctx.quadraticCurveTo(x - w * 1.3, y - h * 0.3, x, y - h);
+      const g = ctx.createLinearGradient(x, y - h, x, y + h);
+      g.addColorStop(0, '#ffcc80');
+      g.addColorStop(0.5, '#ff6600');
+      g.addColorStop(1, '#991100');
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.save();
+      ctx.shadowColor = '#ff4500';
+      ctx.shadowBlur = 12;
+      ctx.strokeStyle = 'rgba(255, 200, 100, 0.8)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+      break;
+    }
   }
   ctx.restore();
 }
@@ -3276,94 +3595,283 @@ statsBtn.addEventListener('pointerdown', function(e) {
 
 // ============ 繪製 ============
 function drawBackground() {
-  const grad = ctx.createRadialGradient(BASE_W / 2, BASE_H / 2, 50, BASE_W / 2, BASE_H / 2, 700);
-  grad.addColorStop(0, '#1a1a3a'); grad.addColorStop(0.5, '#0d0d20'); grad.addColorStop(1, '#050510');
-  ctx.fillStyle = grad;
+  // 天空漸層（深紫→黑）
+  const sky = ctx.createLinearGradient(0, 0, 0, BASE_H);
+  sky.addColorStop(0, '#15062a');
+  sky.addColorStop(0.35, '#1a0840');
+  sky.addColorStop(0.7, '#0a0418');
+  sky.addColorStop(1, '#050208');
+  ctx.fillStyle = sky;
   ctx.fillRect(0, 0, BASE_W, BASE_H);
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-  for (let i = 0; i < 60; i++) {
-    const sx = (i * 137.5) % BASE_W, sy = (i * 73.3) % BASE_H;
-    const sr = 0.5 + ((i * 17) % 10) / 10;
-    ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fill();
+
+  // 星雲光暈
+  const nebula1 = ctx.createRadialGradient(240, 90, 20, 240, 90, 260);
+  nebula1.addColorStop(0, 'rgba(120, 60, 200, 0.22)');
+  nebula1.addColorStop(0.5, 'rgba(80, 30, 140, 0.08)');
+  nebula1.addColorStop(1, 'transparent');
+  ctx.fillStyle = nebula1;
+  ctx.fillRect(0, 0, 500, 350);
+
+  const nebula2 = ctx.createRadialGradient(720, 180, 20, 720, 180, 280);
+  nebula2.addColorStop(0, 'rgba(60, 40, 180, 0.20)');
+  nebula2.addColorStop(0.5, 'rgba(40, 20, 120, 0.08)');
+  nebula2.addColorStop(1, 'transparent');
+  ctx.fillStyle = nebula2;
+  ctx.fillRect(450, 0, 510, 400);
+
+  // 星星
+  const now = performance.now();
+  for (let i = 0; i < 80; i++) {
+    const sx = (i * 137.5) % BASE_W;
+    const sy = (i * 73.3) % BASE_H;
+    const baseSize = 0.4 + ((i * 17) % 10) / 10;
+    const twinkle = 0.5 + 0.5 * Math.sin(now / 1200 + i * 1.7);
+    const sr = baseSize * (0.6 + twinkle * 0.5);
+    const alpha = 0.35 + twinkle * 0.45;
+    ctx.fillStyle = 'rgba(255, 245, 220, ' + alpha + ')';
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+    ctx.fill();
   }
+
+  // 遠處山脈（用暗色塊疊出剪影）
+  drawMountains();
 }
+
+function drawMountains() {
+  ctx.save();
+  // 遠山
+  ctx.fillStyle = 'rgba(20, 8, 40, 0.9)';
+  ctx.beginPath();
+  ctx.moveTo(0, BASE_H);
+  const peaks1 = [
+    [0, 420], [80, 340], [160, 380], [260, 300], [360, 360],
+    [480, 280], [580, 340], [700, 290], [820, 350], [960, 300],
+  ];
+  for (let i = 0; i < peaks1.length; i++) {
+    ctx.lineTo(peaks1[i][0], peaks1[i][1]);
+  }
+  ctx.lineTo(BASE_W, BASE_H);
+  ctx.closePath();
+  ctx.fill();
+
+  // 近山（更暗、更矮）
+  ctx.fillStyle = 'rgba(10, 4, 22, 0.95)';
+  ctx.beginPath();
+  ctx.moveTo(0, BASE_H);
+  const peaks2 = [
+    [0, 470], [120, 400], [240, 440], [380, 380], [500, 430],
+    [640, 390], [780, 440], [900, 400], [960, 430],
+  ];
+  for (let i = 0; i < peaks2.length; i++) {
+    ctx.lineTo(peaks2[i][0], peaks2[i][1]);
+  }
+  ctx.lineTo(BASE_W, BASE_H);
+  ctx.closePath();
+  ctx.fill();
+
+  // 山腳紫色光暈
+  const footGlow = ctx.createRadialGradient(BASE_W / 2, BASE_H, 0, BASE_W / 2, BASE_H, 400);
+  footGlow.addColorStop(0, 'rgba(120, 60, 200, 0.15)');
+  footGlow.addColorStop(1, 'transparent');
+  ctx.fillStyle = footGlow;
+  ctx.fillRect(0, BASE_H - 300, BASE_W, 300);
+  ctx.restore();
+}
+ 
 function drawPath() {
+  ctx.save();
+
+  // === 外層紫色光暈（最寬、最透明）===
   ctx.beginPath();
   ctx.moveTo(PATH[0].x, PATH[0].y);
   for (let i = 1; i < PATH.length; i++) ctx.lineTo(PATH[i].x, PATH[i].y);
-  ctx.strokeStyle = hasGoldTower ? '#2a1f0a' : '#23233d';
-  ctx.lineWidth = 42; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(140, 80, 220, 0.18)';
+  ctx.lineWidth = 58;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
   ctx.stroke();
-  ctx.strokeStyle = hasGoldTower ? '#4a3a15' : '#2e2e50';
-  ctx.lineWidth = 32;
+
+  // === 中層紫色光暈 ===
+  ctx.strokeStyle = 'rgba(160, 100, 240, 0.30)';
+  ctx.lineWidth = 48;
   ctx.stroke();
+
+  // === 石頭路面（深灰帶微紫）===
+  ctx.strokeStyle = '#2a2438';
+  ctx.lineWidth = 38;
+  ctx.stroke();
+
+  // === 路面上的石紋（短線交錯）===
+  ctx.strokeStyle = 'rgba(70, 60, 100, 0.5)';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < PATH.length - 1; i++) {
+    const a = PATH[i], b = PATH[i + 1];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const angle = Math.atan2(b.y - a.y, b.x - a.x);
+    const perpX = -Math.sin(angle), perpY = Math.cos(angle);
+    const segLen = 22;
+    const numSegs = Math.floor(len / segLen);
+    for (let j = 0; j < numSegs; j++) {
+      const t = (j + 0.5) / numSegs;
+      const cx = a.x + (b.x - a.x) * t;
+      const cy = a.y + (b.y - a.y) * t;
+      const halfW = 16;
+      ctx.beginPath();
+      ctx.moveTo(cx - perpX * halfW, cy - perpY * halfW);
+      ctx.lineTo(cx + perpX * halfW, cy + perpY * halfW);
+      ctx.stroke();
+    }
+  }
+
+  // === 內層發光邊（紫色亮線）===
+  ctx.strokeStyle = 'rgba(180, 120, 255, 0.8)';
+  ctx.lineWidth = 3;
+  ctx.shadowColor = '#a060ff';
+  ctx.shadowBlur = 12;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // === 金塔履帶 ===
   if (hasGoldTower) {
     ctx.save();
     ctx.setLineDash([12, 18]);
     ctx.lineDashOffset = (performance.now() / 25) % 30;
-    ctx.strokeStyle = 'rgba(120, 90, 10, 0.6)';
-    ctx.lineWidth = 32; ctx.stroke();
+    ctx.strokeStyle = 'rgba(200, 150, 20, 0.55)';
+    ctx.lineWidth = 38;
+    ctx.stroke();
+
     ctx.setLineDash([6, 24]);
     ctx.lineDashOffset = (performance.now() / 25) % 30;
-    ctx.strokeStyle = 'rgba(241, 196, 15, 0.7)';
-    ctx.lineWidth = 8; ctx.stroke();
+    ctx.strokeStyle = 'rgba(255, 215, 0, 0.75)';
+    ctx.lineWidth = 10;
+    ctx.stroke();
     ctx.restore();
   }
+
+  ctx.restore();
 }
+ 
 function drawSpot(spot) {
   const x = spot.x, y = spot.y, size = SPOT_SIZE, half = size / 2;
+
+  // 特殊格子：起始格（發光綠）
   if (spot.special === 'glow') {
-    ctx.save();
-    ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 20;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.fillRect(x - half, y - half, size, size);
-    ctx.restore();
-    ctx.fillStyle = '#2ecc71'; ctx.strokeStyle = '#27ae60'; ctx.lineWidth = 2;
+    drawHexSpot(x, y, half, {
+      fill1: '#f8f8f8', fill2: '#c8c8c8',
+      stroke: '#ffffff',
+      glow: 'rgba(255, 255, 255, 0.9)',
+    });
+    // 綠色向上箭頭
+    ctx.fillStyle = '#2ecc71';
+    ctx.strokeStyle = '#1a8a45';
+    ctx.lineWidth = 2;
     for (let i = 0; i < 3; i++) {
-      const ax = x - 20 + i * 20, ay = y + 10;
+      const ax = x - 18 + i * 18;
+      const ay = y + 6;
       ctx.beginPath();
-      ctx.moveTo(ax, ay); ctx.lineTo(ax - 8, ay + 12); ctx.lineTo(ax - 4, ay + 12);
-      ctx.lineTo(ax - 4, ay + 22); ctx.lineTo(ax + 4, ay + 22); ctx.lineTo(ax + 4, ay + 12);
-      ctx.lineTo(ax + 8, ay + 12); ctx.closePath();
-      ctx.fill(); ctx.stroke();
-    }
-    return;
-  }
-  if (spot.special === 'void') {
-    const grad = ctx.createRadialGradient(x, y, 0, x, y, half);
-    grad.addColorStop(0, '#000000'); grad.addColorStop(0.6, '#0a0a14'); grad.addColorStop(1, '#1a1a30');
-    ctx.fillStyle = grad;
-    ctx.beginPath(); ctx.arc(x, y, half, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = 'rgba(80, 50, 120, 0.4)'; ctx.lineWidth = 1.5;
-    for (let i = 0; i < 3; i++) {
-      ctx.beginPath();
-      const startR = 5 + i * 12;
-      for (let a = 0; a < Math.PI * 4; a += 0.2) {
-        const r = startR + a * 2;
-        if (r > half) break;
-        const px = x + Math.cos(a + i) * r, py = y + Math.sin(a + i) * r;
-        if (a === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-      }
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(ax - 7, ay + 10);
+      ctx.lineTo(ax - 3, ay + 10);
+      ctx.lineTo(ax - 3, ay + 20);
+      ctx.lineTo(ax + 3, ay + 20);
+      ctx.lineTo(ax + 3, ay + 10);
+      ctx.lineTo(ax + 7, ay + 10);
+      ctx.closePath();
+      ctx.fill();
       ctx.stroke();
     }
     return;
   }
-  const grad = ctx.createLinearGradient(x - half, y - half, x + half, y + half);
-  grad.addColorStop(0, '#c8c8c8'); grad.addColorStop(0.5, '#b0b0b0'); grad.addColorStop(1, '#888888');
-  ctx.fillStyle = grad;
-  const r = 6;
+
+  // 特殊格子：黑洞
+  if (spot.special === 'void') {
+    drawHexSpot(x, y, half, {
+      fill1: '#0a0518', fill2: '#000000',
+      stroke: '#3a2060',
+      glow: 'rgba(80, 40, 140, 0.6)',
+    });
+    // 螺旋
+    ctx.save();
+    ctx.strokeStyle = 'rgba(140, 90, 220, 0.55)';
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      const startR = 4 + i * 9;
+      for (let a = 0; a < Math.PI * 4; a += 0.2) {
+        const r = startR + a * 1.8;
+        if (r > half - 6) break;
+        const px = x + Math.cos(a + i) * r;
+        const py = y + Math.sin(a + i) * r;
+        if (a === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
+
+  // 普通格子：暗色六邊形石塊
+  drawHexSpot(x, y, half, {
+    fill1: '#2a2438', fill2: '#15101f',
+    stroke: '#4a3a6a',
+    glow: 'rgba(90, 60, 140, 0.4)',
+  });
+}
+
+// 通用六邊形繪製
+function drawHexSpot(cx, cy, half, opts) {
+  const r = half * 0.98;
+  ctx.save();
+
+  // 外發光
+  if (opts.glow) {
+    ctx.shadowColor = opts.glow;
+    ctx.shadowBlur = 14;
+  }
+
+  // 六邊形路徑
+  const points = [];
+  for (let i = 0; i < 6; i++) {
+    const a = -Math.PI / 2 + i * Math.PI / 3;
+    points.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
+  }
+
   ctx.beginPath();
-  ctx.moveTo(x - half + r, y - half);
-  ctx.lineTo(x + half - r, y - half);
-  ctx.quadraticCurveTo(x + half, y - half, x + half, y - half + r);
-  ctx.lineTo(x + half, y + half - r);
-  ctx.quadraticCurveTo(x + half, y + half, x + half - r, y + half);
-  ctx.lineTo(x - half + r, y + half);
-  ctx.quadraticCurveTo(x - half, y + half, x - half, y + half - r);
-  ctx.lineTo(x - half, y - half + r);
-  ctx.quadraticCurveTo(x - half, y - half, x - half + r, y - half);
-  ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < 6; i++) ctx.lineTo(points[i].x, points[i].y);
+  ctx.closePath();
+
+  // 填充（徑向漸層做出立體感）
+  const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r * 1.1);
+  grad.addColorStop(0, opts.fill1);
+  grad.addColorStop(1, opts.fill2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // 深色描邊
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // 內圈亮色描邊
+  ctx.strokeStyle = opts.stroke;
+  ctx.lineWidth = 1.5;
+  const inset = 4;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = -Math.PI / 2 + i * Math.PI / 3;
+    const px = cx + Math.cos(a) * (r - inset);
+    const py = cy + Math.sin(a) * (r - inset);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.restore();
 }
 function drawDragGhost() {
   if (!drag || !drag.isDragging) return;
