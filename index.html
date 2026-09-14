@@ -2319,113 +2319,285 @@ function drawTowerIcon(type, x, y, size) {
   const s = size;
   let i, a, r, px, py;
 
-  // 通用：水晶柱繪製
-  function crystal(fill1, fill2, glowColor, scale) {
-    scale = scale || 1;
-    const h = s * 0.44 * scale;
-    const w = s * 0.21 * scale;
-    const tipY = y - h;
-
-    // 主體 + 外發光
+  // ============ 通用：水晶柱繪製 ============
+  function drawCrystalShard(cx, cy, h, w, tilt, fill1, fill2, glow) {
     ctx.save();
-    ctx.shadowColor = glowColor;
-    ctx.shadowBlur = 18;
+    ctx.translate(cx, cy);
+    ctx.rotate(tilt || 0);
+    // 主體
     ctx.beginPath();
-    ctx.moveTo(x, tipY);
-    ctx.lineTo(x - w, y - h * 0.3);
-    ctx.lineTo(x - w * 0.7, y + h * 0.9);
-    ctx.lineTo(x + w * 0.7, y + h * 0.9);
-    ctx.lineTo(x + w, y - h * 0.3);
+    ctx.moveTo(0, -h);
+    ctx.lineTo(-w, -h * 0.3);
+    ctx.lineTo(-w * 0.7, h * 0.85);
+    ctx.lineTo(w * 0.7, h * 0.85);
+    ctx.lineTo(w, -h * 0.3);
     ctx.closePath();
-    const g = ctx.createLinearGradient(x - w, y - h, x + w, y + h);
+    if (glow) {
+      ctx.shadowColor = glow;
+      ctx.shadowBlur = 14;
+    }
+    const g = ctx.createLinearGradient(-w, -h, w, h);
     g.addColorStop(0, fill1);
     g.addColorStop(0.5, fill2);
     g.addColorStop(1, fill1);
     ctx.fillStyle = g;
     ctx.fill();
-    ctx.restore();
-
+    ctx.shadowBlur = 0;
     // 左側高光面
     ctx.beginPath();
-    ctx.moveTo(x, tipY);
-    ctx.lineTo(x - w * 0.55, y - h * 0.2);
-    ctx.lineTo(x - w * 0.4, y + h * 0.7);
-    ctx.lineTo(x, y + h * 0.85);
+    ctx.moveTo(0, -h);
+    ctx.lineTo(-w * 0.5, -h * 0.2);
+    ctx.lineTo(-w * 0.3, h * 0.7);
+    ctx.lineTo(0, h * 0.8);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
     ctx.fill();
-
-    // 中央亮線
+    // 邊框
     ctx.beginPath();
-    ctx.moveTo(x, tipY);
-    ctx.lineTo(x, y + h * 0.9);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // 白色外框
-    ctx.beginPath();
-    ctx.moveTo(x, tipY);
-    ctx.lineTo(x - w, y - h * 0.3);
-    ctx.lineTo(x - w * 0.7, y + h * 0.9);
-    ctx.lineTo(x + w * 0.7, y + h * 0.9);
-    ctx.lineTo(x + w, y - h * 0.3);
+    ctx.moveTo(0, -h);
+    ctx.lineTo(-w, -h * 0.3);
+    ctx.lineTo(-w * 0.7, h * 0.85);
+    ctx.lineTo(w * 0.7, h * 0.85);
+    ctx.lineTo(w, -h * 0.3);
     ctx.closePath();
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 1.2;
     ctx.stroke();
-
-    // 頂端光點
-    ctx.save();
-    ctx.shadowColor = glowColor;
-    ctx.shadowBlur = 12;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    ctx.beginPath();
-    ctx.arc(x, tipY, 2.5, 0, Math.PI * 2);
-    ctx.fill();
+    // 尖端光點
+    if (glow) {
+      ctx.shadowColor = glow;
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.beginPath();
+      ctx.arc(0, -h, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
     ctx.restore();
   }
 
   switch (type) {
-    case 'white':
-      crystal('#ffffff', '#c0c0c0', 'rgba(255,255,255,0.7)');
-      break;
-    case 'green':
-      crystal('#a8ffd0', '#2ecc71', 'rgba(46,204,113,0.9)');
-      break;
-    case 'blue':
-      crystal('#a8e0ff', '#3498db', 'rgba(52,152,219,0.9)');
-      break;
-    case 'purple':
-      crystal('#d8a8ff', '#9b59b6', 'rgba(155,89,182,0.9)');
-      break;
-    case 'cyan':
-      crystal('#c8ffff', '#00e5ff', 'rgba(0,229,255,0.9)');
-      break;
-    case 'amethyst':
-      crystal('#e8c8ff', '#B088FF', 'rgba(176,136,255,0.9)');
-      break;
-    case 'jade':
-      crystal('#d8ffb8', '#66FF66', 'rgba(102,255,102,0.9)');
-      break;
-    case 'gold':
-      crystal('#fff6b0', '#f1c40f', 'rgba(255,215,0,0.95)', 1.15);
-      break;
-    case 'silver':
-      crystal('#f0f0f0', '#909090', 'rgba(220,220,240,0.8)');
-      break;
-    case 'orange': {
-      // 橘色塔：水晶 + 火焰
-      crystal('#ffc880', '#e67e22', 'rgba(230,126,34,0.9)');
-      ctx.fillStyle = 'rgba(255, 200, 100, 0.9)';
-      ctx.beginPath();
-      ctx.arc(x, y - s * 0.4, s * 0.06, 0, Math.PI * 2);
-      ctx.fill();
+    // ===== 白塔：粗糙不規則碎晶 =====
+    case 'white': {
+      const shards = [
+        { dx: -6, dy: 6, h: 0.16, w: 0.05, tilt: -0.25 },
+        { dx: 0, dy: 8, h: 0.26, w: 0.07, tilt: 0.05 },
+        { dx: 7, dy: 5, h: 0.14, w: 0.045, tilt: 0.3 },
+        { dx: -3, dy: 10, h: 0.11, w: 0.04, tilt: -0.15 },
+      ];
+      for (let k = 0; k < shards.length; k++) {
+        const sh = shards[k];
+        drawCrystalShard(x + sh.dx, y + sh.dy, s * sh.h, s * sh.w, sh.tilt, '#ffffff', '#c0c0c0', null);
+      }
+      // 碎光點
+      for (let k = 0; k < 7; k++) {
+        const ang = k * 0.9 + 0.4;
+        const rad = s * 0.22 + (k % 3) * s * 0.05;
+        const px2 = x + Math.cos(ang) * rad;
+        const py2 = y + Math.sin(ang) * rad * 0.7 - s * 0.05;
+        ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.5 + (k % 3) * 0.15) + ')';
+        ctx.beginPath();
+        ctx.arc(px2, py2, 1.2 + (k % 2) * 0.7, 0, Math.PI * 2);
+        ctx.fill();
+      }
       break;
     }
+
+    // ===== 綠塔：圓潤翡翠 + 藤蔓 =====
+    case 'green': {
+      const h = s * 0.32, w = s * 0.22;
+      ctx.save();
+      ctx.shadowColor = '#2ecc71';
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.ellipse(x, y - s * 0.02, w, h, 0, 0, Math.PI * 2);
+      const g = ctx.createRadialGradient(x - w * 0.4, y - h * 0.4, 2, x, y, w * 1.2);
+      g.addColorStop(0, '#b8ffd8');
+      g.addColorStop(0.5, '#2ecc71');
+      g.addColorStop(1, '#0a5030');
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(x - w * 0.4, y - h * 0.45, w * 0.3, h * 0.25, -0.6, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fill();
+      ctx.restore();
+      // 藤蔓
+      ctx.save();
+      ctx.strokeStyle = '#0a4d26';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      for (let k = 0; k < 4; k++) {
+        const baseA = k * Math.PI / 2 + Math.PI / 4;
+        ctx.beginPath();
+        ctx.moveTo(x + Math.cos(baseA) * w * 0.9, y + Math.sin(baseA) * h * 0.9);
+        ctx.quadraticCurveTo(
+          x + Math.cos(baseA) * w * 1.3,
+          y + Math.sin(baseA) * h * 1.3,
+          x + Math.cos(baseA + 0.5) * w * 1.4,
+          y + Math.sin(baseA + 0.5) * h * 1.4
+        );
+        ctx.stroke();
+      }
+      // 葉子
+      for (let k = 0; k < 5; k++) {
+        const a2 = k * Math.PI * 0.4 + 0.3;
+        const rad2 = s * 0.3;
+        const lx = x + Math.cos(a2) * rad2;
+        const ly = y + Math.sin(a2) * rad2 * 0.8;
+        ctx.save();
+        ctx.translate(lx, ly);
+        ctx.rotate(a2);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, s * 0.06, s * 0.025, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#2ecc71';
+        ctx.fill();
+        ctx.strokeStyle = '#0a4d26';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.restore();
+      break;
+    }
+
+    // ===== 藍塔：尖銳細長 + 光弧 =====
+    case 'blue': {
+      drawCrystalShard(x, y, s * 0.5, s * 0.16, 0, '#b8e0ff', '#3498db', 'rgba(52,152,219,0.9)');
+      // 快速旋轉光弧
+      ctx.save();
+      ctx.strokeStyle = 'rgba(150, 220, 255, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.shadowColor = 'rgba(150, 220, 255, 0.8)';
+      ctx.shadowBlur = 8;
+      const spin = performance.now() / 500;
+      for (let k = 0; k < 3; k++) {
+        const aStart = -0.6 + k * 0.5 + spin;
+        const rad = s * 0.28 + k * s * 0.03;
+        ctx.beginPath();
+        ctx.arc(x, y, rad, aStart, aStart + 0.7);
+        ctx.stroke();
+      }
+      ctx.restore();
+      break;
+    }
+
+    // ===== 青藍塔：冰晶、透明 =====
+    case 'cyan': {
+      const h = s * 0.44, w = s * 0.13;
+      ctx.save();
+      ctx.shadowColor = '#00e5ff';
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.moveTo(x, y - h);
+      ctx.lineTo(x - w, y - h * 0.3);
+      ctx.lineTo(x - w * 0.7, y + h * 0.85);
+      ctx.lineTo(x + w * 0.7, y + h * 0.85);
+      ctx.lineTo(x + w, y - h * 0.3);
+      ctx.closePath();
+      const g = ctx.createLinearGradient(x, y - h, x, y + h);
+      g.addColorStop(0, 'rgba(220, 255, 255, 0.95)');
+      g.addColorStop(0.5, 'rgba(100, 240, 255, 0.85)');
+      g.addColorStop(1, 'rgba(0, 180, 220, 0.95)');
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+      // 側邊冰刺
+      for (let k = 0; k < 4; k++) {
+        const sign = k % 2 === 0 ? 1 : -1;
+        const yOff = -s * 0.15 + k * s * 0.12;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x + sign * w * 0.7, y + yOff);
+        ctx.lineTo(x + sign * (w + s * 0.06), y + yOff + s * 0.02);
+        ctx.lineTo(x + sign * w * 0.7, y + yOff + s * 0.04);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(200, 255, 255, 0.9)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        ctx.restore();
+      }
+      // 寒氣
+      for (let k = 0; k < 4; k++) {
+        const a2 = k * Math.PI / 2 + 0.3;
+        const rad2 = s * 0.3;
+        ctx.fillStyle = 'rgba(220, 255, 255, 0.85)';
+        ctx.beginPath();
+        ctx.arc(x + Math.cos(a2) * rad2, y + Math.sin(a2) * rad2 * 0.8, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+
+    // ===== 紫塔：水晶 + 符文環 =====
+    case 'purple': {
+      drawCrystalShard(x, y, s * 0.42, s * 0.2, 0, '#d8a8ff', '#9b59b6', 'rgba(155,89,182,0.9)');
+      // 符文環
+      ctx.save();
+      ctx.strokeStyle = 'rgba(200, 140, 255, 0.85)';
+      ctx.lineWidth = 1.8;
+      ctx.shadowColor = 'rgba(200, 140, 255, 0.9)';
+      ctx.shadowBlur = 8;
+      const spin = performance.now() / 1500;
+      for (let k = 0; k < 3; k++) {
+        const a2 = k * Math.PI * 2 / 3 - Math.PI / 2 + spin;
+        const rad2 = s * 0.3;
+        const rx = x + Math.cos(a2) * rad2;
+        const ry = y + Math.sin(a2) * rad2 * 0.9;
+        ctx.beginPath();
+        ctx.arc(rx, ry, s * 0.05, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(200, 140, 255, 0.9)';
+        ctx.beginPath();
+        ctx.arc(rx, ry, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // 緩速波紋
+      ctx.beginPath();
+      ctx.arc(x, y, s * 0.3, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(200, 140, 255, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+      break;
+    }
+
+    // ===== 橙塔：水晶 + 閃電 =====
+    case 'orange': {
+      drawCrystalShard(x, y, s * 0.42, s * 0.2, 0, '#ffc880', '#e67e22', 'rgba(230,126,34,0.9)');
+      // 閃電
+      ctx.save();
+      ctx.shadowColor = '#ffcc00';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = '#ffee77';
+      ctx.beginPath();
+      ctx.moveTo(x - s * 0.06, y - s * 0.2);
+      ctx.lineTo(x + s * 0.02, y - s * 0.02);
+      ctx.lineTo(x - s * 0.03, y - s * 0.02);
+      ctx.lineTo(x + s * 0.06, y + s * 0.2);
+      ctx.lineTo(x - s * 0.02, y + s * 0.02);
+      ctx.lineTo(x + s * 0.03, y + s * 0.02);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+
+    // ===== 紅塔：機械齒輪 + 能量核心 =====
     case 'red': {
-      // 紅塔：石柱 + $ 字
-      const h = s * 0.34, w = s * 0.14;
+      const h = s * 0.38, w = s * 0.16;
+      ctx.save();
       ctx.beginPath();
       ctx.moveTo(x, y - h);
       ctx.lineTo(x - w, y - h * 0.3);
@@ -2439,45 +2611,358 @@ function drawTowerIcon(type, x, y, size) {
       g.addColorStop(1, '#7b1f1f');
       ctx.fillStyle = g;
       ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
       ctx.lineWidth = 1.5;
       ctx.stroke();
+      ctx.restore();
+      // 齒輪（旋轉）
+      ctx.save();
+      ctx.translate(x, y + s * 0.02);
+      ctx.rotate(performance.now() / 2000);
+      ctx.fillStyle = '#5a1010';
+      for (let k = 0; k < 8; k++) {
+        const a2 = k * Math.PI / 4;
+        ctx.save();
+        ctx.rotate(a2);
+        ctx.fillRect(-s * 0.015, -s * 0.13, s * 0.03, s * 0.04);
+        ctx.restore();
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.1, 0, Math.PI * 2);
+      ctx.fillStyle = '#3a0808';
+      ctx.fill();
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.04, 0, Math.PI * 2);
       ctx.fillStyle = '#ffd700';
-      ctx.font = 'bold ' + (s * 0.42) + 'px system-ui';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('$', x, y + 2);
+      ctx.fill();
+      ctx.restore();
+      // 頂端紅色能量核心
+      ctx.save();
+      ctx.shadowColor = '#ff2020';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = 'rgba(255, 60, 60, 0.95)';
+      ctx.beginPath();
+      ctx.arc(x, y - s * 0.28, s * 0.05, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
       break;
     }
-    case 'magenta':
-      crystal('#ffb8e8', '#FF33CC', 'rgba(255,51,204,0.9)');
-      ctx.fillStyle = '#ffffff';
-      ctx.font = (s * 0.28) + 'px ' + EMU_FONT;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('♥', x, y + 2);
+
+    // ===== 銀塔：多層堆疊 =====
+    case 'silver': {
+      for (let k = 2; k >= 0; k--) {
+        const scale = 1 - k * 0.18;
+        const yOff = -k * s * 0.02;
+        const h = s * 0.16 * scale;
+        const w = s * 0.20 * scale;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x, y - h + yOff);
+        ctx.lineTo(x - w, y + yOff - h * 0.2);
+        ctx.lineTo(x - w, y + h * 0.6 + yOff);
+        ctx.lineTo(x + w, y + h * 0.6 + yOff);
+        ctx.lineTo(x + w, y + yOff - h * 0.2);
+        ctx.closePath();
+        const g = ctx.createLinearGradient(x - w, y - h + yOff, x + w, y + h + yOff);
+        g.addColorStop(0, '#f8f8f8');
+        g.addColorStop(0.5, '#c0c0c0');
+        g.addColorStop(1, '#787878');
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - w * 0.6, y - h * 0.1 + yOff);
+        ctx.lineTo(x + w * 0.6, y - h * 0.1 + yOff);
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      }
+      // 頂部子彈
+      for (let k = 0; k < 3; k++) {
+        ctx.fillStyle = 'rgba(240, 240, 255, 0.9)';
+        ctx.beginPath();
+        ctx.arc(x - 4 + k * 4, y - s * 0.3, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
       break;
-    case 'fireArrow': {
-      // 火焰水晶
-      const h = s * 0.36, w = s * 0.14;
+    }
+
+    // ===== 金塔：王冠 + 聖光 =====
+    case 'gold': {
+      // 聖光射線
+      ctx.save();
+      const haloGlow = 0.6 + 0.4 * Math.sin(performance.now() / 400);
+      ctx.shadowColor = '#ffd700';
+      ctx.shadowBlur = 30 * haloGlow;
+      ctx.strokeStyle = 'rgba(255, 240, 150, ' + haloGlow + ')';
+      ctx.lineWidth = 2;
+      const spin = performance.now() / 3000;
+      for (let k = 0; k < 12; k++) {
+        const a2 = k * Math.PI / 6 + spin;
+        const r1 = s * 0.32;
+        const r2 = s * 0.44;
+        ctx.beginPath();
+        ctx.moveTo(x + Math.cos(a2) * r1, y + Math.sin(a2) * r1);
+        ctx.lineTo(x + Math.cos(a2) * r2, y + Math.sin(a2) * r2);
+        ctx.stroke();
+      }
+      ctx.restore();
+      // 主水晶
+      drawCrystalShard(x, y, s * 0.5, s * 0.22, 0, '#fff8c0', '#f1c40f', 'rgba(255,215,0,0.95)');
+      // 王冠
+      ctx.save();
+      ctx.translate(x, y - s * 0.34);
+      ctx.fillStyle = '#ffd700';
+      ctx.strokeStyle = '#a06000';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.12, 0);
+      ctx.lineTo(-s * 0.12, -s * 0.04);
+      ctx.lineTo(-s * 0.06, -s * 0.01);
+      ctx.lineTo(0, -s * 0.07);
+      ctx.lineTo(s * 0.06, -s * 0.01);
+      ctx.lineTo(s * 0.12, -s * 0.04);
+      ctx.lineTo(s * 0.12, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+      break;
+    }
+
+    // ===== 紫晶塔：多面切割 =====
+    case 'amethyst': {
+      const h = s * 0.42, w = s * 0.24;
+      ctx.save();
+      ctx.shadowColor = 'rgba(176,136,255,0.9)';
+      ctx.shadowBlur = 16;
       ctx.beginPath();
       ctx.moveTo(x, y - h);
-      ctx.quadraticCurveTo(x + w * 1.3, y - h * 0.3, x + w * 0.9, y + h * 0.4);
-      ctx.quadraticCurveTo(x + w * 0.5, y + h * 0.85, x, y + h * 0.9);
-      ctx.quadraticCurveTo(x - w * 0.5, y + h * 0.85, x - w * 0.9, y + h * 0.4);
-      ctx.quadraticCurveTo(x - w * 1.3, y - h * 0.3, x, y - h);
-      const g = ctx.createLinearGradient(x, y - h, x, y + h);
-      g.addColorStop(0, '#ffcc80');
-      g.addColorStop(0.5, '#ff6600');
-      g.addColorStop(1, '#991100');
+      ctx.lineTo(x + w, y - h * 0.3);
+      ctx.lineTo(x + w * 0.7, y + h * 0.85);
+      ctx.lineTo(x - w * 0.7, y + h * 0.85);
+      ctx.lineTo(x - w, y - h * 0.3);
+      ctx.closePath();
+      const g = ctx.createLinearGradient(x - w, y - h, x + w, y + h);
+      g.addColorStop(0, '#eed0ff');
+      g.addColorStop(0.5, '#B088FF');
+      g.addColorStop(1, '#502080');
       ctx.fillStyle = g;
       ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+      // 切割面
       ctx.save();
-      ctx.shadowColor = '#ff4500';
-      ctx.shadowBlur = 12;
-      ctx.strokeStyle = 'rgba(255, 200, 100, 0.8)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x, y - h); ctx.lineTo(x, y + h * 0.85); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x - w, y - h * 0.3); ctx.lineTo(x + w, y - h * 0.3); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x - w * 0.85, y + h * 0.15); ctx.lineTo(x + w * 0.85, y + h * 0.15); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y - h); ctx.lineTo(x + w * 0.7, y + h * 0.85); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y - h); ctx.lineTo(x - w * 0.7, y + h * 0.85); ctx.stroke();
+      ctx.restore();
+      // 外框
+      ctx.beginPath();
+      ctx.moveTo(x, y - h);
+      ctx.lineTo(x + w, y - h * 0.3);
+      ctx.lineTo(x + w * 0.7, y + h * 0.85);
+      ctx.lineTo(x - w * 0.7, y + h * 0.85);
+      ctx.lineTo(x - w, y - h * 0.3);
+      ctx.closePath();
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
       ctx.lineWidth = 1.5;
       ctx.stroke();
+      // 爆擊十字星
+      ctx.save();
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 10;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      const cx = x + s * 0.2;
+      const cy = y - s * 0.22;
+      ctx.beginPath();
+      ctx.moveTo(cx - s * 0.06, cy); ctx.lineTo(cx + s * 0.06, cy);
+      ctx.moveTo(cx, cy - s * 0.06); ctx.lineTo(cx, cy + s * 0.06);
+      ctx.stroke();
+      ctx.restore();
+      break;
+    }
+
+    // ===== 翠玉塔：深綠玉石 + 爆炸紋 =====
+    case 'jade': {
+      const h = s * 0.36, w = s * 0.24;
+      ctx.save();
+      ctx.shadowColor = 'rgba(102,255,102,0.9)';
+      ctx.shadowBlur = 14;
+      ctx.beginPath();
+      ctx.ellipse(x, y, w, h, 0, 0, Math.PI * 2);
+      const g = ctx.createRadialGradient(x - w * 0.35, y - h * 0.4, 2, x, y, w * 1.2);
+      g.addColorStop(0, '#d8ffb8');
+      g.addColorStop(0.4, '#66FF66');
+      g.addColorStop(0.85, '#1a701a');
+      g.addColorStop(1, '#0a3a0a');
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(x - w * 0.4, y - h * 0.45, w * 0.32, h * 0.22, -0.5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.fill();
+      ctx.restore();
+      // 爆傷爆炸紋
+      ctx.save();
+      ctx.translate(x, y + s * 0.02);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.8;
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 8;
+      ctx.lineCap = 'round';
+      for (let k = 0; k < 6; k++) {
+        const a2 = k * Math.PI / 3;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a2) * s * 0.05, Math.sin(a2) * s * 0.05);
+        ctx.lineTo(Math.cos(a2) * s * 0.11, Math.sin(a2) * s * 0.11);
+        ctx.stroke();
+      }
+      ctx.restore();
+      break;
+    }
+
+    // ===== 品紅塔：不穩定、搖晃 =====
+    case 'magenta': {
+      const wobble = Math.sin(performance.now() / 200) * 0.08;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(wobble);
+      const h = s * 0.4, w = s * 0.2;
+      ctx.shadowColor = '#FF33CC';
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.moveTo(0, -h);
+      ctx.lineTo(w, -h * 0.3);
+      ctx.lineTo(w * 0.6, h * 0.5);
+      ctx.lineTo(-w * 0.7, h * 0.9);
+      ctx.lineTo(-w, -h * 0.3);
+      ctx.closePath();
+      const g = ctx.createLinearGradient(-w, -h, w, h);
+      g.addColorStop(0, '#ffb8e8');
+      g.addColorStop(0.5, '#FF33CC');
+      g.addColorStop(1, '#801060');
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      // 裂縫
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.2, -h * 0.5);
+      ctx.lineTo(w * 0.1, -h * 0.1);
+      ctx.lineTo(-w * 0.3, h * 0.3);
+      ctx.stroke();
+      ctx.restore();
+      // 升級箭頭
+      ctx.save();
+      const flash = 0.5 + 0.5 * Math.sin(performance.now() / 150);
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 12 * flash;
+      ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.55 + flash * 0.45) + ')';
+      const ax = x + s * 0.22;
+      const ay = y - s * 0.2;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay - s * 0.07);
+      ctx.lineTo(ax + s * 0.055, ay);
+      ctx.lineTo(ax + s * 0.022, ay);
+      ctx.lineTo(ax + s * 0.022, ay + s * 0.065);
+      ctx.lineTo(ax - s * 0.022, ay + s * 0.065);
+      ctx.lineTo(ax - s * 0.022, ay);
+      ctx.lineTo(ax - s * 0.055, ay);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+
+    // ===== 火矢塔：箭 + 火焰 =====
+    case 'fireArrow': {
+      // 箭身（斜放）
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(-Math.PI / 4);
+      ctx.shadowColor = '#ff4500';
+      ctx.shadowBlur = 14;
+      // 箭桿
+      ctx.strokeStyle = '#8b4513';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, s * 0.28);
+      ctx.lineTo(0, -s * 0.24);
+      ctx.stroke();
+      // 箭頭
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.32);
+      ctx.lineTo(-s * 0.08, -s * 0.18);
+      ctx.lineTo(s * 0.08, -s * 0.18);
+      ctx.closePath();
+      const g = ctx.createLinearGradient(0, -s * 0.32, 0, -s * 0.18);
+      g.addColorStop(0, '#ffd700');
+      g.addColorStop(1, '#ff6600');
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // 箭羽
+      ctx.beginPath();
+      ctx.moveTo(0, s * 0.28);
+      ctx.lineTo(-s * 0.09, s * 0.18);
+      ctx.lineTo(-s * 0.05, s * 0.22);
+      ctx.lineTo(0, s * 0.16);
+      ctx.closePath();
+      ctx.fillStyle = '#c0392b';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, s * 0.28);
+      ctx.lineTo(s * 0.09, s * 0.18);
+      ctx.lineTo(s * 0.05, s * 0.22);
+      ctx.lineTo(0, s * 0.16);
+      ctx.closePath();
+      ctx.fillStyle = '#c0392b';
+      ctx.fill();
+      ctx.restore();
+      // 火焰
+      ctx.save();
+      const flame = 0.7 + 0.3 * Math.sin(performance.now() / 100);
+      ctx.shadowColor = '#ff4500';
+      ctx.shadowBlur = 20 * flame;
+      ctx.fillStyle = 'rgba(255, 200, 50, ' + flame + ')';
+      ctx.beginPath();
+      ctx.moveTo(x - s * 0.15, y - s * 0.22);
+      ctx.quadraticCurveTo(x - s * 0.2, y - s * 0.35, x - s * 0.08, y - s * 0.42);
+      ctx.quadraticCurveTo(x - s * 0.1, y - s * 0.32, x - s * 0.02, y - s * 0.38);
+      ctx.quadraticCurveTo(x + s * 0.02, y - s * 0.28, x - s * 0.06, y - s * 0.22);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255, 240, 150, 0.9)';
+      ctx.beginPath();
+      ctx.moveTo(x - s * 0.12, y - s * 0.24);
+      ctx.quadraticCurveTo(x - s * 0.14, y - s * 0.32, x - s * 0.08, y - s * 0.36);
+      ctx.quadraticCurveTo(x - s * 0.08, y - s * 0.3, x - s * 0.04, y - s * 0.24);
+      ctx.closePath();
+      ctx.fill();
       ctx.restore();
       break;
     }
