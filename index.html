@@ -20,8 +20,6 @@
     -webkit-user-select: none;
     -webkit-touch-callout: none;
   }
-
-  /* 主選單 */
   #mainMenu {
     position: fixed; inset: 0;
     background:
@@ -100,8 +98,6 @@
   }
   .menu-action:active { transform: scale(0.98); }
   .menu-action:hover { border-color: #ffd700; color: #ffd700; }
-
-  /* 排行榜 */
   #leaderboardPanel {
     position: fixed; inset: 0;
     background:
@@ -217,8 +213,6 @@
     color: #666; font-size: 12px;
   }
   .lb-status.error { color: #e74c3c; }
-
-  /* 名字輸入 */
   #nameModal {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.9);
@@ -264,8 +258,6 @@
     font-family: inherit; letter-spacing: 2px;
   }
   #nameConfirm:disabled { opacity: 0.4; }
-
-  /* 遊戲 UI */
   #topBar {
     position: fixed; top: 0; left: 0; right: 0;
     display: flex; align-items: center; gap: 6px;
@@ -309,7 +301,6 @@
   #musicBtn.active { background: rgba(192, 57, 43, 0.15); border-color: #e74c3c; color: #e74c3c; }
   #emuBtn.active { background: rgba(155, 89, 182, 0.15); border-color: #9b59b6; color: #9b59b6; box-shadow: 0 0 12px #9b59b666; }
   #removeBtn.active { background: rgba(192, 57, 43, 0.9); border-color: #e74c3c; color: #fff; box-shadow: 0 0 12px #e74c3c; }
-
   #bottomBar {
     position: fixed; bottom: 0; left: 0; right: 0;
     display: flex; align-items: center; gap: 4px;
@@ -681,30 +672,33 @@
   <div>請將手機橫過來</div>
 </div>
 
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyCTJqzG6eKeS3EBF626kQodcJHjpcWm0hY",
-    authDomain: "tower-818bc.firebaseapp.com",
-    projectId: "tower-818bc",
-    storageBucket: "tower-818bc.firebasestorage.app",
-    messagingSenderId: "496844251658",
-    appId: "1:496844251658:web:a9e9187b6a12c24303f5f3"
-  };
+<script>
+// ============================================================
+// Firebase 設定 —— 換成你自己的 config
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCTJqzG6eKeS3EBF626kQodcJHjpcWm0hY",
+  authDomain: "tower-818bc.firebaseapp.com",
+  projectId: "tower-818bc",
+  storageBucket: "tower-818bc.firebasestorage.app",
+  messagingSenderId: "496844251658",
+  appId: "1:496844251658:web:a9e9187b6a12c24303f5f3"
+};
 
-let app, db, auth;
+let db = null;
+let auth = null;
 let currentUid = null;
 let firebaseReady = false;
 
 try {
-  app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
-  auth = getAuth(app);
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  auth = firebase.auth();
+  console.log('[Firebase] 初始化成功');
 } catch (e) {
   console.error('[Firebase] 初始化失敗:', e);
 }
@@ -714,15 +708,7 @@ try {
 // ============================================================
 const NAME_KEY = 'towerDefensePlayerName_v1';
 let playerName = '';
-
-function loadPlayerName() {
-  try { playerName = localStorage.getItem(NAME_KEY) || ''; } catch (e) {}
-}
-function savePlayerName(n) {
-  playerName = n;
-  try { localStorage.setItem(NAME_KEY, n); } catch (e) {}
-}
-loadPlayerName();
+try { playerName = localStorage.getItem(NAME_KEY) || ''; } catch (e) {}
 
 const playerNameEl = document.getElementById('playerNameEl');
 const nameModal = document.getElementById('nameModal');
@@ -731,7 +717,7 @@ const nameConfirm = document.getElementById('nameConfirm');
 
 function updatePlayerNameDisplay() {
   if (playerName) {
-    playerNameEl.textContent = `👤 ${playerName}`;
+    playerNameEl.textContent = '👤 ' + playerName;
   } else {
     playerNameEl.textContent = '👤 點此設定名字';
   }
@@ -756,23 +742,21 @@ nameInput.addEventListener('keydown', (e) => {
 nameConfirm.addEventListener('click', () => {
   const n = nameInput.value.trim().slice(0, 12);
   if (!n) return;
-  savePlayerName(n);
+  playerName = n;
+  try { localStorage.setItem(NAME_KEY, n); } catch (e) {}
   updatePlayerNameDisplay();
   nameModal.classList.remove('show');
-  // 更新 Firestore 上的顯示名
-  if (firebaseReady && currentUid) {
-    updateNameOnServer();
-  }
+  if (firebaseReady && currentUid) updateNameOnServer();
 });
 
 async function updateNameOnServer() {
-  // 更新所有難度底下的紀錄名稱
+  if (!db || !currentUid) return;
   for (const diff of ['easy', 'normal', 'hard']) {
     try {
-      const ref = doc(db, 'leaderboard', diff, 'scores', currentUid);
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        await setDoc(ref, { name: playerName }, { merge: true });
+      const ref = db.collection('leaderboard').doc(diff).collection('scores').doc(currentUid);
+      const snap = await ref.get();
+      if (snap.exists) {
+        await ref.set({ name: playerName }, { merge: true });
       }
     } catch (e) {}
   }
@@ -782,7 +766,7 @@ async function updateNameOnServer() {
 // Firebase 認證
 // ============================================================
 if (auth) {
-  onAuthStateChanged(auth, (user) => {
+  auth.onAuthStateChanged((user) => {
     if (user) {
       currentUid = user.uid;
       firebaseReady = true;
@@ -790,7 +774,7 @@ if (auth) {
       if (playerName) updateNameOnServer();
     }
   });
-  signInAnonymously(auth).catch((err) => {
+  auth.signInAnonymously().catch((err) => {
     console.error('[Firebase] 匿名登入失敗:', err);
   });
 }
@@ -799,13 +783,11 @@ if (auth) {
 // 排行榜
 // ============================================================
 let lbCurrentTab = 'easy';
-let cachedLeaderboard = null;
 
 async function fetchLeaderboard(difficulty) {
   if (!db) return [];
-  const scoresRef = collection(db, 'leaderboard', difficulty, 'scores');
-  const q = query(scoresRef, orderBy('wave', 'desc'), orderBy('damage', 'desc'), limit(50));
-  const snap = await getDocs(q);
+  const snap = await db.collection('leaderboard').doc(difficulty).collection('scores')
+    .orderBy('wave', 'desc').orderBy('damage', 'desc').limit(50).get();
   const results = [];
   snap.forEach(d => {
     const data = d.data();
@@ -815,7 +797,6 @@ async function fetchLeaderboard(difficulty) {
       wave: data.wave || 0,
       damage: data.damage || 0,
       victory: data.victory || false,
-      towerStats: data.towerStats || {},
     });
   });
   return results;
@@ -827,22 +808,20 @@ async function recordScore(difficulty, waveReached, totalDamage, towerStats, did
     return;
   }
   try {
-    const ref = doc(db, 'leaderboard', difficulty, 'scores', currentUid);
-    // 檢查現有紀錄
-    const snap = await getDoc(ref);
-    if (snap.exists()) {
+    const ref = db.collection('leaderboard').doc(difficulty).collection('scores').doc(currentUid);
+    const snap = await ref.get();
+    if (snap.exists) {
       const old = snap.data();
-      // 只有在更好或相同波次但傷害更高時才更新
       if (old.wave > waveReached) return;
       if (old.wave === waveReached && (old.damage || 0) >= totalDamage) return;
     }
-    await setDoc(ref, {
+    await ref.set({
       name: playerName,
       wave: waveReached,
       damage: Math.floor(totalDamage),
       victory: !!didVictory,
       towerStats: towerStats || {},
-      updatedAt: serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     console.log('[Firebase] 已上傳成績');
   } catch (e) {
@@ -853,9 +832,9 @@ async function recordScore(difficulty, waveReached, totalDamage, towerStats, did
 async function fetchBestRecord(difficulty) {
   if (!firebaseReady || !currentUid) return null;
   try {
-    const ref = doc(db, 'leaderboard', difficulty, 'scores', currentUid);
-    const snap = await getDoc(ref);
-    return snap.exists() ? snap.data() : null;
+    const ref = db.collection('leaderboard').doc(difficulty).collection('scores').doc(currentUid);
+    const snap = await ref.get();
+    return snap.exists ? snap.data() : null;
   } catch (e) {
     return null;
   }
@@ -864,8 +843,7 @@ async function fetchBestRecord(difficulty) {
 async function updateMenuRecords() {
   for (const diff of ['easy', 'normal', 'hard']) {
     const el = document.getElementById('rec' + diff.charAt(0).toUpperCase() + diff.slice(1));
-    if (!el) continue;
-    el.textContent = '載入中...';
+    if (el) el.textContent = '載入中...';
   }
   for (const diff of ['easy', 'normal', 'hard']) {
     const rec = await fetchBestRecord(diff);
@@ -875,7 +853,7 @@ async function updateMenuRecords() {
       el.textContent = '尚無紀錄';
     } else {
       const v = rec.victory ? ' 👑' : '';
-      el.textContent = `我的最佳：第 ${rec.wave} 波 ｜ ${formatNum(rec.damage)}${v}`;
+      el.textContent = '我的最佳：第 ' + rec.wave + ' 波 ｜ ' + formatNum(rec.damage) + v;
     }
   }
 }
@@ -889,13 +867,12 @@ async function renderLeaderboard() {
   try {
     const list = await fetchLeaderboard(lbCurrentTab);
     if (list.length === 0) {
-      lbList.innerHTML = `
-        <div class="lb-empty">
-          <div class="icon">🏆</div>
-          <div>還沒有紀錄</div>
-          <div style="font-size:12px;margin-top:6px;color:#444;">去挑戰一下吧</div>
-        </div>
-      `;
+      lbList.innerHTML =
+        '<div class="lb-empty">' +
+          '<div class="icon">🏆</div>' +
+          '<div>還沒有紀錄</div>' +
+          '<div style="font-size:12px;margin-top:6px;color:#444;">去挑戰一下吧</div>' +
+        '</div>';
       return;
     }
     let html = '';
@@ -904,36 +881,39 @@ async function renderLeaderboard() {
       const rank = i + 1;
       const crown = rec.victory ? ' 👑' : '';
       const cls = [
-        rank <= 3 ? `rank-${rank}` : '',
+        rank <= 3 ? 'rank-' + rank : '',
         rec.uid === currentUid ? 'is-me' : ''
       ].filter(Boolean).join(' ');
-      const nameDisplay = rec.uid === currentUid ? `${rec.name}（你）` : rec.name;
-      html += `
-        <div class="lb-row ${cls}">
-          <div class="lb-rank">${rank}</div>
-          <div class="lb-info">
-            <div class="lb-name">${escapeHtml(nameDisplay)}</div>
-            <div class="lb-wave">第 ${rec.wave} 波${crown}</div>
-            <div class="lb-damage">傷害 ${formatNum(rec.damage)}</div>
-          </div>
-        </div>
-      `;
+      const nameDisplay = rec.uid === currentUid ? rec.name + '（你）' : rec.name;
+      html +=
+        '<div class="lb-row ' + cls + '">' +
+          '<div class="lb-rank">' + rank + '</div>' +
+          '<div class="lb-info">' +
+            '<div class="lb-name">' + escapeHtml(nameDisplay) + '</div>' +
+            '<div class="lb-wave">第 ' + rec.wave + ' 波' + crown + '</div>' +
+            '<div class="lb-damage">傷害 ' + formatNum(rec.damage) + '</div>' +
+          '</div>' +
+        '</div>';
     }
     lbList.innerHTML = html;
   } catch (e) {
     console.error('[Leaderboard] 讀取失敗:', e);
-    lbList.innerHTML = '<div class="lb-status error">載入失敗，請檢查網路</div>';
+    let msg = '載入失敗，請檢查網路';
+    if (e && e.message && e.message.indexOf('index') >= 0) {
+      msg = '需要建立索引，請查看 Console 的連結';
+    }
+    lbList.innerHTML = '<div class="lb-status error">' + msg + '</div>';
   }
 }
 
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[c]));
+  return String(s).replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
 }
 
 // ============================================================
-// 以下是遊戲主體
+// 遊戲主體
 // ============================================================
 const BASE_W = 960;
 const BASE_H = 540;
@@ -964,7 +944,7 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// ============ 音效系統 ============
+// ============ 音效 ============
 let audioCtx = null, muted = false, musicEnabled = true, musicStarted = false, musicGain = null;
 function initAudio() {
   if (!audioCtx) {
@@ -987,7 +967,13 @@ function initAudio() {
 }
 function playTone(opts) {
   if (!audioCtx || muted) return;
-  const { freq = 440, slideTo = null, duration = 0.1, type = 'sine', volume = 0.3, delay = 0 } = opts;
+  const o = opts || {};
+  const freq = o.freq || 440;
+  const slideTo = o.slideTo || null;
+  const duration = o.duration || 0.1;
+  const type = o.type || 'sine';
+  const volume = o.volume || 0.3;
+  const delay = o.delay || 0;
   try {
     const t = audioCtx.currentTime + delay;
     const osc = audioCtx.createOscillator();
@@ -1007,8 +993,8 @@ function throttled(key, ms, fn) {
   if (throttleMap[key] && now - throttleMap[key] < ms) return;
   throttleMap[key] = now; fn();
 }
-function sfxShoot() { throttled('s', 60, () => playTone({ freq: 900, duration: 0.05, type: 'square', volume: 0.18 })); }
-function sfxHit() { throttled('h', 80, () => playTone({ freq: 250, slideTo: 120, duration: 0.08, type: 'triangle', volume: 0.25 })); }
+function sfxShoot() { throttled('s', 60, function() { playTone({ freq: 900, duration: 0.05, type: 'square', volume: 0.18 }); }); }
+function sfxHit() { throttled('h', 80, function() { playTone({ freq: 250, slideTo: 120, duration: 0.08, type: 'triangle', volume: 0.25 }); }); }
 function sfxPlace() { playTone({ freq: 500, slideTo: 900, duration: 0.15, type: 'sine', volume: 0.4 }); }
 function sfxRemove() { playTone({ freq: 500, slideTo: 200, duration: 0.2, type: 'sawtooth', volume: 0.35 }); }
 function sfxCombine() {
@@ -1017,7 +1003,7 @@ function sfxCombine() {
   playTone({ freq: 784, duration: 0.18, type: 'sine', volume: 0.45, delay: 0.12 });
 }
 function sfxUpgrade() { playTone({ freq: 600, slideTo: 1300, duration: 0.2, type: 'sine', volume: 0.4 }); }
-function sfxCoin() { throttled('c', 120, () => playTone({ freq: 1300, duration: 0.08, type: 'sine', volume: 0.2 })); }
+function sfxCoin() { throttled('c', 120, function() { playTone({ freq: 1300, duration: 0.08, type: 'sine', volume: 0.2 }); }); }
 function sfxBoss() {
   playTone({ freq: 110, slideTo: 55, duration: 1.0, type: 'sawtooth', volume: 0.5 });
   playTone({ freq: 220, slideTo: 110, duration: 0.8, type: 'triangle', volume: 0.3, delay: 0.1 });
@@ -1084,7 +1070,7 @@ function stopBgm() {
   if (bgmTimer) clearInterval(bgmTimer);
   bgmTimer = null;
 }
-document.addEventListener('visibilitychange', () => {
+document.addEventListener('visibilitychange', function() {
   if (document.hidden) stopBgm();
   else if (musicEnabled && !muted && musicStarted && gameState === 'playing') startBgm();
 });
@@ -1104,7 +1090,8 @@ SPOTS[13].special = 'void';
 SPOTS[14].special = 'void';
 function getAdjacentSpots(spot) {
   const result = [];
-  for (const other of SPOTS) {
+  for (let i = 0; i < SPOTS.length; i++) {
+    const other = SPOTS[i];
     if (other === spot) continue;
     const dr = Math.abs(other.row - spot.row);
     const dc = Math.abs(other.col - spot.col);
@@ -1123,7 +1110,7 @@ let PATH_TOTAL = 0;
 for (let i = 0; i < PATH.length - 1; i++) {
   const a = PATH[i], b = PATH[i + 1];
   const len = Math.hypot(b.x - a.x, b.y - a.y);
-  PATH_SEGMENTS.push({ a, b, len, start: PATH_TOTAL });
+  PATH_SEGMENTS.push({ a: a, b: b, len: len, start: PATH_TOTAL });
   PATH_TOTAL += len;
 }
 function getPosOnPath(distance) {
@@ -1135,7 +1122,8 @@ function getPosOnPath(distance) {
     const a = PATH[PATH.length - 2], b = PATH[PATH.length - 1];
     return { x: b.x, y: b.y, angle: Math.atan2(b.y - a.y, b.x - a.x) };
   }
-  for (const seg of PATH_SEGMENTS) {
+  for (let i = 0; i < PATH_SEGMENTS.length; i++) {
+    const seg = PATH_SEGMENTS[i];
     if (distance <= seg.start + seg.len) {
       const t = (distance - seg.start) / seg.len;
       return {
@@ -1190,7 +1178,7 @@ function addDamage(type, amount) {
 }
 
 // ============ DOM ============
-const $ = id => document.getElementById(id);
+function $(id) { return document.getElementById(id); }
 const moneyEl = $('money'), livesEl = $('lives'), waveEl = $('wave'), towerCountEl = $('towerCount');
 const startWaveBtn = $('startWave'), logEl = $('log');
 const bossBar = $('bossBar'), bossHpEl = $('bossHp');
@@ -1205,17 +1193,18 @@ const confirmModal = $('confirmModal'), cancelRestart = $('cancelRestart'), conf
 const mainMenu = $('mainMenu'), leaderboardPanel = $('leaderboardPanel'), lbList = $('lbList'), victoryModal = $('victoryModal');
 
 let logTimer = null;
-function log(msg, ms = 2200) {
+function log(msg, ms) {
+  ms = ms || 2200;
   logEl.textContent = msg;
   logEl.classList.add('show');
   clearTimeout(logTimer);
-  logTimer = setTimeout(() => logEl.classList.remove('show'), ms);
+  logTimer = setTimeout(function() { logEl.classList.remove('show'); }, ms);
 }
 function updateUI() {
   moneyEl.textContent = Math.floor(money);
   livesEl.textContent = lives;
   waveEl.textContent = wave;
-  towerCountEl.textContent = SPOTS.filter(s => s.tower).length;
+  towerCountEl.textContent = SPOTS.filter(function(s) { return s.tower; }).length;
 }
 function getUpgradeCost(tower) {
   const baseCost = TOWER_TYPES[tower.type].baseCost || 50;
@@ -1239,8 +1228,8 @@ function saveGame() {
       if (s.tower) towerData.push({ idx: i, type: s.tower.type, level: s.tower.level });
     }
     const data = {
-      version: 1, difficulty: currentDifficulty, money, lives, wave,
-      damageStats, unlocked: Object.assign({}, unlocked), towers: towerData, timestamp: Date.now(),
+      version: 1, difficulty: currentDifficulty, money: money, lives: lives, wave: wave,
+      damageStats: damageStats, unlocked: Object.assign({}, unlocked), towers: towerData, timestamp: Date.now(),
     };
     localStorage.setItem(getSaveKey(), JSON.stringify(data));
   } catch (e) {}
@@ -1252,13 +1241,19 @@ function loadGame() {
     if (!raw) return false;
     const data = JSON.parse(raw);
     if (!data || data.version !== 1 || data.difficulty !== currentDifficulty || data.wave === 0) return false;
-    money = data.money ?? DIFFICULTIES[currentDifficulty].startMoney;
-    lives = data.lives ?? DIFFICULTIES[currentDifficulty].startLives;
-    wave = data.wave ?? 0;
+    money = data.money || DIFFICULTIES[currentDifficulty].startMoney;
+    lives = data.lives || DIFFICULTIES[currentDifficulty].startLives;
+    wave = data.wave || 0;
     damageStats = data.damageStats || {};
-    if (data.unlocked) for (const k in data.unlocked) if (unlocked.hasOwnProperty(k)) unlocked[k] = data.unlocked[k];
-    for (const s of SPOTS) s.tower = null;
-    for (const t of (data.towers || [])) {
+    if (data.unlocked) {
+      for (const k in data.unlocked) {
+        if (unlocked.hasOwnProperty(k)) unlocked[k] = data.unlocked[k];
+      }
+    }
+    for (let i = 0; i < SPOTS.length; i++) SPOTS[i].tower = null;
+    const towers = data.towers || [];
+    for (let i = 0; i < towers.length; i++) {
+      const t = towers[i];
       const spot = SPOTS[t.idx];
       if (!spot) continue;
       const tower = createTower(spot, t.type);
@@ -1268,7 +1263,7 @@ function loadGame() {
       spot.tower = tower;
     }
     for (const type in unlocked) {
-      const btn = document.querySelector(`.shop-btn[data-type="${type}"]`);
+      const btn = document.querySelector('.shop-btn[data-type="' + type + '"]');
       if (!btn) continue;
       if (unlocked[type]) btn.classList.remove('locked');
       else btn.classList.add('locked');
@@ -1294,9 +1289,9 @@ function startGame(difficulty) {
   speedMultiplier = 1; autoNext = false; autoNextTimer = 0;
   drag = null;
   unlocked = Object.assign({}, DEFAULT_UNLOCKED);
-  for (const s of SPOTS) s.tower = null;
+  for (let i = 0; i < SPOTS.length; i++) SPOTS[i].tower = null;
   for (const type in unlocked) {
-    const btn = document.querySelector(`.shop-btn[data-type="${type}"]`);
+    const btn = document.querySelector('.shop-btn[data-type="' + type + '"]');
     if (!btn) continue;
     btn.classList.toggle('locked', !unlocked[type]);
     btn.classList.remove('selected');
@@ -1315,8 +1310,8 @@ function startGame(difficulty) {
   document.body.classList.remove('in-menu');
   updateUI();
   const loaded = loadGame();
-  if (loaded) log(`已載入存檔（第 ${wave} 波）`, 2500);
-  else log(`${cfg.label}模式 開始！`, 2000);
+  if (loaded) log('已載入存檔（第 ' + wave + ' 波）', 2500);
+  else log(cfg.label + '模式 開始！', 2000);
   if (musicEnabled && !muted && audioCtx) { musicStarted = true; startBgm(); }
 }
 function backToMenu() {
@@ -1344,87 +1339,95 @@ function finishGame(didVictory) {
   const cfg = DIFFICULTIES[currentDifficulty];
   $('vTitle').textContent = didVictory ? '🎉 通關！' : '💀 遊戲結束';
   $('vMode').textContent = cfg.label + '模式';
-  $('vWave').textContent = `第 ${wave} 波`;
+  $('vWave').textContent = '第 ' + wave + ' 波';
   $('vDamage').textContent = formatNum(totalDamage);
-  setTimeout(() => victoryModal.classList.add('show'), 400);
+  setTimeout(function() { victoryModal.classList.add('show'); }, 400);
 }
 
 // ============ 升級預覽 ============
-function fmt(n, d = 1) { if (!isFinite(n)) return '∞'; return n.toFixed(d).replace(/\.0+$/, ''); }
-function previewLine(label, cur, next, unit = '', d = 1) {
+function fmt(n, d) {
+  if (d === undefined) d = 1;
+  if (!isFinite(n)) return '∞';
+  return n.toFixed(d).replace(/\.0+$/, '');
+}
+function previewLine(label, cur, next, unit, d) {
+  if (unit === undefined) unit = '';
+  if (d === undefined) d = 1;
   const cs = fmt(cur, d) + unit;
   if (next === null || next === undefined || Math.abs(next - cur) < 0.001) {
-    return `${label}：${cs} <span class="same">(不變)</span>`;
+    return label + '：' + cs + ' <span class="same">(不變)</span>';
   }
   const diff = next - cur, sign = diff > 0 ? '+' : '';
-  return `${label}：${cs} → ${fmt(next, d)}${unit} <span class="up">(${sign}${fmt(diff, d)})</span>`;
+  return label + '：' + cs + ' → ' + fmt(next, d) + unit + ' <span class="up">(' + sign + fmt(diff, d) + ')</span>';
 }
 function getTowerPreviewHTML(tower) {
   const cfg = TOWER_TYPES[tower.type];
   const lv = tower.level, nl = lv + 1, maxed = lv >= MAX_TOWER_LEVEL;
   let lines = [];
   if (tower.critRateBonus !== undefined && (tower.critRate > 0 || tower.critDmgBonus > 0)) {
-    lines.push(`爆擊：${(tower.critRate * 100).toFixed(0)}% / ${(tower.critDamage * 100).toFixed(0)}%`);
+    lines.push('爆擊：' + (tower.critRate * 100).toFixed(0) + '% / ' + (tower.critDamage * 100).toFixed(0) + '%');
   }
   if (tower.type === 'silver') {
-    lines.push(`每發傷害：${fmt(cfg.baseDamage * (1 + (lv - 1) * 0.25), 1)}`);
-    lines.push(`同時發射：${lv} 發`);
-    lines.push(`成長：${tower.attackCount}/${cfg.attacksPerLevel} 次`);
-    lines.push(`降等倒數：${(cfg.decayTime - tower.idleTimer).toFixed(1)}s`);
+    lines.push('每發傷害：' + fmt(cfg.baseDamage * (1 + (lv - 1) * 0.25), 1));
+    lines.push('同時發射：' + lv + ' 發');
+    lines.push('成長：' + tower.attackCount + '/' + cfg.attacksPerLevel + ' 次');
+    lines.push('降等倒數：' + (cfg.decayTime - tower.idleTimer).toFixed(1) + 's');
     return lines.join('\n');
   }
   if (tower.type === 'magenta') {
-    lines.push(`倒數：${Math.max(0, tower.timer).toFixed(1)}s`);
-    lines.push(`成功：${(cfg.successRate * 100).toFixed(0)}%`);
+    lines.push('倒數：' + Math.max(0, tower.timer).toFixed(1) + 's');
+    lines.push('成功：' + (cfg.successRate * 100).toFixed(0) + '%');
     return lines.join('\n');
   }
   if (tower.type === 'orange') {
     const cd = cfg.dps * Math.pow(1.5, lv - 1), nd = cfg.dps * Math.pow(1.5, nl - 1);
     const cb = cfg.beamCount + (lv - 1), nb = cfg.beamCount + (nl - 1);
-    lines.push(maxed ? `DPS：${fmt(cd, 0)}（MAX）` : previewLine('DPS', cd, nd, '', 0));
-    lines.push(maxed ? `目標數：${cb}` : previewLine('目標數', cb, nb, '', 0));
+    lines.push(maxed ? 'DPS：' + fmt(cd, 0) + '（MAX）' : previewLine('DPS', cd, nd, '', 0));
+    lines.push(maxed ? '目標數：' + cb : previewLine('目標數', cb, nb, '', 0));
     return lines.join('\n');
   }
   if (tower.type === 'red') {
     const ct = cfg.buffTargets + (lv - 1), nt = cfg.buffTargets + (nl - 1);
     const cd = cfg.buffDuration + (lv - 1) * 2, nd = cfg.buffDuration + (nl - 1) * 2;
-    lines.push(maxed ? `目標數：${ct}` : previewLine('目標數', ct, nt, '', 0));
-    lines.push(maxed ? `持續：${cd}s` : previewLine('持續', cd, nd, 's'));
+    lines.push(maxed ? '目標數：' + ct : previewLine('目標數', ct, nt, '', 0));
+    lines.push(maxed ? '持續：' + cd + 's' : previewLine('持續', cd, nd, 's'));
     return lines.join('\n');
   }
   if (tower.type === 'fireArrow') {
     const cd = cfg.damage * Math.pow(1.5, lv - 1), nd = cfg.damage * Math.pow(1.5, nl - 1);
-    lines.push(maxed ? `傷害：${fmt(cd, 2)}` : previewLine('傷害', cd, nd, '', 2));
+    lines.push(maxed ? '傷害：' + fmt(cd, 2) : previewLine('傷害', cd, nd, '', 2));
     lines.push('小怪：10 秒 1 發');
     lines.push('Boss：100 發/秒');
     return lines.join('\n');
   }
   if (cfg.damage !== undefined) {
     const cd = cfg.damage * Math.pow(1.5, lv - 1), nd = cfg.damage * Math.pow(1.5, nl - 1);
-    lines.push(maxed ? `傷害：${fmt(cd, 1)}` : previewLine('傷害', cd, nd, '', 1));
+    lines.push(maxed ? '傷害：' + fmt(cd, 1) : previewLine('傷害', cd, nd, '', 1));
   }
   if (cfg.fireInterval !== undefined) {
     const ci = cfg.fireInterval * Math.pow(0.88, lv - 1), ni = cfg.fireInterval * Math.pow(0.88, nl - 1);
-    lines.push(maxed ? `攻速：${fmt(ci, 2)}s` : previewLine('攻速', ci, ni, 's', 2));
+    lines.push(maxed ? '攻速：' + fmt(ci, 2) + 's' : previewLine('攻速', ci, ni, 's', 2));
   }
   if (cfg.range !== undefined && isFinite(cfg.range)) {
     const cr = cfg.range + 20 * (lv - 1), nr = cfg.range + 20 * nl - 20;
-    lines.push(maxed ? `射程：${fmt(cr / 90, 1)} 格` : previewLine('射程', cr / 90, nr / 90, ' 格'));
+    lines.push(maxed ? '射程：' + fmt(cr / 90, 1) + ' 格' : previewLine('射程', cr / 90, nr / 90, ' 格'));
   }
-  if (tower.type === 'white') lines.push(`秒殺：${(cfg.killChance * 100).toFixed(0)}% (不變)`);
-  if (tower.type === 'blue') lines.push(`命中：5% ｜ 命中即秒殺`);
-  if (tower.type === 'purple') lines.push(`緩速：${(100 - cfg.slowFactor * 100).toFixed(0)}% 持續 ${cfg.slowDuration}s`);
-  if (tower.type === 'cyan') lines.push(`對 Boss ×${cfg.antiBossMultiplier}`);
-  if (tower.type === 'amethyst') lines.push(`增益：周圍 +${(cfg.critRateBuff * 100).toFixed(0)}% 爆擊率`);
-  if (tower.type === 'jade') lines.push(`增益：周圍 +${(cfg.critDmgBuff * 100).toFixed(0)}% 爆擊傷害`);
+  if (tower.type === 'white') lines.push('秒殺：' + (cfg.killChance * 100).toFixed(0) + '% (不變)');
+  if (tower.type === 'blue') lines.push('命中：5% ｜ 命中即秒殺');
+  if (tower.type === 'purple') lines.push('緩速：' + (100 - cfg.slowFactor * 100).toFixed(0) + '% 持續 ' + cfg.slowDuration + 's');
+  if (tower.type === 'cyan') lines.push('對 Boss ×' + cfg.antiBossMultiplier);
+  if (tower.type === 'amethyst') lines.push('增益：周圍 +' + (cfg.critRateBuff * 100).toFixed(0) + '% 爆擊率');
+  if (tower.type === 'jade') lines.push('增益：周圍 +' + (cfg.critDmgBuff * 100).toFixed(0) + '% 爆擊傷害');
   return lines.join('\n');
 }
 function updateTowerPanel() {
   if (gameState !== 'playing') { towerPanel.classList.add('hidden'); return; }
-  if (!selectedTower || !SPOTS.some(s => s.tower === selectedTower)) { towerPanel.classList.add('hidden'); return; }
+  if (!selectedTower || !SPOTS.some(function(s) { return s.tower === selectedTower; })) {
+    towerPanel.classList.add('hidden'); return;
+  }
   towerPanel.classList.remove('hidden');
   const cfg = TOWER_TYPES[selectedTower.type];
-  towerName.textContent = `${cfg.name} Lv.${selectedTower.level}`;
+  towerName.textContent = cfg.name + ' Lv.' + selectedTower.level;
   towerStats.innerHTML = getTowerPreviewHTML(selectedTower);
   if (selectedTower.type === 'magenta') { upgradeBtn.disabled = true; upgradeBtn.textContent = '不可升級'; return; }
   if (selectedTower.type === 'silver') { upgradeBtn.disabled = true; upgradeBtn.textContent = '自動成長'; return; }
@@ -1432,7 +1435,7 @@ function updateTowerPanel() {
   else {
     const cost = getUpgradeCost(selectedTower);
     upgradeBtn.disabled = money < cost;
-    upgradeBtn.textContent = `升級 ${cost}`;
+    upgradeBtn.textContent = '升級 ' + cost;
   }
 }
 function upgradeTower(tower) {
@@ -1445,100 +1448,114 @@ function upgradeTower(tower) {
   if (tower.applyLevel) tower.applyLevel();
   sfxUpgrade();
   updateUI(); updateTowerPanel();
-  log(`${TOWER_TYPES[tower.type].name} → Lv.${tower.level}`);
+  log(TOWER_TYPES[tower.type].name + ' → Lv.' + tower.level);
   saveGame();
 }
 
 // ============ 增益 ============
 function recomputeBuffs() {
-  for (const spot of SPOTS) if (spot.tower) { spot.tower.critRateBonus = 0; spot.tower.critDmgBonus = 0; }
-  for (const spot of SPOTS) {
+  for (let i = 0; i < SPOTS.length; i++) {
+    if (SPOTS[i].tower) { SPOTS[i].tower.critRateBonus = 0; SPOTS[i].tower.critDmgBonus = 0; }
+  }
+  for (let i = 0; i < SPOTS.length; i++) {
+    const spot = SPOTS[i];
     if (!spot.tower) continue;
     const t = spot.tower;
     if (t.type === 'amethyst') {
       const buff = TOWER_TYPES.amethyst.critRateBuff;
-      for (const n of getAdjacentSpots(spot)) if (n.tower && n.tower !== t) n.tower.critRateBonus += buff;
+      const adj = getAdjacentSpots(spot);
+      for (let j = 0; j < adj.length; j++) {
+        if (adj[j].tower && adj[j].tower !== t) adj[j].tower.critRateBonus += buff;
+      }
     } else if (t.type === 'jade') {
       const buff = TOWER_TYPES.jade.critDmgBuff;
-      for (const n of getAdjacentSpots(spot)) if (n.tower && n.tower !== t) n.tower.critDmgBonus += buff;
+      const adj = getAdjacentSpots(spot);
+      for (let j = 0; j < adj.length; j++) {
+        if (adj[j].tower && adj[j].tower !== t) adj[j].tower.critDmgBonus += buff;
+      }
     }
   }
 }
 
 // ============ 敵人 ============
-class Enemy {
-  constructor(hp, speed, isBoss = false) {
-    this.hp = hp; this.maxHp = hp; this.baseSpeed = speed;
-    this.slowFactor = 1; this.slowTimer = 0; this.distance = 0;
-    this.alive = true; this.reachedEnd = false;
-    this.isBoss = isBoss; this.elapsed = 0;
-    this.damageReduction = isBoss ? 0.4 : 0;
-  }
-  takeDamage(amount) {
-    const actual = amount * (1 - this.damageReduction);
-    this.hp -= actual;
-    if (this.hp <= 0) this.alive = false;
-    return actual;
-  }
-  update(dt) {
-    if (!this.alive) return;
-    if (this.hp <= 0) { this.alive = false; return; }
-    this.elapsed += dt;
-    let rm = 1;
-    if (this.isBoss) rm = Math.min(2.2, 1 + this.elapsed * 0.025);
-    if (this.slowTimer > 0) { this.slowTimer -= dt; if (this.slowTimer <= 0) this.slowFactor = 1; }
-    let es = this.slowFactor;
-    if (this.isBoss) es = 1 - (1 - this.slowFactor) * 0.5;
-    let speed = this.baseSpeed * es * rm;
-    if (hasGoldTower) speed += TOWER_TYPES.gold.conveyorSpeed * (this.isBoss ? TOWER_TYPES.gold.conveyorBossFactor : 1);
-    this.distance += speed * dt;
-    if (this.distance >= PATH_TOTAL) { this.alive = false; this.reachedEnd = true; }
-    if (this.distance < 0) this.distance = 0;
-  }
-  getPos() { return getPosOnPath(this.distance); }
-  draw() {
-    if (!this.alive) return;
-    const p = this.getPos();
-    const r = this.isBoss ? 22 : 13;
-    if (this.isBoss && this.elapsed > 1) {
-      const rage = Math.min(1, (this.elapsed - 1) / 20);
-      const glow = 0.3 + 0.4 * Math.sin(this.elapsed * 6) * rage;
-      ctx.fillStyle = `rgba(231, 76, 60, ${glow})`;
-      ctx.beginPath(); ctx.arc(p.x, p.y, r + 10, 0, Math.PI * 2); ctx.fill();
-    }
-    const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
-    if (this.isBoss) { grad.addColorStop(0, '#c68642'); grad.addColorStop(1, '#5a2e0a'); }
-    else { grad.addColorStop(0, '#ff7675'); grad.addColorStop(1, '#c0392b'); }
-    ctx.fillStyle = grad;
-    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
-    if (this.isBoss) {
-      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = '#ffd700';
-      const cy = p.y - r - 5, cw = r * 1.2;
-      ctx.beginPath();
-      ctx.moveTo(p.x - cw/2, cy); ctx.lineTo(p.x - cw/2, cy - 7);
-      ctx.lineTo(p.x - cw/4, cy - 2); ctx.lineTo(p.x, cy - 10);
-      ctx.lineTo(p.x + cw/4, cy - 2); ctx.lineTo(p.x + cw/2, cy - 7);
-      ctx.lineTo(p.x + cw/2, cy); ctx.closePath(); ctx.fill();
-    }
-    if (this.slowTimer > 0) {
-      ctx.strokeStyle = 'rgba(155, 89, 182, 0.85)';
-      ctx.lineWidth = this.isBoss ? 3 : 2;
-      ctx.beginPath(); ctx.arc(p.x, p.y, r + 3, 0, Math.PI * 2); ctx.stroke();
-    }
-    if (!this.isBoss) {
-      const w = 24, hpPct = Math.max(0, this.hp / this.maxHp);
-      ctx.fillStyle = '#000000aa'; ctx.fillRect(p.x - w / 2, p.y - r - 8, w, 3);
-      ctx.fillStyle = hpPct > 0.5 ? '#2ecc71' : hpPct > 0.25 ? '#f1c40f' : '#e74c3c';
-      ctx.fillRect(p.x - w / 2, p.y - r - 8, w * hpPct, 3);
-    }
-  }
+function Enemy(hp, speed, isBoss) {
+  this.hp = hp;
+  this.maxHp = hp;
+  this.baseSpeed = speed;
+  this.slowFactor = 1;
+  this.slowTimer = 0;
+  this.distance = 0;
+  this.alive = true;
+  this.reachedEnd = false;
+  this.isBoss = !!isBoss;
+  this.elapsed = 0;
+  this.damageReduction = this.isBoss ? 0.4 : 0;
 }
+Enemy.prototype.takeDamage = function(amount) {
+  const actual = amount * (1 - this.damageReduction);
+  this.hp -= actual;
+  if (this.hp <= 0) this.alive = false;
+  return actual;
+};
+Enemy.prototype.update = function(dt) {
+  if (!this.alive) return;
+  if (this.hp <= 0) { this.alive = false; return; }
+  this.elapsed += dt;
+  let rm = 1;
+  if (this.isBoss) rm = Math.min(2.2, 1 + this.elapsed * 0.025);
+  if (this.slowTimer > 0) { this.slowTimer -= dt; if (this.slowTimer <= 0) this.slowFactor = 1; }
+  let es = this.slowFactor;
+  if (this.isBoss) es = 1 - (1 - this.slowFactor) * 0.5;
+  let speed = this.baseSpeed * es * rm;
+  if (hasGoldTower) speed += TOWER_TYPES.gold.conveyorSpeed * (this.isBoss ? TOWER_TYPES.gold.conveyorBossFactor : 1);
+  this.distance += speed * dt;
+  if (this.distance >= PATH_TOTAL) { this.alive = false; this.reachedEnd = true; }
+  if (this.distance < 0) this.distance = 0;
+};
+Enemy.prototype.getPos = function() { return getPosOnPath(this.distance); };
+Enemy.prototype.draw = function() {
+  if (!this.alive) return;
+  const p = this.getPos();
+  const r = this.isBoss ? 22 : 13;
+  if (this.isBoss && this.elapsed > 1) {
+    const rage = Math.min(1, (this.elapsed - 1) / 20);
+    const glow = 0.3 + 0.4 * Math.sin(this.elapsed * 6) * rage;
+    ctx.fillStyle = 'rgba(231, 76, 60, ' + glow + ')';
+    ctx.beginPath(); ctx.arc(p.x, p.y, r + 10, 0, Math.PI * 2); ctx.fill();
+  }
+  const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+  if (this.isBoss) { grad.addColorStop(0, '#c68642'); grad.addColorStop(1, '#5a2e0a'); }
+  else { grad.addColorStop(0, '#ff7675'); grad.addColorStop(1, '#c0392b'); }
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+  if (this.isBoss) {
+    ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#ffd700';
+    const cy = p.y - r - 5, cw = r * 1.2;
+    ctx.beginPath();
+    ctx.moveTo(p.x - cw/2, cy); ctx.lineTo(p.x - cw/2, cy - 7);
+    ctx.lineTo(p.x - cw/4, cy - 2); ctx.lineTo(p.x, cy - 10);
+    ctx.lineTo(p.x + cw/4, cy - 2); ctx.lineTo(p.x + cw/2, cy - 7);
+    ctx.lineTo(p.x + cw/2, cy); ctx.closePath(); ctx.fill();
+  }
+  if (this.slowTimer > 0) {
+    ctx.strokeStyle = 'rgba(155, 89, 182, 0.85)';
+    ctx.lineWidth = this.isBoss ? 3 : 2;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r + 3, 0, Math.PI * 2); ctx.stroke();
+  }
+  if (!this.isBoss) {
+    const w = 24, hpPct = Math.max(0, this.hp / this.maxHp);
+    ctx.fillStyle = '#000000aa'; ctx.fillRect(p.x - w / 2, p.y - r - 8, w, 3);
+    ctx.fillStyle = hpPct > 0.5 ? '#2ecc71' : hpPct > 0.25 ? '#f1c40f' : '#e74c3c';
+    ctx.fillRect(p.x - w / 2, p.y - r - 8, w * hpPct, 3);
+  }
+};
 
 // ============ 塔圖案 ============
 function drawTowerIcon(type, x, y, size) {
   ctx.save();
+  let i, a, r, px, py;
   switch (type) {
     case 'white':
       ctx.fillStyle = '#555';
@@ -1563,10 +1580,10 @@ function drawTowerIcon(type, x, y, size) {
       ctx.fillStyle = '#2d1445';
       ctx.beginPath();
       const outer = size * 0.3, inner = size * 0.13;
-      for (let i = 0; i < 10; i++) {
-        const a = -Math.PI / 2 + i * Math.PI / 5;
-        const r = i % 2 === 0 ? outer : inner;
-        const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+      for (i = 0; i < 10; i++) {
+        a = -Math.PI / 2 + i * Math.PI / 5;
+        r = i % 2 === 0 ? outer : inner;
+        px = x + Math.cos(a) * r; py = y + Math.sin(a) * r;
         if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
       ctx.closePath(); ctx.fill(); break;
@@ -1578,8 +1595,8 @@ function drawTowerIcon(type, x, y, size) {
       ctx.fillStyle = '#4d2200';
       ctx.beginPath(); ctx.arc(x, y, size * 0.16, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#4d2200'; ctx.lineWidth = 3;
-      for (let i = 0; i < 8; i++) {
-        const a = i * Math.PI / 4;
+      for (i = 0; i < 8; i++) {
+        a = i * Math.PI / 4;
         ctx.beginPath();
         ctx.moveTo(x + Math.cos(a) * size * 0.2, y + Math.sin(a) * size * 0.2);
         ctx.lineTo(x + Math.cos(a) * size * 0.3, y + Math.sin(a) * size * 0.3);
@@ -1587,17 +1604,17 @@ function drawTowerIcon(type, x, y, size) {
       } break;
     case 'red':
       ctx.fillStyle = '#ffd700';
-      ctx.font = `bold ${size * 0.55}px system-ui`;
+      ctx.font = 'bold ' + (size * 0.55) + 'px system-ui';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('$', x, y + 1); break;
     case 'gold':
       ctx.save(); ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 12;
       ctx.fillStyle = '#8b6914';
       ctx.beginPath();
-      for (let i = 0; i < 10; i++) {
-        const a = -Math.PI / 2 + i * Math.PI / 5;
-        const r = i % 2 === 0 ? size * 0.32 : size * 0.14;
-        const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+      for (i = 0; i < 10; i++) {
+        a = -Math.PI / 2 + i * Math.PI / 5;
+        r = i % 2 === 0 ? size * 0.32 : size * 0.14;
+        px = x + Math.cos(a) * r; py = y + Math.sin(a) * r;
         if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
       ctx.closePath(); ctx.fill(); ctx.restore(); break;
@@ -1615,15 +1632,15 @@ function drawTowerIcon(type, x, y, size) {
       ctx.fillStyle = '#003300';
       ctx.beginPath();
       const r6 = size * 0.28;
-      for (let i = 0; i < 6; i++) {
-        const a = i * Math.PI / 3 - Math.PI / 2;
-        const px = x + Math.cos(a) * r6, py = y + Math.sin(a) * r6;
+      for (i = 0; i < 6; i++) {
+        a = i * Math.PI / 3 - Math.PI / 2;
+        px = x + Math.cos(a) * r6; py = y + Math.sin(a) * r6;
         if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
       ctx.closePath(); ctx.fill(); break;
     case 'magenta':
       ctx.fillStyle = '#ffffff';
-      ctx.font = `${size * 0.5}px ${EMU_FONT}`;
+      ctx.font = (size * 0.5) + 'px ' + EMU_FONT;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('♥', x, y + 1); break;
     case 'fireArrow':
@@ -1651,658 +1668,669 @@ function drawLevelStars(level, x, y, size) {
   const fs = size * 0.4, sp = fs * 0.95;
   const tw = (stars.length - 1) * sp;
   ctx.save();
-  ctx.font = `${fs}px ${EMU_FONT}`;
+  ctx.font = fs + 'px ' + EMU_FONT;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (let i = 0; i < stars.length; i++) ctx.fillText(stars[i], x - tw / 2 + i * sp, y);
   ctx.restore();
 }
 
 // ============ 一般塔 ============
-class Tower {
-  constructor(spot, type) {
-    this.spot = spot; this.type = type; this.config = TOWER_TYPES[type];
-    this.level = 1; this.cooldown = 0; this.fireFlash = 0;
-    this.hastedTimer = 0; this.critRateBonus = 0; this.critDmgBonus = 0;
-    this.applyLevel();
-  }
-  get x() { return this.spot.x; }
-  get y() { return this.spot.y; }
-  get critRate() { return Math.min(1.0, this.critRateBonus); }
-  get critDamage() { return Math.min(5.0, 2.0 + this.critDmgBonus); }
-  applyLevel() {
-    const lv = this.level;
-    this.damage = this.config.damage * Math.pow(1.5, lv - 1);
-    this.baseFireInterval = this.config.fireInterval * Math.pow(0.88, lv - 1);
-    this.range = (this.config.range || 220) + 20 * (lv - 1);
-    if (this.hastedTimer <= 0) this.fireInterval = this.baseFireInterval;
-    this.hitChance = this.config.hitChance;
-    this.killChance = this.config.killChance || 0;
-    this.slowFactor = this.config.slowFactor;
-    this.slowDuration = this.config.slowDuration;
-    this.antiBossMultiplier = this.config.antiBossMultiplier;
-  }
-  applyHaste(duration, newInterval) { this.fireInterval = newInterval; this.hastedTimer = duration; }
-  update(dt) {
-    this.fireFlash = Math.max(0, this.fireFlash - dt * 6);
-    if (this.hastedTimer > 0) {
-      this.hastedTimer -= dt;
-      if (this.hastedTimer <= 0) this.fireInterval = this.baseFireInterval;
-    }
-    this.cooldown -= dt;
-    if (this.cooldown > 0) return;
-    const target = this.findTarget();
-    if (target) { this.fire(target); this.cooldown = this.fireInterval; }
-  }
-  findTarget() {
-    let best = null, bd = this.range;
-    for (const e of enemies) {
-      if (!e.alive) continue;
-      const p = e.getPos();
-      const d = Math.hypot(p.x - this.x, p.y - this.y);
-      if (d <= bd) { bd = d; best = e; }
-    }
-    return best;
-  }
-  fire(target) {
-    this.fireFlash = 1;
-    bullets.push(new Bullet(this, target));
-    if (this.type !== 'blue') sfxShoot();
-  }
-  drawBody(x, y, alpha = 1) {
-    const size = 70, half = size / 2;
-    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
-    ctx.fillStyle = '#00000066';
-    ctx.fillRect(-half + 2, -half + 3, size, size);
-    if (this.type === 'gold') {
-      const grad = ctx.createLinearGradient(-half, -half, half, half);
-      grad.addColorStop(0, '#fff6b0'); grad.addColorStop(0.5, '#f1c40f'); grad.addColorStop(1, '#b8860b');
-      ctx.fillStyle = grad;
-    } else ctx.fillStyle = this.config.color;
-    ctx.fillRect(-half, -half, size, size);
-    ctx.strokeStyle = this.type === 'gold' ? '#fff6b0' : (this.type === 'cyan' ? '#7ff7ff' : '#00000066');
-    ctx.lineWidth = 2; ctx.strokeRect(-half, -half, size, size);
-    ctx.restore();
-    drawTowerIcon(this.type, x, y, size);
-  }
-  draw() {
-    const x = this.x, y = this.y, size = 70, half = size / 2;
-    if (selectedTower === this) {
-      ctx.fillStyle = 'rgba(255, 215, 0, 0.08)';
-      ctx.beginPath(); ctx.arc(x, y, this.range, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)'; ctx.lineWidth = 2; ctx.stroke();
-    }
-    if (this.type === 'amethyst' || this.type === 'jade') {
-      const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 300);
-      ctx.save(); ctx.shadowColor = this.config.color; ctx.shadowBlur = 18 * pulse;
-      ctx.strokeStyle = this.config.color; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(x, y, half + 8, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-    }
-    if (this.critRateBonus > 0) {
-      ctx.save(); ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(x, y, half + 3, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-    }
-    if (this.critDmgBonus > 0) {
-      ctx.save(); ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(x, y, half + 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-    }
-    const isDragging = drag && drag.tower === this && drag.isDragging;
-    if (!isDragging) {
-      ctx.save(); ctx.translate(x, y);
-      const scale = 1 + this.fireFlash * 0.08;
-      ctx.scale(scale, scale); ctx.translate(-x, -y);
-      this.drawBody(x, y, 1); ctx.restore();
-      if (this.fireFlash > 0) {
-        ctx.save();
-        ctx.fillStyle = `rgba(255,255,255,${this.fireFlash * 0.4})`;
-        ctx.fillRect(x - half, y - half, size, size); ctx.restore();
-      }
-    }
-    drawLevelStars(this.level, x, y - half - 12, size);
-    if (this.hastedTimer > 0) {
-      ctx.save(); ctx.shadowColor = '#e74c3c'; ctx.shadowBlur = 14;
-      ctx.strokeStyle = `rgba(231, 76, 60, ${0.6 + 0.4 * Math.sin(this.hastedTimer * 12)})`;
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(x, y, half + 5, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-    }
-  }
+function Tower(spot, type) {
+  this.spot = spot; this.type = type; this.config = TOWER_TYPES[type];
+  this.level = 1; this.cooldown = 0; this.fireFlash = 0;
+  this.hastedTimer = 0; this.critRateBonus = 0; this.critDmgBonus = 0;
+  this.applyLevel();
 }
+Object.defineProperty(Tower.prototype, 'x', { get: function() { return this.spot.x; } });
+Object.defineProperty(Tower.prototype, 'y', { get: function() { return this.spot.y; } });
+Object.defineProperty(Tower.prototype, 'critRate', { get: function() { return Math.min(1.0, this.critRateBonus); } });
+Object.defineProperty(Tower.prototype, 'critDamage', { get: function() { return Math.min(5.0, 2.0 + this.critDmgBonus); } });
+Tower.prototype.applyLevel = function() {
+  const lv = this.level;
+  this.damage = this.config.damage * Math.pow(1.5, lv - 1);
+  this.baseFireInterval = this.config.fireInterval * Math.pow(0.88, lv - 1);
+  this.range = (this.config.range || 220) + 20 * (lv - 1);
+  if (this.hastedTimer <= 0) this.fireInterval = this.baseFireInterval;
+  this.hitChance = this.config.hitChance;
+  this.killChance = this.config.killChance || 0;
+  this.slowFactor = this.config.slowFactor;
+  this.slowDuration = this.config.slowDuration;
+  this.antiBossMultiplier = this.config.antiBossMultiplier;
+};
+Tower.prototype.applyHaste = function(duration, newInterval) { this.fireInterval = newInterval; this.hastedTimer = duration; };
+Tower.prototype.update = function(dt) {
+  this.fireFlash = Math.max(0, this.fireFlash - dt * 6);
+  if (this.hastedTimer > 0) {
+    this.hastedTimer -= dt;
+    if (this.hastedTimer <= 0) this.fireInterval = this.baseFireInterval;
+  }
+  this.cooldown -= dt;
+  if (this.cooldown > 0) return;
+  const target = this.findTarget();
+  if (target) { this.fire(target); this.cooldown = this.fireInterval; }
+};
+Tower.prototype.findTarget = function() {
+  let best = null, bd = this.range;
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i];
+    if (!e.alive) continue;
+    const p = e.getPos();
+    const d = Math.hypot(p.x - this.x, p.y - this.y);
+    if (d <= bd) { bd = d; best = e; }
+  }
+  return best;
+};
+Tower.prototype.fire = function(target) {
+  this.fireFlash = 1;
+  bullets.push(new Bullet(this, target));
+  if (this.type !== 'blue') sfxShoot();
+};
+Tower.prototype.drawBody = function(x, y, alpha) {
+  const size = 70, half = size / 2;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
+  ctx.fillStyle = '#00000066';
+  ctx.fillRect(-half + 2, -half + 3, size, size);
+  if (this.type === 'gold') {
+    const grad = ctx.createLinearGradient(-half, -half, half, half);
+    grad.addColorStop(0, '#fff6b0'); grad.addColorStop(0.5, '#f1c40f'); grad.addColorStop(1, '#b8860b');
+    ctx.fillStyle = grad;
+  } else ctx.fillStyle = this.config.color;
+  ctx.fillRect(-half, -half, size, size);
+  ctx.strokeStyle = this.type === 'gold' ? '#fff6b0' : (this.type === 'cyan' ? '#7ff7ff' : '#00000066');
+  ctx.lineWidth = 2; ctx.strokeRect(-half, -half, size, size);
+  ctx.restore();
+  drawTowerIcon(this.type, x, y, size);
+};
+Tower.prototype.draw = function() {
+  const x = this.x, y = this.y, size = 70, half = size / 2;
+  if (selectedTower === this) {
+    ctx.fillStyle = 'rgba(255, 215, 0, 0.08)';
+    ctx.beginPath(); ctx.arc(x, y, this.range, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)'; ctx.lineWidth = 2; ctx.stroke();
+  }
+  if (this.type === 'amethyst' || this.type === 'jade') {
+    const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 300);
+    ctx.save(); ctx.shadowColor = this.config.color; ctx.shadowBlur = 18 * pulse;
+    ctx.strokeStyle = this.config.color; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(x, y, half + 8, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  if (this.critRateBonus > 0) {
+    ctx.save(); ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, half + 3, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  if (this.critDmgBonus > 0) {
+    ctx.save(); ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, half + 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  const isDragging = drag && drag.tower === this && drag.isDragging;
+  if (!isDragging) {
+    ctx.save(); ctx.translate(x, y);
+    const scale = 1 + this.fireFlash * 0.08;
+    ctx.scale(scale, scale); ctx.translate(-x, -y);
+    this.drawBody(x, y, 1); ctx.restore();
+    if (this.fireFlash > 0) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,255,255,' + (this.fireFlash * 0.4) + ')';
+      ctx.fillRect(x - half, y - half, size, size); ctx.restore();
+    }
+  }
+  drawLevelStars(this.level, x, y - half - 12, size);
+  if (this.hastedTimer > 0) {
+    ctx.save(); ctx.shadowColor = '#e74c3c'; ctx.shadowBlur = 14;
+    ctx.strokeStyle = 'rgba(231, 76, 60, ' + (0.6 + 0.4 * Math.sin(this.hastedTimer * 12)) + ')';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(x, y, half + 5, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+};
 
 // ============ 銀塔 ============
-class SilverTower {
-  constructor(spot) {
-    this.spot = spot; this.type = 'silver'; this.config = TOWER_TYPES.silver;
-    this.level = 1; this.attackCount = 0; this.idleTimer = 0;
-    this.cooldown = 0; this.fireFlash = 0; this.range = this.config.range;
-    this.pulse = 0; this.critRateBonus = 0; this.critDmgBonus = 0;
-  }
-  get x() { return this.spot.x; }
-  get y() { return this.spot.y; }
-  get critRate() { return Math.min(1.0, this.critRateBonus); }
-  get critDamage() { return Math.min(5.0, 2.0 + this.critDmgBonus); }
-  update(dt) {
-    this.pulse += dt;
-    this.fireFlash = Math.max(0, this.fireFlash - dt * 5);
-    this.idleTimer += dt;
-    if (this.idleTimer >= this.config.decayTime) {
-      this.idleTimer = 0;
-      if (this.level > 1) this.level--;
-    }
-    this.cooldown -= dt;
-    if (this.cooldown > 0) return;
-    const targets = this.findTargets(this.level);
-    if (targets.length === 0) return;
-    this.fire(targets);
-    this.cooldown = this.config.fireInterval;
-    this.idleTimer = 0;
-    this.attackCount++;
-    if (this.attackCount >= this.config.attacksPerLevel) {
-      this.attackCount = 0;
-      if (this.level < this.config.maxLevel) this.level++;
-    }
-  }
-  findTargets(count) {
-    const inRange = [];
-    for (const e of enemies) {
-      if (!e.alive) continue;
-      const p = e.getPos();
-      const d = Math.hypot(p.x - this.x, p.y - this.y);
-      if (d <= this.range) inRange.push(e);
-    }
-    if (inRange.length === 0) return [];
-    let focus = inRange[0];
-    for (const e of inRange) if (e.hp > focus.hp) focus = e;
-    return new Array(count).fill(focus);
-  }
-  fire(targets) {
-    this.fireFlash = 1;
-    for (const target of targets) bullets.push(new SilverBullet(this, target));
-  }
-  drawBody(x, y, alpha = 1) {
-    const size = 70, half = size / 2;
-    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
-    ctx.fillStyle = '#00000066'; ctx.fillRect(-half + 2, -half + 3, size, size);
-    const grad = ctx.createLinearGradient(-half, -half, half, half);
-    grad.addColorStop(0, '#f0f0f0'); grad.addColorStop(0.5, '#c0c0c0'); grad.addColorStop(1, '#707070');
-    ctx.fillStyle = grad; ctx.fillRect(-half, -half, size, size);
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(-half, -half, size, size);
-    ctx.restore();
-    drawTowerIcon('silver', x, y, size);
-  }
-  draw() {
-    const x = this.x, y = this.y, size = 70, half = size / 2;
-    if (selectedTower === this) {
-      ctx.fillStyle = 'rgba(255, 215, 0, 0.08)';
-      ctx.beginPath(); ctx.arc(x, y, this.range, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)'; ctx.lineWidth = 2; ctx.stroke();
-    }
-    if (this.critRateBonus > 0) {
-      ctx.save(); ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(x, y, half + 3, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-    }
-    if (this.critDmgBonus > 0) {
-      ctx.save(); ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(x, y, half + 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-    }
-    if (this.level > 1) {
-      const intensity = this.level / this.config.maxLevel;
-      ctx.save(); ctx.shadowColor = '#c0c0c0'; ctx.shadowBlur = 8 + intensity * 16;
-      ctx.fillStyle = `rgba(220, 220, 240, ${0.08 + intensity * 0.25})`;
-      ctx.beginPath(); ctx.arc(x, y, half + 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-    }
-    const isDragging = drag && drag.tower === this && drag.isDragging;
-    if (!isDragging) {
-      ctx.save(); ctx.translate(x, y);
-      const scale = 1 + this.fireFlash * 0.12;
-      ctx.scale(scale, scale); ctx.translate(-x, -y);
-      this.drawBody(x, y, 1); ctx.restore();
-    }
-    if (this.level > 1) {
-      ctx.save(); ctx.fillStyle = '#ffd700';
-      ctx.font = 'bold 14px system-ui';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(`Lv${this.level}`, x, y - half - 12); ctx.restore();
-      const remain = this.config.decayTime - this.idleTimer;
-      if (remain < 0.8) {
-        ctx.save();
-        ctx.strokeStyle = `rgba(231, 76, 60, ${0.4 + 0.4 * Math.sin(this.pulse * 20)})`;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(x, y, half + 5, -Math.PI / 2, -Math.PI / 2 + (remain / 0.8) * Math.PI * 2);
-        ctx.stroke(); ctx.restore();
-      }
-    }
-  }
+function SilverTower(spot) {
+  this.spot = spot; this.type = 'silver'; this.config = TOWER_TYPES.silver;
+  this.level = 1; this.attackCount = 0; this.idleTimer = 0;
+  this.cooldown = 0; this.fireFlash = 0; this.range = this.config.range;
+  this.pulse = 0; this.critRateBonus = 0; this.critDmgBonus = 0;
 }
+Object.defineProperty(SilverTower.prototype, 'x', { get: function() { return this.spot.x; } });
+Object.defineProperty(SilverTower.prototype, 'y', { get: function() { return this.spot.y; } });
+Object.defineProperty(SilverTower.prototype, 'critRate', { get: function() { return Math.min(1.0, this.critRateBonus); } });
+Object.defineProperty(SilverTower.prototype, 'critDamage', { get: function() { return Math.min(5.0, 2.0 + this.critDmgBonus); } });
+SilverTower.prototype.applyLevel = function() {};
+SilverTower.prototype.applyHaste = function() {};
+SilverTower.prototype.update = function(dt) {
+  this.pulse += dt;
+  this.fireFlash = Math.max(0, this.fireFlash - dt * 5);
+  this.idleTimer += dt;
+  if (this.idleTimer >= this.config.decayTime) {
+    this.idleTimer = 0;
+    if (this.level > 1) this.level--;
+  }
+  this.cooldown -= dt;
+  if (this.cooldown > 0) return;
+  const targets = this.findTargets(this.level);
+  if (targets.length === 0) return;
+  this.fire(targets);
+  this.cooldown = this.config.fireInterval;
+  this.idleTimer = 0;
+  this.attackCount++;
+  if (this.attackCount >= this.config.attacksPerLevel) {
+    this.attackCount = 0;
+    if (this.level < this.config.maxLevel) this.level++;
+  }
+};
+SilverTower.prototype.findTargets = function(count) {
+  const inRange = [];
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i];
+    if (!e.alive) continue;
+    const p = e.getPos();
+    const d = Math.hypot(p.x - this.x, p.y - this.y);
+    if (d <= this.range) inRange.push(e);
+  }
+  if (inRange.length === 0) return [];
+  let focus = inRange[0];
+  for (let i = 0; i < inRange.length; i++) {
+    if (inRange[i].hp > focus.hp) focus = inRange[i];
+  }
+  const result = [];
+  for (let i = 0; i < count; i++) result.push(focus);
+  return result;
+};
+SilverTower.prototype.fire = function(targets) {
+  this.fireFlash = 1;
+  for (let i = 0; i < targets.length; i++) {
+    bullets.push(new SilverBullet(this, targets[i]));
+  }
+};
+SilverTower.prototype.drawBody = function(x, y, alpha) {
+  const size = 70, half = size / 2;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
+  ctx.fillStyle = '#00000066'; ctx.fillRect(-half + 2, -half + 3, size, size);
+  const grad = ctx.createLinearGradient(-half, -half, half, half);
+  grad.addColorStop(0, '#f0f0f0'); grad.addColorStop(0.5, '#c0c0c0'); grad.addColorStop(1, '#707070');
+  ctx.fillStyle = grad; ctx.fillRect(-half, -half, size, size);
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(-half, -half, size, size);
+  ctx.restore();
+  drawTowerIcon('silver', x, y, size);
+};
+SilverTower.prototype.draw = function() {
+  const x = this.x, y = this.y, size = 70, half = size / 2;
+  if (selectedTower === this) {
+    ctx.fillStyle = 'rgba(255, 215, 0, 0.08)';
+    ctx.beginPath(); ctx.arc(x, y, this.range, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)'; ctx.lineWidth = 2; ctx.stroke();
+  }
+  if (this.critRateBonus > 0) {
+    ctx.save(); ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, half + 3, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  if (this.critDmgBonus > 0) {
+    ctx.save(); ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, half + 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  if (this.level > 1) {
+    const intensity = this.level / this.config.maxLevel;
+    ctx.save(); ctx.shadowColor = '#c0c0c0'; ctx.shadowBlur = 8 + intensity * 16;
+    ctx.fillStyle = 'rgba(220, 220, 240, ' + (0.08 + intensity * 0.25) + ')';
+    ctx.beginPath(); ctx.arc(x, y, half + 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  }
+  const isDragging = drag && drag.tower === this && drag.isDragging;
+  if (!isDragging) {
+    ctx.save(); ctx.translate(x, y);
+    const scale = 1 + this.fireFlash * 0.12;
+    ctx.scale(scale, scale); ctx.translate(-x, -y);
+    this.drawBody(x, y, 1); ctx.restore();
+  }
+  if (this.level > 1) {
+    ctx.save(); ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 14px system-ui';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Lv' + this.level, x, y - half - 12); ctx.restore();
+    const remain = this.config.decayTime - this.idleTimer;
+    if (remain < 0.8) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(231, 76, 60, ' + (0.4 + 0.4 * Math.sin(this.pulse * 20)) + ')';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y, half + 5, -Math.PI / 2, -Math.PI / 2 + (remain / 0.8) * Math.PI * 2);
+      ctx.stroke(); ctx.restore();
+    }
+  }
+};
 
 // ============ 橙塔 ============
-class BeamTower {
-  constructor(spot) {
-    this.spot = spot; this.type = 'orange'; this.config = TOWER_TYPES.orange;
-    this.level = 1; this.beamTargets = []; this.reacquireTimer = 0;
-    this.pulse = 0; this.hastedTimer = 0; this.critRateBonus = 0; this.critDmgBonus = 0;
-    this.applyLevel();
-  }
-  get x() { return this.spot.x; }
-  get y() { return this.spot.y; }
-  applyLevel() {
-    const lv = this.level;
-    this.dps = this.config.dps * Math.pow(1.5, lv - 1);
-    this.beamCount = this.config.beamCount + (lv - 1);
-  }
-  applyHaste(duration) { this.hastedTimer = duration; }
-  update(dt) {
-    this.pulse += dt; this.reacquireTimer -= dt;
-    if (this.hastedTimer > 0) this.hastedTimer -= dt;
-    if (this.reacquireTimer <= 0) {
-      this.beamTargets = this.pickRandom(this.beamCount);
-      this.reacquireTimer = this.config.reacquireInterval;
-    }
-    this.beamTargets = this.beamTargets.filter(e => e.alive);
-    const dm = this.hastedTimer > 0 ? 3 : 1;
-    for (const target of this.beamTargets) {
-      const actual = target.takeDamage(this.dps * dt * dm);
-      addDamage('orange', actual);
-    }
-  }
-  pickRandom(n) {
-    const alive = enemies.filter(e => e.alive);
-    for (let i = alive.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [alive[i], alive[j]] = [alive[j], alive[i]];
-    }
-    return alive.slice(0, n);
-  }
-  drawBody(x, y, alpha = 1) {
-    const size = 70, half = size / 2;
-    ctx.save(); ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#00000066'; ctx.fillRect(x - half + 2, y - half + 3, size, size);
-    ctx.fillStyle = this.config.color; ctx.fillRect(x - half, y - half, size, size);
-    ctx.strokeStyle = '#00000066'; ctx.lineWidth = 2; ctx.strokeRect(x - half, y - half, size, size);
-    ctx.restore();
-    drawTowerIcon('orange', x, y, size);
-    ctx.save();
-    const glow = 0.6 + 0.4 * Math.sin(this.pulse * 8);
-    ctx.fillStyle = `rgba(255, 220, 120, ${glow * 0.6})`;
-    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  }
-  draw() {
-    const x = this.x, y = this.y, size = 70, half = size / 2;
-    if (selectedTower === this) {
-      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
-      ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
-    }
-    if (this.critRateBonus > 0) {
-      ctx.save(); ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(x, y, half + 3, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-    }
-    if (this.critDmgBonus > 0) {
-      ctx.save(); ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(x, y, half + 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-    }
-    const isDragging = drag && drag.tower === this && drag.isDragging;
-    if (!isDragging) this.drawBody(x, y, 1);
-    if (!isDragging) {
-      ctx.save(); ctx.shadowColor = '#e67e22'; ctx.shadowBlur = 12; ctx.lineWidth = 3;
-      for (const target of this.beamTargets) {
-        if (!target.alive) continue;
-        const tp = target.getPos();
-        ctx.strokeStyle = `rgba(255, 180, 80, ${0.7 + 0.3 * Math.sin(this.pulse * 12)})`;
-        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tp.x, tp.y); ctx.stroke();
-        ctx.fillStyle = 'rgba(255, 200, 120, 0.9)';
-        ctx.beginPath(); ctx.arc(tp.x, tp.y, 8, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.restore();
-    }
-    drawLevelStars(this.level, x, y - half - 12, size);
-    if (this.hastedTimer > 0) {
-      ctx.save(); ctx.shadowColor = '#e74c3c'; ctx.shadowBlur = 14;
-      ctx.strokeStyle = `rgba(231, 76, 60, ${0.6 + 0.4 * Math.sin(this.pulse * 12)})`;
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(x, y, half + 5, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-    }
-  }
+function BeamTower(spot) {
+  this.spot = spot; this.type = 'orange'; this.config = TOWER_TYPES.orange;
+  this.level = 1; this.beamTargets = []; this.reacquireTimer = 0;
+  this.pulse = 0; this.hastedTimer = 0; this.critRateBonus = 0; this.critDmgBonus = 0;
+  this.applyLevel();
 }
+Object.defineProperty(BeamTower.prototype, 'x', { get: function() { return this.spot.x; } });
+Object.defineProperty(BeamTower.prototype, 'y', { get: function() { return this.spot.y; } });
+BeamTower.prototype.applyLevel = function() {
+  const lv = this.level;
+  this.dps = this.config.dps * Math.pow(1.5, lv - 1);
+  this.beamCount = this.config.beamCount + (lv - 1);
+};
+BeamTower.prototype.applyHaste = function(duration) { this.hastedTimer = duration; };
+BeamTower.prototype.update = function(dt) {
+  this.pulse += dt; this.reacquireTimer -= dt;
+  if (this.hastedTimer > 0) this.hastedTimer -= dt;
+  if (this.reacquireTimer <= 0) {
+    this.beamTargets = this.pickRandom(this.beamCount);
+    this.reacquireTimer = this.config.reacquireInterval;
+  }
+  this.beamTargets = this.beamTargets.filter(function(e) { return e.alive; });
+  const dm = this.hastedTimer > 0 ? 3 : 1;
+  for (let i = 0; i < this.beamTargets.length; i++) {
+    const actual = this.beamTargets[i].takeDamage(this.dps * dt * dm);
+    addDamage('orange', actual);
+  }
+};
+BeamTower.prototype.pickRandom = function(n) {
+  const alive = enemies.filter(function(e) { return e.alive; });
+  for (let i = alive.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = alive[i]; alive[i] = alive[j]; alive[j] = tmp;
+  }
+  return alive.slice(0, n);
+};
+BeamTower.prototype.drawBody = function(x, y, alpha) {
+  const size = 70, half = size / 2;
+  ctx.save(); ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#00000066'; ctx.fillRect(x - half + 2, y - half + 3, size, size);
+  ctx.fillStyle = this.config.color; ctx.fillRect(x - half, y - half, size, size);
+  ctx.strokeStyle = '#00000066'; ctx.lineWidth = 2; ctx.strokeRect(x - half, y - half, size, size);
+  ctx.restore();
+  drawTowerIcon('orange', x, y, size);
+  ctx.save();
+  const glow = 0.6 + 0.4 * Math.sin(this.pulse * 8);
+  ctx.fillStyle = 'rgba(255, 220, 120, ' + (glow * 0.6) + ')';
+  ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+};
+BeamTower.prototype.draw = function() {
+  const x = this.x, y = this.y, size = 70, half = size / 2;
+  if (selectedTower === this) {
+    ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
+    ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
+  }
+  if (this.critRateBonus > 0) {
+    ctx.save(); ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, half + 3, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  if (this.critDmgBonus > 0) {
+    ctx.save(); ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, half + 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  const isDragging = drag && drag.tower === this && drag.isDragging;
+  if (!isDragging) this.drawBody(x, y, 1);
+  if (!isDragging) {
+    ctx.save(); ctx.shadowColor = '#e67e22'; ctx.shadowBlur = 12; ctx.lineWidth = 3;
+    for (let i = 0; i < this.beamTargets.length; i++) {
+      const target = this.beamTargets[i];
+      if (!target.alive) continue;
+      const tp = target.getPos();
+      ctx.strokeStyle = 'rgba(255, 180, 80, ' + (0.7 + 0.3 * Math.sin(this.pulse * 12)) + ')';
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tp.x, tp.y); ctx.stroke();
+      ctx.fillStyle = 'rgba(255, 200, 120, 0.9)';
+      ctx.beginPath(); ctx.arc(tp.x, tp.y, 8, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  drawLevelStars(this.level, x, y - half - 12, size);
+  if (this.hastedTimer > 0) {
+    ctx.save(); ctx.shadowColor = '#e74c3c'; ctx.shadowBlur = 14;
+    ctx.strokeStyle = 'rgba(231, 76, 60, ' + (0.6 + 0.4 * Math.sin(this.pulse * 12)) + ')';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(x, y, half + 5, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+};
 
 // ============ 紅塔 ============
-class BossTower {
-  constructor(spot) {
-    this.spot = spot; this.type = 'red'; this.config = TOWER_TYPES.red;
-    this.level = 1; this.buffTimer = this.config.buffInterval;
-    this.buffFlash = 0; this.activeBuffs = [];
-    this.critRateBonus = 0; this.critDmgBonus = 0;
-    this.applyLevel();
-  }
-  get x() { return this.spot.x; }
-  get y() { return this.spot.y; }
-  applyLevel() {
-    const lv = this.level;
-    this.buffTargets = this.config.buffTargets + (lv - 1);
-    this.buffDuration = this.config.buffDuration + (lv - 1) * 2;
-    this.buffInterval = Math.max(2, this.config.buffInterval - (lv - 1) * 0.5);
-  }
-  update(dt) {
-    this.buffFlash = Math.max(0, this.buffFlash - dt * 3);
-    for (const buff of this.activeBuffs) buff.timer -= dt;
-    this.activeBuffs = this.activeBuffs.filter(b => b.timer > 0 && SPOTS.some(s => s.tower === b.tower));
-    this.buffTimer -= dt;
-    if (this.buffTimer <= 0) {
-      this.triggerBuff();
-      this.buffTimer = this.buffInterval;
-    }
-  }
-  triggerBuff() {
-    const others = SPOTS.map(s => s.tower).filter(t => t && t !== this && typeof t.applyHaste === 'function');
-    if (others.length === 0) return;
-    for (let i = others.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [others[i], others[j]] = [others[j], others[i]];
-    }
-    const count = Math.min(this.buffTargets, others.length);
-    for (let i = 0; i < count; i++) {
-      const t = others[i];
-      t.applyHaste(this.buffDuration, this.config.buffFireInterval);
-      const existing = this.activeBuffs.find(b => b.tower === t);
-      if (existing) existing.timer = this.buffDuration;
-      else this.activeBuffs.push({ tower: t, timer: this.buffDuration });
-    }
-    this.buffFlash = 1;
-  }
-  drawBody(x, y, alpha = 1) {
-    const size = 70, half = size / 2;
-    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
-    ctx.fillStyle = '#00000066'; ctx.fillRect(-half + 2, -half + 3, size, size);
-    ctx.fillStyle = '#7b1f1f'; ctx.fillRect(-half, -half, size, size);
-    ctx.strokeStyle = '#00000066'; ctx.lineWidth = 2; ctx.strokeRect(-half, -half, size, size);
-    if (this.buffFlash > 0) {
-      ctx.fillStyle = `rgba(231, 76, 60, ${this.buffFlash * 0.6})`;
-      ctx.fillRect(-half, -half, size, size);
-    }
-    ctx.restore();
-    drawTowerIcon('red', x, y, size);
-  }
-  draw() {
-    const x = this.x, y = this.y, size = 70, half = size / 2;
-    const isDragging = drag && drag.tower === this && drag.isDragging;
-    if (!isDragging) this.drawBody(x, y, 1);
-    if (selectedTower === this) {
-      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
-      ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
-    }
-    drawLevelStars(this.level, x, y - half - 12, size);
-  }
+function BossTower(spot) {
+  this.spot = spot; this.type = 'red'; this.config = TOWER_TYPES.red;
+  this.level = 1; this.buffTimer = this.config.buffInterval;
+  this.buffFlash = 0; this.activeBuffs = [];
+  this.critRateBonus = 0; this.critDmgBonus = 0;
+  this.applyLevel();
 }
+Object.defineProperty(BossTower.prototype, 'x', { get: function() { return this.spot.x; } });
+Object.defineProperty(BossTower.prototype, 'y', { get: function() { return this.spot.y; } });
+BossTower.prototype.applyLevel = function() {
+  const lv = this.level;
+  this.buffTargets = this.config.buffTargets + (lv - 1);
+  this.buffDuration = this.config.buffDuration + (lv - 1) * 2;
+  this.buffInterval = Math.max(2, this.config.buffInterval - (lv - 1) * 0.5);
+};
+BossTower.prototype.applyHaste = function() {};
+BossTower.prototype.update = function(dt) {
+  this.buffFlash = Math.max(0, this.buffFlash - dt * 3);
+  for (let i = 0; i < this.activeBuffs.length; i++) this.activeBuffs[i].timer -= dt;
+  const self = this;
+  this.activeBuffs = this.activeBuffs.filter(function(b) {
+    return b.timer > 0 && SPOTS.some(function(s) { return s.tower === b.tower; });
+  });
+  this.buffTimer -= dt;
+  if (this.buffTimer <= 0) {
+    this.triggerBuff();
+    this.buffTimer = this.buffInterval;
+  }
+};
+BossTower.prototype.triggerBuff = function() {
+  const self = this;
+  const others = SPOTS.map(function(s) { return s.tower; })
+    .filter(function(t) { return t && t !== self && typeof t.applyHaste === 'function'; });
+  if (others.length === 0) return;
+  for (let i = others.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = others[i]; others[i] = others[j]; others[j] = tmp;
+  }
+  const count = Math.min(this.buffTargets, others.length);
+  for (let i = 0; i < count; i++) {
+    const t = others[i];
+    t.applyHaste(this.buffDuration, this.config.buffFireInterval);
+    let existing = null;
+    for (let k = 0; k < this.activeBuffs.length; k++) {
+      if (this.activeBuffs[k].tower === t) { existing = this.activeBuffs[k]; break; }
+    }
+    if (existing) existing.timer = this.buffDuration;
+    else this.activeBuffs.push({ tower: t, timer: this.buffDuration });
+  }
+  this.buffFlash = 1;
+};
+BossTower.prototype.drawBody = function(x, y, alpha) {
+  const size = 70, half = size / 2;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
+  ctx.fillStyle = '#00000066'; ctx.fillRect(-half + 2, -half + 3, size, size);
+  ctx.fillStyle = '#7b1f1f'; ctx.fillRect(-half, -half, size, size);
+  ctx.strokeStyle = '#00000066'; ctx.lineWidth = 2; ctx.strokeRect(-half, -half, size, size);
+  if (this.buffFlash > 0) {
+    ctx.fillStyle = 'rgba(231, 76, 60, ' + (this.buffFlash * 0.6) + ')';
+    ctx.fillRect(-half, -half, size, size);
+  }
+  ctx.restore();
+  drawTowerIcon('red', x, y, size);
+};
+BossTower.prototype.draw = function() {
+  const x = this.x, y = this.y, size = 70, half = size / 2;
+  const isDragging = drag && drag.tower === this && drag.isDragging;
+  if (!isDragging) this.drawBody(x, y, 1);
+  if (selectedTower === this) {
+    ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
+    ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
+  }
+  drawLevelStars(this.level, x, y - half - 12, size);
+};
 
 // ============ 品紅塔 ============
-class MagentaTower {
-  constructor(spot) {
-    this.spot = spot; this.type = 'magenta'; this.config = TOWER_TYPES.magenta;
-    this.level = 1; this.timer = this.config.triggerTime;
-    this.triggered = false; this.pulse = 0;
-    this.critRateBonus = 0; this.critDmgBonus = 0;
-  }
-  get x() { return this.spot.x; }
-  get y() { return this.spot.y; }
-  get critRate() { return 0; }
-  get critDamage() { return 2.0; }
-  applyLevel() {}
-  update(dt) {
-    if (this.triggered) return;
-    this.pulse += dt; this.timer -= dt;
-    if (this.timer <= 0) { this.trigger(); this.triggered = true; }
-  }
-  trigger() {
-    this.spot.tower = null;
-    const candidates = SPOTS.filter(s =>
-      s.tower && s.tower !== this && s.tower.type !== 'magenta' &&
-      s.tower.type !== 'silver' && s.tower.level < MAX_TOWER_LEVEL);
-    if (candidates.length === 0) { log('品紅塔：沒有可升級的目標', 2500); return; }
-    if (Math.random() < this.config.successRate) {
-      const targetSpot = candidates[Math.floor(Math.random() * candidates.length)];
-      const t = targetSpot.tower;
-      const oldLevel = t.level;
-      t.level = Math.min(MAX_TOWER_LEVEL, t.level + this.config.levelBoost);
-      if (t.applyLevel) t.applyLevel();
-      sfxUpgrade();
-      log(`💖 品紅塔成功！${TOWER_TYPES[t.type].name} Lv.${oldLevel} → Lv.${t.level}`, 3500);
-    } else log('💔 品紅塔失敗了...', 2500);
-  }
-  drawBody(x, y, alpha = 1) {
-    const size = 70, half = size / 2;
-    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
-    ctx.fillStyle = '#00000066'; ctx.fillRect(-half + 2, -half + 3, size, size);
-    const grad = ctx.createLinearGradient(-half, -half, half, half);
-    grad.addColorStop(0, '#FF66DD'); grad.addColorStop(1, '#CC0099');
-    ctx.fillStyle = grad; ctx.fillRect(-half, -half, size, size);
-    ctx.strokeStyle = '#ffd6f5'; ctx.lineWidth = 2; ctx.strokeRect(-half, -half, size, size);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${size * 0.55}px system-ui`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(Math.ceil(Math.max(0, this.timer)), 0, 1);
-    ctx.restore();
-  }
-  draw() {
-    const x = this.x, y = this.y, size = 70, half = size / 2;
-    if (selectedTower === this) {
-      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
-      ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
-    }
-    const progress = 1 - Math.max(0, this.timer) / this.config.triggerTime;
-    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 100);
-    ctx.save(); ctx.shadowColor = '#FF33CC';
-    ctx.shadowBlur = 10 + progress * 25 + pulse * 8;
-    ctx.fillStyle = `rgba(255, 51, 204, ${0.15 + progress * 0.4})`;
-    ctx.beginPath(); ctx.arc(x, y, half + 6 + progress * 8, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-    const isDragging = drag && drag.tower === this && drag.isDragging;
-    if (!isDragging) this.drawBody(x, y, 1);
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255, 51, 204, 0.9)'; ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(x, y, half + 5, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
-    ctx.stroke(); ctx.restore();
-  }
+function MagentaTower(spot) {
+  this.spot = spot; this.type = 'magenta'; this.config = TOWER_TYPES.magenta;
+  this.level = 1; this.timer = this.config.triggerTime;
+  this.triggered = false; this.pulse = 0;
+  this.critRateBonus = 0; this.critDmgBonus = 0;
 }
+Object.defineProperty(MagentaTower.prototype, 'x', { get: function() { return this.spot.x; } });
+Object.defineProperty(MagentaTower.prototype, 'y', { get: function() { return this.spot.y; } });
+Object.defineProperty(MagentaTower.prototype, 'critRate', { get: function() { return 0; } });
+Object.defineProperty(MagentaTower.prototype, 'critDamage', { get: function() { return 2.0; } });
+MagentaTower.prototype.applyLevel = function() {};
+MagentaTower.prototype.applyHaste = function() {};
+MagentaTower.prototype.update = function(dt) {
+  if (this.triggered) return;
+  this.pulse += dt; this.timer -= dt;
+  if (this.timer <= 0) { this.trigger(); this.triggered = true; }
+};
+MagentaTower.prototype.trigger = function() {
+  this.spot.tower = null;
+  const self = this;
+  const candidates = SPOTS.filter(function(s) {
+    return s.tower && s.tower !== self && s.tower.type !== 'magenta' &&
+      s.tower.type !== 'silver' && s.tower.level < MAX_TOWER_LEVEL;
+  });
+  if (candidates.length === 0) { log('品紅塔：沒有可升級的目標', 2500); return; }
+  if (Math.random() < this.config.successRate) {
+    const targetSpot = candidates[Math.floor(Math.random() * candidates.length)];
+    const t = targetSpot.tower;
+    const oldLevel = t.level;
+    t.level = Math.min(MAX_TOWER_LEVEL, t.level + this.config.levelBoost);
+    if (t.applyLevel) t.applyLevel();
+    sfxUpgrade();
+    log('💖 品紅塔成功！' + TOWER_TYPES[t.type].name + ' Lv.' + oldLevel + ' → Lv.' + t.level, 3500);
+  } else log('💔 品紅塔失敗了...', 2500);
+};
+MagentaTower.prototype.drawBody = function(x, y, alpha) {
+  const size = 70, half = size / 2;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
+  ctx.fillStyle = '#00000066'; ctx.fillRect(-half + 2, -half + 3, size, size);
+  const grad = ctx.createLinearGradient(-half, -half, half, half);
+  grad.addColorStop(0, '#FF66DD'); grad.addColorStop(1, '#CC0099');
+  ctx.fillStyle = grad; ctx.fillRect(-half, -half, size, size);
+  ctx.strokeStyle = '#ffd6f5'; ctx.lineWidth = 2; ctx.strokeRect(-half, -half, size, size);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold ' + (size * 0.55) + 'px system-ui';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(Math.ceil(Math.max(0, this.timer)), 0, 1);
+  ctx.restore();
+};
+MagentaTower.prototype.draw = function() {
+  const x = this.x, y = this.y, size = 70, half = size / 2;
+  if (selectedTower === this) {
+    ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
+    ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
+  }
+  const progress = 1 - Math.max(0, this.timer) / this.config.triggerTime;
+  const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 100);
+  ctx.save(); ctx.shadowColor = '#FF33CC';
+  ctx.shadowBlur = 10 + progress * 25 + pulse * 8;
+  ctx.fillStyle = 'rgba(255, 51, 204, ' + (0.15 + progress * 0.4) + ')';
+  ctx.beginPath(); ctx.arc(x, y, half + 6 + progress * 8, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  const isDragging = drag && drag.tower === this && drag.isDragging;
+  if (!isDragging) this.drawBody(x, y, 1);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255, 51, 204, 0.9)'; ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(x, y, half + 5, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+  ctx.stroke(); ctx.restore();
+};
 
 // ============ 火矢塔 ============
-class FireArrowTower {
-  constructor(spot) {
-    this.spot = spot; this.type = 'fireArrow'; this.config = TOWER_TYPES.fireArrow;
-    this.level = 1; this.cooldown = 0; this.fireFlash = 0; this.pulse = 0;
-    this.beams = []; this.critRateBonus = 0; this.critDmgBonus = 0;
-    this.hastedTimer = 0; this.applyLevel();
-  }
-  get x() { return this.spot.x; }
-  get y() { return this.spot.y; }
-  get critRate() { return Math.min(1.0, this.critRateBonus); }
-  get critDamage() { return Math.min(5.0, 2.0 + this.critDmgBonus); }
-  applyLevel() { this.damage = this.config.damage * Math.pow(1.5, this.level - 1); }
-  applyHaste(d) { this.hastedTimer = d; }
-  update(dt) {
-    this.pulse += dt;
-    this.fireFlash = Math.max(0, this.fireFlash - dt * 20);
-    for (const b of this.beams) b.timer -= dt;
-    this.beams = this.beams.filter(b => b.timer > 0 && b.target && b.target.alive);
-    this.cooldown -= dt;
-    if (this.cooldown > 0) return;
-    const target = this.findTarget();
-    if (!target) return;
-    this.fireAt(target);
-    const hasBoss = enemies.some(e => e.isBoss && e.alive);
-    this.cooldown = hasBoss ? this.config.fireIntervalBoss : this.config.fireIntervalNormal;
-  }
-  findTarget() {
-    for (const e of enemies) if (e.alive && e.isBoss) return e;
-    let best = null, bd = Infinity;
-    for (const e of enemies) {
-      if (!e.alive) continue;
-      const p = e.getPos();
-      const d = Math.hypot(p.x - this.x, p.y - this.y);
-      if (d < bd) { bd = d; best = e; }
-    }
-    return best;
-  }
-  fireAt(target) {
-    let dmg = this.damage;
-    if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
-    const actual = target.takeDamage(dmg);
-    addDamage('fireArrow', actual);
-    this.fireFlash = 1;
-    this.beams.push({ target, timer: 0.06 });
-  }
-  drawBody(x, y, alpha = 1) {
-    const size = 70, half = size / 2;
-    const hasBoss = enemies.some(e => e.isBoss && e.alive);
-    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
-    ctx.fillStyle = '#00000066'; ctx.fillRect(-half + 2, -half + 3, size, size);
-    const grad = ctx.createLinearGradient(-half, -half, half, half);
-    if (hasBoss) { grad.addColorStop(0, '#ffcc66'); grad.addColorStop(0.5, '#ff6600'); grad.addColorStop(1, '#991100'); }
-    else { grad.addColorStop(0, '#cc4400'); grad.addColorStop(0.5, '#882200'); grad.addColorStop(1, '#441100'); }
-    ctx.fillStyle = grad; ctx.fillRect(-half, -half, size, size);
-    ctx.strokeStyle = hasBoss ? '#ffd700' : '#552200'; ctx.lineWidth = 2;
-    ctx.strokeRect(-half, -half, size, size);
-    ctx.restore();
-    drawTowerIcon('fireArrow', x, y, size);
-    if (hasBoss) {
-      ctx.save();
-      const glow = 0.6 + 0.4 * Math.sin(this.pulse * 20);
-      ctx.shadowColor = '#FF4500'; ctx.shadowBlur = 20 * glow;
-      ctx.strokeStyle = `rgba(255, 200, 100, ${glow})`; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(x, y, half + 4, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-    }
-  }
-  draw() {
-    const x = this.x, y = this.y, size = 70, half = size / 2;
-    if (selectedTower === this) {
-      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
-      ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
-    }
-    if (this.critRateBonus > 0) {
-      ctx.save(); ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(x, y, half + 3, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-    }
-    if (this.critDmgBonus > 0) {
-      ctx.save(); ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(x, y, half + 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-    }
-    const isDragging = drag && drag.tower === this && drag.isDragging;
-    if (!isDragging) this.drawBody(x, y, 1);
-    if (!isDragging) {
-      ctx.save(); ctx.shadowColor = '#FF4500'; ctx.shadowBlur = 14;
-      for (const b of this.beams) {
-        if (!b.target || !b.target.alive) continue;
-        const tp = b.target.getPos();
-        const alpha = b.timer / 0.06;
-        ctx.strokeStyle = `rgba(255, 180, 50, ${alpha})`; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tp.x, tp.y); ctx.stroke();
-      }
-      ctx.restore();
-    }
-    drawLevelStars(this.level, x, y - half - 12, size);
-  }
+function FireArrowTower(spot) {
+  this.spot = spot; this.type = 'fireArrow'; this.config = TOWER_TYPES.fireArrow;
+  this.level = 1; this.cooldown = 0; this.fireFlash = 0; this.pulse = 0;
+  this.beams = []; this.critRateBonus = 0; this.critDmgBonus = 0;
+  this.hastedTimer = 0; this.applyLevel();
 }
+Object.defineProperty(FireArrowTower.prototype, 'x', { get: function() { return this.spot.x; } });
+Object.defineProperty(FireArrowTower.prototype, 'y', { get: function() { return this.spot.y; } });
+Object.defineProperty(FireArrowTower.prototype, 'critRate', { get: function() { return Math.min(1.0, this.critRateBonus); } });
+Object.defineProperty(FireArrowTower.prototype, 'critDamage', { get: function() { return Math.min(5.0, 2.0 + this.critDmgBonus); } });
+FireArrowTower.prototype.applyLevel = function() { this.damage = this.config.damage * Math.pow(1.5, this.level - 1); };
+FireArrowTower.prototype.applyHaste = function(d) { this.hastedTimer = d; };
+FireArrowTower.prototype.update = function(dt) {
+  this.pulse += dt;
+  this.fireFlash = Math.max(0, this.fireFlash - dt * 20);
+  for (let i = 0; i < this.beams.length; i++) this.beams[i].timer -= dt;
+  this.beams = this.beams.filter(function(b) { return b.timer > 0 && b.target && b.target.alive; });
+  this.cooldown -= dt;
+  if (this.cooldown > 0) return;
+  const target = this.findTarget();
+  if (!target) return;
+  this.fireAt(target);
+  const hasBoss = enemies.some(function(e) { return e.isBoss && e.alive; });
+  this.cooldown = hasBoss ? this.config.fireIntervalBoss : this.config.fireIntervalNormal;
+};
+FireArrowTower.prototype.findTarget = function() {
+  for (let i = 0; i < enemies.length; i++) {
+    if (enemies[i].alive && enemies[i].isBoss) return enemies[i];
+  }
+  let best = null, bd = Infinity;
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i];
+    if (!e.alive) continue;
+    const p = e.getPos();
+    const d = Math.hypot(p.x - this.x, p.y - this.y);
+    if (d < bd) { bd = d; best = e; }
+  }
+  return best;
+};
+FireArrowTower.prototype.fireAt = function(target) {
+  let dmg = this.damage;
+  if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
+  const actual = target.takeDamage(dmg);
+  addDamage('fireArrow', actual);
+  this.fireFlash = 1;
+  this.beams.push({ target: target, timer: 0.06 });
+};
+FireArrowTower.prototype.drawBody = function(x, y, alpha) {
+  const size = 70, half = size / 2;
+  const hasBoss = enemies.some(function(e) { return e.isBoss && e.alive; });
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
+  ctx.fillStyle = '#00000066'; ctx.fillRect(-half + 2, -half + 3, size, size);
+  const grad = ctx.createLinearGradient(-half, -half, half, half);
+  if (hasBoss) { grad.addColorStop(0, '#ffcc66'); grad.addColorStop(0.5, '#ff6600'); grad.addColorStop(1, '#991100'); }
+  else { grad.addColorStop(0, '#cc4400'); grad.addColorStop(0.5, '#882200'); grad.addColorStop(1, '#441100'); }
+  ctx.fillStyle = grad; ctx.fillRect(-half, -half, size, size);
+  ctx.strokeStyle = hasBoss ? '#ffd700' : '#552200'; ctx.lineWidth = 2;
+  ctx.strokeRect(-half, -half, size, size);
+  ctx.restore();
+  drawTowerIcon('fireArrow', x, y, size);
+  if (hasBoss) {
+    ctx.save();
+    const glow = 0.6 + 0.4 * Math.sin(this.pulse * 20);
+    ctx.shadowColor = '#FF4500'; ctx.shadowBlur = 20 * glow;
+    ctx.strokeStyle = 'rgba(255, 200, 100, ' + glow + ')'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(x, y, half + 4, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+};
+FireArrowTower.prototype.draw = function() {
+  const x = this.x, y = this.y, size = 70, half = size / 2;
+  if (selectedTower === this) {
+    ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
+    ctx.strokeRect(x - half - 3, y - half - 3, size + 6, size + 6);
+  }
+  if (this.critRateBonus > 0) {
+    ctx.save(); ctx.strokeStyle = 'rgba(176, 136, 255, 0.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, half + 3, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  if (this.critDmgBonus > 0) {
+    ctx.save(); ctx.strokeStyle = 'rgba(102, 255, 102, 0.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, half + 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  const isDragging = drag && drag.tower === this && drag.isDragging;
+  if (!isDragging) this.drawBody(x, y, 1);
+  if (!isDragging) {
+    ctx.save(); ctx.shadowColor = '#FF4500'; ctx.shadowBlur = 14;
+    for (let i = 0; i < this.beams.length; i++) {
+      const b = this.beams[i];
+      if (!b.target || !b.target.alive) continue;
+      const tp = b.target.getPos();
+      const alpha = b.timer / 0.06;
+      ctx.strokeStyle = 'rgba(255, 180, 50, ' + alpha + ')'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tp.x, tp.y); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  drawLevelStars(this.level, x, y - half - 12, size);
+};
 
 // ============ 子彈 ============
-class Bullet {
-  constructor(tower, target) {
-    this.x = tower.x; this.y = tower.y;
-    this.target = target; this.alive = true;
-    this.speed = 600; this.color = tower.config.color;
-    this.towerType = tower.type;
-    this.damage = tower.damage;
-    this.killChance = tower.killChance || 0;
-    this.slowFactor = tower.slowFactor;
-    this.slowDuration = tower.slowDuration;
-    this.antiBossMultiplier = tower.antiBossMultiplier;
-    this.isHit = Math.random() < tower.hitChance;
-    this.critRate = tower.critRate || 0;
-    this.critDamage = tower.critDamage || 2.0;
-  }
-  update(dt) {
-    if (!this.alive) return;
-    if (!this.target.alive) { this.alive = false; return; }
-    const tp = this.target.getPos();
-    const dx = tp.x - this.x, dy = tp.y - this.y;
-    const dist = Math.hypot(dx, dy), move = this.speed * dt;
-    if (dist <= move) {
-      if (this.isHit) {
-        const pk = this.killChance > 0 && Math.random() < this.killChance;
-        if (pk) {
-          if (this.target.isBoss) {
-            const d = this.target.takeDamage(this.target.maxHp * 0.01);
-            addDamage(this.towerType, d);
-          } else {
-            addDamage(this.towerType, this.target.hp);
-            this.target.hp = 0;
-            this.target.alive = false;
-          }
+function Bullet(tower, target) {
+  this.x = tower.x; this.y = tower.y;
+  this.target = target; this.alive = true;
+  this.speed = 600; this.color = tower.config.color;
+  this.towerType = tower.type;
+  this.damage = tower.damage;
+  this.killChance = tower.killChance || 0;
+  this.slowFactor = tower.slowFactor;
+  this.slowDuration = tower.slowDuration;
+  this.antiBossMultiplier = tower.antiBossMultiplier;
+  this.isHit = Math.random() < tower.hitChance;
+  this.critRate = tower.critRate || 0;
+  this.critDamage = tower.critDamage || 2.0;
+}
+Bullet.prototype.update = function(dt) {
+  if (!this.alive) return;
+  if (!this.target.alive) { this.alive = false; return; }
+  const tp = this.target.getPos();
+  const dx = tp.x - this.x, dy = tp.y - this.y;
+  const dist = Math.hypot(dx, dy), move = this.speed * dt;
+  if (dist <= move) {
+    if (this.isHit) {
+      const pk = this.killChance > 0 && Math.random() < this.killChance;
+      if (pk) {
+        if (this.target.isBoss) {
+          const d = this.target.takeDamage(this.target.maxHp * 0.01);
+          addDamage(this.towerType, d);
         } else {
-          let dmg = this.damage;
-          if (this.target.isBoss && this.antiBossMultiplier) dmg *= this.antiBossMultiplier;
-          if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
-          const actual = this.target.takeDamage(dmg);
-          addDamage(this.towerType, actual);
+          addDamage(this.towerType, this.target.hp);
+          this.target.hp = 0;
+          this.target.alive = false;
         }
-        if (this.slowFactor !== undefined) {
-          this.target.slowFactor = this.slowFactor;
-          this.target.slowTimer = this.slowDuration;
-        }
-        sfxHit();
+      } else {
+        let dmg = this.damage;
+        if (this.target.isBoss && this.antiBossMultiplier) dmg *= this.antiBossMultiplier;
+        if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
+        const actual = this.target.takeDamage(dmg);
+        addDamage(this.towerType, actual);
       }
-      this.alive = false;
-    } else {
-      this.x += (dx / dist) * move;
-      this.y += (dy / dist) * move;
+      if (this.slowFactor !== undefined) {
+        this.target.slowFactor = this.slowFactor;
+        this.target.slowTimer = this.slowDuration;
+      }
+      sfxHit();
     }
+    this.alive = false;
+  } else {
+    this.x += (dx / dist) * move;
+    this.y += (dy / dist) * move;
   }
-  draw() {
-    if (!this.alive) return;
-    ctx.fillStyle = this.color;
-    ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI * 2); ctx.fill();
-  }
+};
+Bullet.prototype.draw = function() {
+  if (!this.alive) return;
+  ctx.fillStyle = this.color;
+  ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI * 2); ctx.fill();
+};
+function SilverBullet(tower, target) {
+  this.x = tower.x; this.y = tower.y;
+  this.target = target; this.alive = true;
+  this.speed = 900; this.color = '#e0e0e0';
+  this.towerType = 'silver';
+  this.damage = tower.config.baseDamage * (1 + (tower.level - 1) * 0.25);
+  this.critRate = tower.critRate || 0;
+  this.critDamage = tower.critDamage || 2.0;
 }
-class SilverBullet {
-  constructor(tower, target) {
-    this.x = tower.x; this.y = tower.y;
-    this.target = target; this.alive = true;
-    this.speed = 900; this.color = '#e0e0e0';
-    this.towerType = 'silver';
-    this.damage = tower.config.baseDamage * (1 + (tower.level - 1) * 0.25);
-    this.critRate = tower.critRate || 0;
-    this.critDamage = tower.critDamage || 2.0;
+SilverBullet.prototype.update = function(dt) {
+  if (!this.alive) return;
+  if (!this.target.alive) { this.alive = false; return; }
+  const tp = this.target.getPos();
+  const dx = tp.x - this.x, dy = tp.y - this.y;
+  const dist = Math.hypot(dx, dy), move = this.speed * dt;
+  if (dist <= move) {
+    let dmg = this.damage;
+    if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
+    const actual = this.target.takeDamage(dmg);
+    addDamage(this.towerType, actual);
+    this.alive = false;
+  } else {
+    this.x += (dx / dist) * move;
+    this.y += (dy / dist) * move;
   }
-  update(dt) {
-    if (!this.alive) return;
-    if (!this.target.alive) { this.alive = false; return; }
-    const tp = this.target.getPos();
-    const dx = tp.x - this.x, dy = tp.y - this.y;
-    const dist = Math.hypot(dx, dy), move = this.speed * dt;
-    if (dist <= move) {
-      let dmg = this.damage;
-      if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
-      const actual = this.target.takeDamage(dmg);
-      addDamage(this.towerType, actual);
-      this.alive = false;
-    } else {
-      this.x += (dx / dist) * move;
-      this.y += (dy / dist) * move;
-    }
-  }
-  draw() {
-    if (!this.alive) return;
-    ctx.fillStyle = this.color;
-    ctx.beginPath(); ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2); ctx.fill();
-  }
-}
+};
+SilverBullet.prototype.draw = function() {
+  if (!this.alive) return;
+  ctx.fillStyle = this.color;
+  ctx.beginPath(); ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2); ctx.fill();
+};
 
 // ============ 合成 ============
 const COMBOS = {
-  'white+white': () => {
+  'white+white': function() {
     const r = Math.random();
     if (r < 0.45) return 'green';
     if (r < 0.90) return 'blue';
     return 'cyan';
   },
-  'purple+purple': () => 'orange',
-  'orange+orange': () => 'red',
+  'purple+purple': function() { return 'orange'; },
+  'orange+orange': function() { return 'red'; },
 };
 function canCombine(a, b) {
   if (!a || !b || a === b) return false;
@@ -2319,11 +2347,11 @@ function createTower(spot, type) {
   return new Tower(spot, type);
 }
 function unlockButton(type) {
-  const btn = document.querySelector(`.shop-btn[data-type="${type}"]`);
+  const btn = document.querySelector('.shop-btn[data-type="' + type + '"]');
   if (!btn) return;
   btn.classList.remove('locked');
   btn.classList.add('just-unlocked');
-  setTimeout(() => btn.classList.remove('just-unlocked'), 2000);
+  setTimeout(function() { btn.classList.remove('just-unlocked'); }, 2000);
 }
 function combineTowers(a, b) {
   const key = a.type + '+' + b.type;
@@ -2340,18 +2368,18 @@ function combineTowers(a, b) {
   else if (resultType === 'red') log('💼 紅塔！無良老闆登場');
   else {
     const names = { green: '綠塔', blue: '藍塔', orange: '橙塔', red: '紅塔' };
-    log(`合成：${names[resultType] || resultType}`);
+    log('合成：' + (names[resultType] || resultType));
   }
   selectedTower = null;
   updateTowerPanel(); updateUI(); saveGame();
 }
 function combineGold(towerList) {
   const firstSpot = towerList[0].spot;
-  for (const t of towerList) t.spot.tower = null;
+  for (let i = 0; i < towerList.length; i++) towerList[i].spot.tower = null;
   const newTower = new Tower(firstSpot, 'gold');
   firstSpot.tower = newTower;
   goldBanner.classList.add('show');
-  setTimeout(() => goldBanner.classList.remove('show'), 1800);
+  setTimeout(function() { goldBanner.classList.remove('show'); }, 1800);
   sfxGold();
   log('✨✨✨ 金色傳說！', 4000);
   selectedTower = null;
@@ -2378,7 +2406,7 @@ function startWave() {
     const bossHp = Math.floor(baseHp * 20);
     const bossSpeed = baseSpeed * 0.6;
     spawnQueue.push({ hp: bossHp, speed: bossSpeed, delay: count * 0.55 + 2.5, isBoss: true });
-    log(`⚠️ 第 ${wave} 波：BOSS！`, 3000);
+    log('⚠️ 第 ' + wave + ' 波：BOSS！', 3000);
     sfxBoss();
   }
   spawnTimer = 0;
@@ -2396,26 +2424,31 @@ function getPointerPos(e) {
 }
 function findSpotAt(x, y) {
   const r = SPOT_SIZE * 0.55;
-  for (const spot of SPOTS) {
+  for (let i = 0; i < SPOTS.length; i++) {
+    const spot = SPOTS[i];
     if (Math.hypot(x - spot.x, y - spot.y) <= r) return spot;
   }
   return null;
 }
 function handleTowerTap(tower) {
   if (tower.type === 'magenta') { selectedTower = tower; updateTowerPanel(); return; }
-  comboSequence.push({ type: tower.type, tower });
+  comboSequence.push({ type: tower.type, tower: tower });
   if (comboSequence.length === GOLD_RECIPE.length) {
     let fm = true;
     for (let i = 0; i < GOLD_RECIPE.length; i++) {
       if (comboSequence[i].type !== GOLD_RECIPE[i]) { fm = false; break; }
     }
-    if (fm) { combineGold(comboSequence.map(c => c.tower)); comboSequence = []; return; }
+    if (fm) {
+      combineGold(comboSequence.map(function(c) { return c.tower; }));
+      comboSequence = [];
+      return;
+    }
   }
   let ip = true;
   for (let i = 0; i < comboSequence.length; i++) {
     if (comboSequence[i].type !== GOLD_RECIPE[i]) { ip = false; break; }
   }
-  if (!ip) comboSequence = tower.type === GOLD_RECIPE[0] ? [{ type: tower.type, tower }] : [];
+  if (!ip) comboSequence = tower.type === GOLD_RECIPE[0] ? [{ type: tower.type, tower: tower }] : [];
   selectedTower = tower;
   updateTowerPanel();
 }
@@ -2435,7 +2468,7 @@ function startDragAt(x, y) {
       selectedTower = null; comboSequence = [];
       sfxRemove();
       updateUI(); updateTowerPanel();
-      log(`已撤除，返還 ${refund} 💰`);
+      log('已撤除，返還 ' + refund + ' 💰');
       saveGame();
     }
     return;
@@ -2515,7 +2548,7 @@ function endDragAt(x, y) {
   } else handleTowerTap(drag.tower);
   drag = null;
 }
-canvas.addEventListener('pointerdown', (e) => {
+canvas.addEventListener('pointerdown', function(e) {
   if (inputMode !== 'pointer' || gameState !== 'playing') return;
   e.preventDefault();
   const now = performance.now();
@@ -2523,16 +2556,16 @@ canvas.addEventListener('pointerdown', (e) => {
   lastDownTime = now;
   startDragAt(e.clientX, e.clientY);
 }, { passive: false });
-document.addEventListener('pointermove', (e) => {
+document.addEventListener('pointermove', function(e) {
   if (inputMode !== 'pointer' || !drag) return;
   moveDragTo(e.clientX, e.clientY);
 }, { passive: false });
-document.addEventListener('pointerup', (e) => {
+document.addEventListener('pointerup', function(e) {
   if (inputMode !== 'pointer' || !drag) return;
   endDragAt(e.clientX, e.clientY);
 }, { passive: false });
-document.addEventListener('pointercancel', () => { if (inputMode === 'pointer') drag = null; });
-canvas.addEventListener('mousedown', (e) => {
+document.addEventListener('pointercancel', function() { if (inputMode === 'pointer') drag = null; });
+canvas.addEventListener('mousedown', function(e) {
   if (inputMode !== 'mouse' || gameState !== 'playing') return;
   e.preventDefault();
   const now = performance.now();
@@ -2540,12 +2573,12 @@ canvas.addEventListener('mousedown', (e) => {
   lastDownTime = now;
   startDragAt(e.clientX, e.clientY);
 });
-document.addEventListener('mousemove', (e) => { if (inputMode === 'mouse' && drag) moveDragTo(e.clientX, e.clientY); });
-document.addEventListener('mouseup', (e) => { if (inputMode === 'mouse' && drag) endDragAt(e.clientX, e.clientY); });
+document.addEventListener('mousemove', function(e) { if (inputMode === 'mouse' && drag) moveDragTo(e.clientX, e.clientY); });
+document.addEventListener('mouseup', function(e) { if (inputMode === 'mouse' && drag) endDragAt(e.clientX, e.clientY); });
 
 // ============ 商店 ============
-document.querySelectorAll('.shop-btn').forEach(btn => {
-  btn.addEventListener('pointerdown', (e) => {
+document.querySelectorAll('.shop-btn').forEach(function(btn) {
+  btn.addEventListener('pointerdown', function(e) {
     e.preventDefault();
     if (gameState !== 'playing') return;
     initAudio();
@@ -2557,34 +2590,33 @@ document.querySelectorAll('.shop-btn').forEach(btn => {
       selectedTower = null; comboSequence = [];
       removeMode = false;
       removeBtn.classList.remove('active');
-      document.querySelectorAll('.shop-btn').forEach(b => b.classList.remove('selected'));
+      document.querySelectorAll('.shop-btn').forEach(function(b) { b.classList.remove('selected'); });
       btn.classList.add('selected');
       updateTowerPanel();
     }
   }, { passive: false });
 });
-startWaveBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); initAudio(); startWave(); }, { passive: false });
-autoNextEl.addEventListener('change', () => { autoNext = autoNextEl.checked; autoToggle.classList.toggle('active', autoNext); });
-removeBtn.addEventListener('pointerdown', (e) => {
-  e.preventDefault();
-  initAudio();
+startWaveBtn.addEventListener('pointerdown', function(e) { e.preventDefault(); initAudio(); startWave(); }, { passive: false });
+autoNextEl.addEventListener('change', function() { autoNext = autoNextEl.checked; autoToggle.classList.toggle('active', autoNext); });
+removeBtn.addEventListener('pointerdown', function(e) {
+  e.preventDefault(); initAudio();
   removeMode = !removeMode;
   removeBtn.classList.toggle('active', removeMode);
   if (removeMode) {
     shopSelected = null; selectedTower = null; comboSequence = [];
-    document.querySelectorAll('.shop-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('.shop-btn').forEach(function(b) { b.classList.remove('selected'); });
     updateTowerPanel();
     log('撤塔模式：點塔移除（返 50%）');
   }
 }, { passive: false });
-upgradeBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); initAudio(); if (selectedTower) upgradeTower(selectedTower); }, { passive: false });
-speedBtn.addEventListener('pointerdown', (e) => {
+upgradeBtn.addEventListener('pointerdown', function(e) { e.preventDefault(); initAudio(); if (selectedTower) upgradeTower(selectedTower); }, { passive: false });
+speedBtn.addEventListener('pointerdown', function(e) {
   e.preventDefault(); initAudio();
   speedMultiplier = speedMultiplier === 1 ? 2 : 1;
-  speedBtn.textContent = `⏩ x${speedMultiplier}`;
+  speedBtn.textContent = '⏩ x' + speedMultiplier;
   speedBtn.classList.toggle('active', speedMultiplier === 2);
 }, { passive: false });
-muteBtn.addEventListener('pointerdown', (e) => {
+muteBtn.addEventListener('pointerdown', function(e) {
   e.preventDefault(); initAudio();
   muted = !muted;
   muteBtn.textContent = muted ? '🔇' : '🔊';
@@ -2592,14 +2624,14 @@ muteBtn.addEventListener('pointerdown', (e) => {
   if (muted) stopBgm();
   else if (musicEnabled && musicStarted && gameState === 'playing') startBgm();
 }, { passive: false });
-musicBtn.addEventListener('pointerdown', (e) => {
+musicBtn.addEventListener('pointerdown', function(e) {
   e.preventDefault(); initAudio();
   musicEnabled = !musicEnabled;
   musicBtn.classList.toggle('active', !musicEnabled);
   if (musicEnabled && !muted && gameState === 'playing') { musicStarted = true; startBgm(); }
   else stopBgm();
 }, { passive: false });
-emuBtn.addEventListener('pointerdown', (e) => {
+emuBtn.addEventListener('pointerdown', function(e) {
   e.preventDefault(); initAudio();
   inputMode = inputMode === 'pointer' ? 'mouse' : 'pointer';
   emuBtn.classList.toggle('active', inputMode === 'mouse');
@@ -2607,15 +2639,15 @@ emuBtn.addEventListener('pointerdown', (e) => {
   drag = null;
   log(inputMode === 'mouse' ? '滑鼠模式' : '觸控模式');
 }, { passive: false });
-restartBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); initAudio(); confirmModal.classList.add('show'); }, { passive: false });
-cancelRestart.addEventListener('pointerdown', (e) => { e.preventDefault(); confirmModal.classList.remove('show'); }, { passive: false });
-confirmRestart.addEventListener('pointerdown', (e) => {
+restartBtn.addEventListener('pointerdown', function(e) { e.preventDefault(); initAudio(); confirmModal.classList.add('show'); }, { passive: false });
+cancelRestart.addEventListener('pointerdown', function(e) { e.preventDefault(); confirmModal.classList.remove('show'); }, { passive: false });
+confirmRestart.addEventListener('pointerdown', function(e) {
   e.preventDefault();
   clearSave();
   confirmModal.classList.remove('show');
   if (currentDifficulty) startGame(currentDifficulty);
 }, { passive: false });
-homeBtn.addEventListener('pointerdown', (e) => {
+homeBtn.addEventListener('pointerdown', function(e) {
   e.preventDefault(); initAudio();
   stopBgm();
   if (gameState === 'playing' && !gameOver) saveGame();
@@ -2623,53 +2655,55 @@ homeBtn.addEventListener('pointerdown', (e) => {
 }, { passive: false });
 
 // 主選單
-document.querySelectorAll('.diff-btn').forEach(btn => {
-  btn.addEventListener('click', () => { initAudio(); startGame(btn.dataset.difficulty); });
+document.querySelectorAll('.diff-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() { initAudio(); startGame(btn.dataset.difficulty); });
 });
-$('viewLeaderboardBtn').addEventListener('click', () => {
+$('viewLeaderboardBtn').addEventListener('click', function() {
   initAudio();
   leaderboardPanel.classList.add('show');
   renderLeaderboard();
 });
-$('closeLeaderboard').addEventListener('click', () => { leaderboardPanel.classList.remove('show'); });
-document.querySelectorAll('.lb-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+$('closeLeaderboard').addEventListener('click', function() { leaderboardPanel.classList.remove('show'); });
+document.querySelectorAll('.lb-tab').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.lb-tab').forEach(function(t) { t.classList.remove('active'); });
     tab.classList.add('active');
     lbCurrentTab = tab.dataset.diff;
     renderLeaderboard();
   });
 });
-$('vOk').addEventListener('click', () => { victoryModal.classList.remove('show'); backToMenu(); });
+$('vOk').addEventListener('click', function() { victoryModal.classList.remove('show'); backToMenu(); });
 
 // 傷害統計
 let statsVisible = false;
 function renderStats() {
   if (!statsVisible) return;
-  const entries = Object.entries(damageStats).filter(([_, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-  const total = entries.reduce((s, [_, v]) => s + v, 0);
+  const entries = Object.entries(damageStats).filter(function(e) { return e[1] > 0; }).sort(function(a, b) { return b[1] - a[1]; });
+  let total = 0;
+  for (let i = 0; i < entries.length; i++) total += entries[i][1];
   if (entries.length === 0) {
     statsList.innerHTML = '<div style="color:#666;text-align:center;padding:12px 0;">還沒有傷害紀錄</div>';
     statsTotal.textContent = '0';
     return;
   }
   let html = '';
-  for (const [type, dmg] of entries) {
+  for (let i = 0; i < entries.length; i++) {
+    const type = entries[i][0], dmg = entries[i][1];
     const cfg = TOWER_TYPES[type];
     const name = cfg ? cfg.name : type;
     const color = cfg ? cfg.color : '#666';
     const pct = ((dmg / total) * 100).toFixed(1);
-    html += `<div class="stats-row">
-      <div class="stats-dot" style="background:${color};"></div>
-      <div class="stats-name">${name}</div>
-      <div class="stats-num">${formatNum(dmg)}</div>
-      <div class="stats-pct">${pct}%</div>
-    </div>`;
+    html += '<div class="stats-row">' +
+      '<div class="stats-dot" style="background:' + color + ';"></div>' +
+      '<div class="stats-name">' + name + '</div>' +
+      '<div class="stats-num">' + formatNum(dmg) + '</div>' +
+      '<div class="stats-pct">' + pct + '%</div>' +
+    '</div>';
   }
   statsList.innerHTML = html;
   statsTotal.textContent = formatNum(total);
 }
-statsBtn.addEventListener('pointerdown', (e) => {
+statsBtn.addEventListener('pointerdown', function(e) {
   e.preventDefault(); initAudio();
   statsVisible = !statsVisible;
   statsPanel.classList.toggle('hidden', !statsVisible);
@@ -2677,7 +2711,7 @@ statsBtn.addEventListener('pointerdown', (e) => {
   if (statsVisible) renderStats();
 }, { passive: false });
 
-// ============ 繪製背景 ============
+// ============ 繪製 ============
 function drawBackground() {
   const grad = ctx.createRadialGradient(BASE_W / 2, BASE_H / 2, 50, BASE_W / 2, BASE_H / 2, 700);
   grad.addColorStop(0, '#1a1a3a'); grad.addColorStop(0.5, '#0d0d20'); grad.addColorStop(1, '#050510');
@@ -2811,7 +2845,7 @@ function gameLoop(timestamp) {
   lastTime = timestamp;
   if (gameState !== 'playing') { requestAnimationFrame(gameLoop); return; }
   dt *= speedMultiplier;
-  hasGoldTower = SPOTS.some(s => s.tower && s.tower.type === 'gold');
+  hasGoldTower = SPOTS.some(function(s) { return s.tower && s.tower.type === 'gold'; });
   recomputeBuffs();
   if (!gameOver) {
     if (waveActive) {
@@ -2820,7 +2854,7 @@ function gameLoop(timestamp) {
         const s = spawnQueue.shift();
         enemies.push(new Enemy(s.hp, s.speed, s.isBoss));
       }
-      if (spawnQueue.length === 0 && enemies.filter(e => e.alive).length === 0) {
+      if (spawnQueue.length === 0 && enemies.filter(function(e) { return e.alive; }).length === 0) {
         waveActive = false;
         startWaveBtn.disabled = false;
         if (autoNext) autoNextTimer = 2.0;
@@ -2832,18 +2866,21 @@ function gameLoop(timestamp) {
       autoNextTimer -= dt;
       if (autoNextTimer <= 0) startWave();
     }
-    for (const e of enemies) e.update(dt);
-    for (const spot of SPOTS) if (spot.tower) spot.tower.update(dt);
-    for (const b of bullets) b.update(dt);
-    for (const e of enemies) {
+    for (let i = 0; i < enemies.length; i++) enemies[i].update(dt);
+    for (let i = 0; i < SPOTS.length; i++) {
+      if (SPOTS[i].tower) SPOTS[i].tower.update(dt);
+    }
+    for (let i = 0; i < bullets.length; i++) bullets[i].update(dt);
+    for (let i = 0; i < enemies.length; i++) {
+      const e = enemies[i];
       if (!e.alive) {
         if (e.reachedEnd) lives -= e.isBoss ? 10 : 1;
         else { money += e.isBoss ? 250 : 10; if (!e.isBoss) sfxCoin(); }
         updateUI();
       }
     }
-    enemies = enemies.filter(e => e.alive);
-    bullets = bullets.filter(b => b.alive);
+    enemies = enemies.filter(function(e) { return e.alive; });
+    bullets = bullets.filter(function(b) { return b.alive; });
     if (lives <= 0 && !gameOver) finishGame(false);
     saveTimer += dt;
     if (saveTimer >= SAVE_INTERVAL) { saveTimer = 0; saveGame(); }
@@ -2853,12 +2890,14 @@ function gameLoop(timestamp) {
   if (statsTimer > 0.2) { statsTimer = 0; renderStats(); }
   drawBackground();
   drawPath();
-  for (const spot of SPOTS) drawSpot(spot);
-  for (const spot of SPOTS) if (spot.tower) spot.tower.draw();
-  for (const e of enemies) e.draw();
-  for (const b of bullets) b.draw();
+  for (let i = 0; i < SPOTS.length; i++) drawSpot(SPOTS[i]);
+  for (let i = 0; i < SPOTS.length; i++) {
+    if (SPOTS[i].tower) SPOTS[i].tower.draw();
+  }
+  for (let i = 0; i < enemies.length; i++) enemies[i].draw();
+  for (let i = 0; i < bullets.length; i++) bullets[i].draw();
   drawDragGhost();
-  const boss = enemies.find(e => e.isBoss && e.alive);
+  const boss = enemies.find(function(e) { return e.isBoss && e.alive; });
   if (boss) {
     bossBar.classList.add('show');
     bossHpEl.style.width = Math.max(0, boss.hp / boss.maxHp * 100) + '%';
