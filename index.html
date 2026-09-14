@@ -25,6 +25,8 @@
     font-size: 13px; font-weight: 700;
     pointer-events: none; z-index: 10;
     padding-top: max(6px, env(safe-area-inset-top));
+    flex-wrap: nowrap;
+    overflow: hidden;
   }
   .stat {
     background: rgba(12,12,28,0.75);
@@ -33,35 +35,33 @@
     padding: 4px 8px;
     white-space: nowrap;
     backdrop-filter: blur(4px);
+    flex: 0 0 auto;
   }
-  #statsBtn {
-    margin-left: auto;
+  .topBtn {
+    flex: 0 0 auto;
     pointer-events: auto;
     background: rgba(12,12,28,0.9);
     border: 2px solid #555;
     color: #ccc;
     border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 14px; font-weight: 700;
+    padding: 6px 10px;
+    font-size: 13px; font-weight: 700;
     cursor: pointer;
     transition: 0.15s;
+    white-space: nowrap;
   }
-  #statsBtn.active {
+  .topBtn.active {
     background: rgba(241, 196, 15, 0.15);
     border-color: #ffd700;
     color: #ffd700;
     box-shadow: 0 0 12px #ffd70066;
   }
-  #removeBtn {
-    pointer-events: auto;
-    background: rgba(12,12,28,0.9);
-    border: 2px solid #555;
-    color: #ccc;
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 13px; font-weight: 700;
-    cursor: pointer;
-    transition: 0.15s;
+  #statsBtn { margin-left: auto; }
+  #speedBtn.active {
+    background: rgba(46, 204, 113, 0.15);
+    border-color: #2ecc71;
+    color: #2ecc71;
+    box-shadow: 0 0 12px #2ecc7166;
   }
   #removeBtn.active {
     background: rgba(192, 57, 43, 0.9);
@@ -197,8 +197,7 @@
   }
   #statsPanel .stats-row:last-child { border-bottom: none; }
   #statsPanel .stats-dot {
-    width: 10px;
-    height: 10px;
+    width: 10px; height: 10px;
     border-radius: 3px;
     flex: 0 0 auto;
     border: 1px solid #00000055;
@@ -279,28 +278,78 @@
   #towerPanel {
     position: fixed; top: 42px; left: 50%;
     transform: translateX(-50%);
-    background: rgba(12, 12, 28, 0.95);
+    background: rgba(12, 12, 28, 0.96);
     border: 2px solid #ffd700;
     border-radius: 10px;
-    padding: 6px 12px;
-    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px;
+    display: flex; align-items: center; gap: 12px;
     pointer-events: auto; z-index: 10;
     box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
     font-size: 12px;
-    padding-top: max(6px, calc(env(safe-area-inset-top) + 30px));
+    padding-top: max(8px, calc(env(safe-area-inset-top) + 34px));
+    max-width: 90vw;
   }
   #towerPanel.hidden { display: none; }
-  #towerInfo { display: flex; flex-direction: column; gap: 2px; }
+  #towerInfo { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   #towerName { font-weight: 700; font-size: 13px; }
-  #towerStats { font-size: 11px; color: #aaa; }
+  #towerStats { font-size: 11px; color: #aaa; line-height: 1.5; white-space: pre-line; }
+  #towerStats .up { color: #2ecc71; }
+  #towerStats .same { color: #666; }
   #upgradeBtn {
     background: #f1c40f; color: #0a0a14;
     border: none; border-radius: 6px;
     padding: 8px 14px;
     font-weight: 700; cursor: pointer;
     font-size: 12px;
+    flex: 0 0 auto;
   }
   #upgradeBtn:disabled { opacity: 0.4; }
+
+  #confirmModal {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 200;
+    padding: 20px;
+  }
+  #confirmModal.show { display: flex; }
+  #confirmBox {
+    background: rgba(20, 20, 40, 0.98);
+    border: 2px solid #ffd700;
+    border-radius: 12px;
+    padding: 20px 24px;
+    max-width: 320px;
+    text-align: center;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
+  }
+  #confirmBox .modal-title {
+    font-size: 16px; font-weight: 700;
+    color: #ffd700;
+    margin-bottom: 10px;
+  }
+  #confirmBox .modal-text {
+    font-size: 13px; color: #ccc;
+    line-height: 1.6;
+    margin-bottom: 18px;
+  }
+  #confirmBox .modal-btns {
+    display: flex; gap: 10px; justify-content: center;
+  }
+  #confirmBox button {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  #confirmBox .btn-cancel {
+    background: #333; color: #ccc;
+  }
+  #confirmBox .btn-confirm {
+    background: #e74c3c; color: #fff;
+  }
 
   #rotateNotice {
     position: fixed; inset: 0;
@@ -333,8 +382,10 @@
   <div class="stat">❤️ <span id="lives">20</span></div>
   <div class="stat">🌊 <span id="wave">0</span></div>
   <div class="stat">🏗 <span id="towerCount">0</span>/15</div>
-  <button id="statsBtn">📊</button>
-  <button id="removeBtn">🗑 撤塔</button>
+  <button id="speedBtn" class="topBtn">⏩ x1</button>
+  <button id="statsBtn" class="topBtn">📊</button>
+  <button id="removeBtn" class="topBtn">🗑</button>
+  <button id="restartBtn" class="topBtn">🔄</button>
 </div>
 
 <div id="statsPanel" class="hidden">
@@ -358,6 +409,17 @@
 
 <div id="goldBanner">✨ 金色傳說 ✨</div>
 <div id="log"></div>
+
+<div id="confirmModal">
+  <div id="confirmBox">
+    <div class="modal-title">確定要重新開始嗎？</div>
+    <div class="modal-text">目前的進度會被清除，無法復原。</div>
+    <div class="modal-btns">
+      <button class="btn-cancel" id="cancelRestart">取消</button>
+      <button class="btn-confirm" id="confirmRestart">重新開始</button>
+    </div>
+  </div>
+</div>
 
 <div id="bottomBar">
   <button class="shop-btn" data-type="white"><div class="dot"></div><div class="price">10</div></button>
@@ -388,6 +450,8 @@ const BASE_W = 960;
 const BASE_H = 540;
 const MAX_TOWER_LEVEL = 8;
 const EMU_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif';
+const SAVE_KEY = 'towerDefenseSave_v1';
+const SAVE_INTERVAL = 3.0;
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -566,6 +630,7 @@ let gameOver = false;
 let shopSelected = null;
 let selectedTower = null;
 let removeMode = false;
+let speedMultiplier = 1;
 
 let autoNext = false;
 let autoNextTimer = 0;
@@ -604,6 +669,11 @@ const statsBtn = document.getElementById('statsBtn');
 const statsPanel = document.getElementById('statsPanel');
 const statsList = document.getElementById('statsList');
 const statsTotal = document.getElementById('statsTotal');
+const speedBtn = document.getElementById('speedBtn');
+const restartBtn = document.getElementById('restartBtn');
+const confirmModal = document.getElementById('confirmModal');
+const cancelRestart = document.getElementById('cancelRestart');
+const confirmRestart = document.getElementById('confirmRestart');
 
 let logTimer = null;
 function log(msg, ms = 2200) {
@@ -625,6 +695,115 @@ function getUpgradeCost(tower) {
   return Math.floor(baseCost * tower.level * 1.5);
 }
 
+// ============ 升級數值預覽 ============
+function fmt(n, digits = 1) {
+  if (!isFinite(n)) return '∞';
+  return n.toFixed(digits).replace(/\.0+$/, '');
+}
+
+function previewLine(label, cur, next, unit = '', digits = 1) {
+  const curStr = fmt(cur, digits) + unit;
+  if (next === null || next === undefined || Math.abs(next - cur) < 0.001) {
+    return `${label}：${curStr} <span class="same">(不變)</span>`;
+  }
+  const diff = next - cur;
+  const sign = diff > 0 ? '+' : '';
+  const arrow = diff > 0 ? '↑' : '↓';
+  return `${label}：${curStr} → ${fmt(next, digits)}${unit} <span class="up">(${sign}${fmt(diff, digits)})</span>`;
+}
+
+function getTowerPreviewHTML(tower) {
+  const cfg = TOWER_TYPES[tower.type];
+  const lv = tower.level;
+  const nl = lv + 1;
+  const maxed = lv >= MAX_TOWER_LEVEL;
+  let lines = [];
+
+  // 通用：爆擊資訊（如果有）
+  if (tower.critRateBonus !== undefined && (tower.critRate > 0 || tower.critDmgBonus > 0)) {
+    lines.push(`爆擊：${(tower.critRate * 100).toFixed(0)}% / ${(tower.critDamage * 100).toFixed(0)}%`);
+  }
+
+  if (tower.type === 'silver') {
+    const dmg = cfg.baseDamage * (1 + (lv - 1) * 0.25);
+    lines.push(`每發傷害：${fmt(dmg, 1)}`);
+    lines.push(`同時發射：${lv} 發`);
+    lines.push(`成長：${tower.attackCount}/${cfg.attacksPerLevel} 次 (自動)`);
+    lines.push(`距離降等：${(cfg.decayTime - tower.idleTimer).toFixed(1)}s`);
+    return lines.join('\n');
+  }
+
+  if (tower.type === 'magenta') {
+    lines.push(`倒數：${Math.max(0, tower.timer).toFixed(1)}s`);
+    lines.push(`成功：${(cfg.successRate * 100).toFixed(0)}%`);
+    lines.push(`效果：隨機塔 +${cfg.levelBoost} 級`);
+    return lines.join('\n');
+  }
+
+  if (tower.type === 'orange') {
+    const curDps = cfg.dps * Math.pow(1.5, lv - 1);
+    const nextDps = cfg.dps * Math.pow(1.5, nl - 1);
+    const curBeams = cfg.beamCount + (lv - 1);
+    const nextBeams = cfg.beamCount + (nl - 1);
+    lines.push(maxed
+      ? `DPS：${fmt(curDps, 0)}（MAX）`
+      : previewLine('DPS', curDps, nextDps, '', 0));
+    lines.push(maxed
+      ? `目標數：${curBeams}`
+      : previewLine('目標數', curBeams, nextBeams, '', 0));
+    return lines.join('\n');
+  }
+
+  if (tower.type === 'red') {
+    const curT = cfg.buffTargets + (lv - 1);
+    const nextT = cfg.buffTargets + (nl - 1);
+    const curD = cfg.buffDuration + (lv - 1) * 2;
+    const nextD = cfg.buffDuration + (nl - 1) * 2;
+    const curI = Math.max(2, cfg.buffInterval - (lv - 1) * 0.5);
+    const nextI = Math.max(2, cfg.buffInterval - (nl - 1) * 0.5);
+    lines.push(maxed ? `目標數：${curT}` : previewLine('目標數', curT, nextT, '', 0));
+    lines.push(maxed ? `持續：${curD}s` : previewLine('持續', curD, nextD, 's'));
+    lines.push(maxed ? `間隔：${curI}s` : previewLine('間隔', curI, nextI, 's'));
+    return lines.join('\n');
+  }
+
+  if (tower.type === 'fireArrow') {
+    const curDmg = cfg.damage * Math.pow(1.5, lv - 1);
+    const nextDmg = cfg.damage * Math.pow(1.5, nl - 1);
+    lines.push(maxed ? `傷害：${fmt(curDmg, 2)}` : previewLine('傷害', curDmg, nextDmg, '', 2));
+    lines.push('小怪：每 10 秒 1 發');
+    lines.push('Boss：100 發/秒');
+    return lines.join('\n');
+  }
+
+  // 一般塔（含增益塔）
+  if (cfg.damage !== undefined) {
+    const curDmg = cfg.damage * Math.pow(1.5, lv - 1);
+    const nextDmg = cfg.damage * Math.pow(1.5, nl - 1);
+    lines.push(maxed ? `傷害：${fmt(curDmg, 1)}` : previewLine('傷害', curDmg, nextDmg, '', 1));
+  }
+  if (cfg.fireInterval !== undefined) {
+    const curI = cfg.fireInterval * Math.pow(0.88, lv - 1);
+    const nextI = cfg.fireInterval * Math.pow(0.88, nl - 1);
+    lines.push(maxed ? `攻速：${fmt(curI, 2)}s` : previewLine('攻速', curI, nextI, 's', 2));
+  }
+  if (cfg.range !== undefined && isFinite(cfg.range)) {
+    const curR = cfg.range + 20 * (lv - 1);
+    const nextR = cfg.range + 20 * nl - 20;
+    lines.push(maxed ? `射程：${fmt(curR / 90, 1)} 格` : previewLine('射程', curR / 90, nextR / 90, ' 格'));
+  }
+
+  // 特殊效果文字
+  if (tower.type === 'white') lines.push(`秒殺：${(cfg.killChance * 100).toFixed(0)}% (不變)`);
+  if (tower.type === 'blue') lines.push(`命中：5% (不變) ｜ 命中即秒殺`);
+  if (tower.type === 'purple') lines.push(`緩速：${(100 - cfg.slowFactor * 100).toFixed(0)}% 持續 ${cfg.slowDuration}s`);
+  if (tower.type === 'cyan') lines.push(`對 Boss 傷害 ×${cfg.antiBossMultiplier}`);
+  if (tower.type === 'amethyst') lines.push(`增益：周圍 +${(cfg.critRateBuff * 100).toFixed(0)}% 爆擊率`);
+  if (tower.type === 'jade') lines.push(`增益：周圍 +${(cfg.critDmgBuff * 100).toFixed(0)}% 爆擊傷害`);
+
+  return lines.join('\n');
+}
+
 function updateTowerPanel() {
   if (!selectedTower || !SPOTS.some(s => s.tower === selectedTower)) {
     towerPanel.classList.add('hidden');
@@ -633,86 +812,24 @@ function updateTowerPanel() {
   towerPanel.classList.remove('hidden');
   const cfg = TOWER_TYPES[selectedTower.type];
 
+  towerName.textContent = `${cfg.name} Lv.${selectedTower.level}`;
+  towerStats.innerHTML = getTowerPreviewHTML(selectedTower);
+
   if (selectedTower.type === 'magenta') {
-    const t = selectedTower;
-    const remain = Math.max(0, t.timer).toFixed(1);
-    towerName.textContent = `${cfg.name}（一次性）`;
-    towerStats.textContent = `${remain}s 後觸發 ｜ 65% 使隨機塔 +2 級`;
     upgradeBtn.disabled = true;
     upgradeBtn.textContent = '不可升級';
     return;
   }
-
   if (selectedTower.type === 'silver') {
-    const t = selectedTower;
-    towerName.textContent = `${cfg.name} Lv.${t.level}（自動成長）`;
-    const decayLeft = (cfg.decayTime - t.idleTimer).toFixed(1);
-    const critInfo = t.critRate > 0
-      ? ` ｜ 爆 ${(t.critRate * 100).toFixed(0)}% / ${(t.critDamage * 100).toFixed(0)}%`
-      : '';
-    towerStats.textContent =
-      `${t.attackCount}/${cfg.attacksPerLevel} ｜ 每發 ${cfg.baseDamage} ｜ 同時 ${t.level} 發${critInfo}`;
     upgradeBtn.disabled = true;
-    upgradeBtn.textContent = t.level > 1 ? `降等 ${decayLeft}s` : '最低';
+    upgradeBtn.textContent = '自動成長';
     return;
   }
-
-  towerName.textContent = `${cfg.name} Lv.${selectedTower.level}`;
-
-  const critInfo = selectedTower.critRate > 0 || selectedTower.critDmgBonus > 0
-    ? ` ｜ 爆 ${(selectedTower.critRate * 100).toFixed(0)}% / ${(selectedTower.critDamage * 100).toFixed(0)}%`
-    : '';
-
-  if (selectedTower.type === 'amethyst') {
-    if (selectedTower.level >= MAX_TOWER_LEVEL) {
-      towerStats.textContent = `增益：周圍 +20% 爆擊率${critInfo}`;
-      upgradeBtn.disabled = true;
-      upgradeBtn.textContent = 'MAX';
-    } else {
-      const cost = getUpgradeCost(selectedTower);
-      towerStats.textContent = `增益：周圍 +20% 爆擊率 ｜ 升級 ${cost}${critInfo}`;
-      upgradeBtn.disabled = money < cost;
-      upgradeBtn.textContent = `升級 ${cost}`;
-    }
-    return;
-  }
-  if (selectedTower.type === 'jade') {
-    if (selectedTower.level >= MAX_TOWER_LEVEL) {
-      towerStats.textContent = `增益：周圍 +65% 爆擊傷害${critInfo}`;
-      upgradeBtn.disabled = true;
-      upgradeBtn.textContent = 'MAX';
-    } else {
-      const cost = getUpgradeCost(selectedTower);
-      towerStats.textContent = `增益：周圍 +65% 爆擊傷害 ｜ 升級 ${cost}${critInfo}`;
-      upgradeBtn.disabled = money < cost;
-      upgradeBtn.textContent = `升級 ${cost}`;
-    }
-    return;
-  }
-
-  if (selectedTower.type === 'fireArrow') {
-    const hasBoss = enemies.some(e => e.isBoss && e.alive);
-    const mode = hasBoss ? '格林機槍模式' : '待機模式';
-    const rate = hasBoss ? '100 發/秒' : '每 10 秒 1 發';
-    towerStats.textContent = `${mode} ｜ ${rate} ｜ 傷害 ${cfg.damage}${critInfo}`;
-    if (selectedTower.level >= MAX_TOWER_LEVEL) {
-      upgradeBtn.disabled = true;
-      upgradeBtn.textContent = 'MAX';
-    } else {
-      const cost = getUpgradeCost(selectedTower);
-      upgradeBtn.disabled = money < cost;
-      upgradeBtn.textContent = `升級 ${cost}`;
-    }
-    return;
-  }
-
   if (selectedTower.level >= MAX_TOWER_LEVEL) {
-    towerStats.textContent = `已達最高等級${critInfo}`;
     upgradeBtn.disabled = true;
     upgradeBtn.textContent = 'MAX';
   } else {
     const cost = getUpgradeCost(selectedTower);
-    towerStats.textContent = `下一級：${cost} 💰${critInfo}`;
     upgradeBtn.disabled = money < cost;
     upgradeBtn.textContent = `升級 ${cost}`;
   }
@@ -729,6 +846,7 @@ function upgradeTower(tower) {
   updateUI();
   updateTowerPanel();
   log(`${TOWER_TYPES[tower.type].name} → Lv.${tower.level}`);
+  saveGame();
 }
 
 // ============ 增益重算 ============
@@ -754,6 +872,85 @@ function recomputeBuffs() {
       }
     }
   }
+}
+
+// ============ 存檔 ============
+function saveGame() {
+  try {
+    const towerData = [];
+    for (let i = 0; i < SPOTS.length; i++) {
+      const s = SPOTS[i];
+      if (s.tower) {
+        towerData.push({
+          idx: i,
+          type: s.tower.type,
+          level: s.tower.level,
+        });
+      }
+    }
+    const data = {
+      version: 1,
+      money, lives, wave,
+      damageStats,
+      unlocked: Object.assign({}, unlocked),
+      towers: towerData,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  } catch (e) {
+    // localStorage 可能被禁用或滿了
+  }
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data || data.version !== 1) return false;
+
+    money = data.money ?? 100;
+    lives = data.lives ?? 20;
+    wave = data.wave ?? 0;
+    damageStats = data.damageStats || {};
+
+    if (data.unlocked) {
+      for (const k in data.unlocked) {
+        if (unlocked.hasOwnProperty(k)) unlocked[k] = data.unlocked[k];
+      }
+    }
+
+    // 清空所有塔
+    for (const s of SPOTS) s.tower = null;
+
+    // 重建塔
+    for (const t of (data.towers || [])) {
+      const spot = SPOTS[t.idx];
+      if (!spot) continue;
+      const tower = createTower(spot, t.type);
+      if (!tower) continue;
+      tower.level = Math.min(t.level || 1, MAX_TOWER_LEVEL);
+      if (tower.applyLevel) tower.applyLevel();
+      spot.tower = tower;
+    }
+
+    // 更新商店按鈕鎖定狀態
+    for (const type in unlocked) {
+      const btn = document.querySelector(`.shop-btn[data-type="${type}"]`);
+      if (!btn) continue;
+      if (unlocked[type]) btn.classList.remove('locked');
+      else btn.classList.add('locked');
+    }
+
+    updateUI();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function clearSave() {
+  try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
 }
 
 // ============ 敵人 ============
@@ -883,7 +1080,7 @@ class Enemy {
   }
 }
 
-// ============ 塔的圖案繪製 ============
+// ============ 塔圖案 ============
 function drawTowerIcon(type, x, y, size) {
   ctx.save();
   switch (type) {
@@ -1065,7 +1262,6 @@ function drawTowerIcon(type, x, y, size) {
   ctx.restore();
 }
 
-// ============ 星星等級 ============
 function drawLevelStars(level, x, y, size) {
   if (level <= 1) return;
 
@@ -2135,6 +2331,7 @@ function createTower(spot, type) {
   if (type === 'silver') return new SilverTower(spot);
   if (type === 'magenta') return new MagentaTower(spot);
   if (type === 'fireArrow') return new FireArrowTower(spot);
+  if (!TOWER_TYPES[type]) return null;
   return new Tower(spot, type);
 }
 
@@ -2180,6 +2377,7 @@ function combineTowers(a, b) {
   selectedTower = null;
   updateTowerPanel();
   updateUI();
+  saveGame();
 }
 
 function combineGold(towerList) {
@@ -2195,6 +2393,7 @@ function combineGold(towerList) {
   selectedTower = null;
   updateTowerPanel();
   updateUI();
+  saveGame();
 }
 
 // ============ 波次 ============
@@ -2227,6 +2426,7 @@ function startWave() {
   spawnTimer = 0;
   startWaveBtn.disabled = true;
   updateUI();
+  saveGame();
 }
 
 // ============ 指標 ============
@@ -2312,6 +2512,7 @@ canvas.addEventListener('pointerdown', (e) => {
       updateUI();
       updateTowerPanel();
       log(`已撤除，返還 ${refund} 💰`);
+      saveGame();
     }
     return;
   }
@@ -2324,6 +2525,7 @@ canvas.addEventListener('pointerdown', (e) => {
     const newTower = createTower(spot, shopSelected);
     spot.tower = newTower;
     updateUI();
+    saveGame();
     return;
   }
 
@@ -2381,6 +2583,7 @@ canvas.addEventListener('pointerup', (e) => {
         aSpot.tower = null;
         targetSpot.tower = a;
         a.spot = targetSpot;
+        saveGame();
       } else if (canCombine(a, b)) {
         combineTowers(a, b);
       } else {
@@ -2388,6 +2591,7 @@ canvas.addEventListener('pointerup', (e) => {
         targetSpot.tower = a;
         a.spot = targetSpot;
         b.spot = aSpot;
+        saveGame();
       }
     }
   } else {
@@ -2451,6 +2655,31 @@ removeBtn.addEventListener('pointerdown', (e) => {
 upgradeBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   if (selectedTower) upgradeTower(selectedTower);
+}, { passive: false });
+
+// ============ 速度切換 ============
+speedBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  speedMultiplier = speedMultiplier === 1 ? 2 : 1;
+  speedBtn.textContent = `⏩ x${speedMultiplier}`;
+  speedBtn.classList.toggle('active', speedMultiplier === 2);
+}, { passive: false });
+
+// ============ 重新開始 ============
+restartBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  confirmModal.classList.add('show');
+}, { passive: false });
+
+cancelRestart.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  confirmModal.classList.remove('show');
+}, { passive: false });
+
+confirmRestart.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  clearSave();
+  location.reload();
 }, { passive: false });
 
 // ============ 傷害統計面板 ============
@@ -2717,11 +2946,15 @@ function drawDragGhost() {
 
 // ============ 遊戲迴圈 ============
 let statsTimer = 0;
+let saveTimer = 0;
 
 function gameLoop(timestamp) {
   if (!lastTime) lastTime = timestamp;
-  const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+  let dt = Math.min((timestamp - lastTime) / 1000, 0.1);
   lastTime = timestamp;
+
+  // 套用速度倍率
+  dt *= speedMultiplier;
 
   hasGoldTower = SPOTS.some(s => s.tower && s.tower.type === 'gold');
   recomputeBuffs();
@@ -2737,6 +2970,7 @@ function gameLoop(timestamp) {
         waveActive = false;
         startWaveBtn.disabled = false;
         if (autoNext) autoNextTimer = 2.0;
+        saveGame();
       }
     } else if (autoNext && autoNextTimer > 0) {
       autoNextTimer -= dt;
@@ -2761,13 +2995,20 @@ function gameLoop(timestamp) {
 
     if (lives <= 0) {
       gameOver = true;
+      clearSave();
       setTimeout(() => alert('遊戲結束！重新整理頁面再來一次。'), 50);
+    }
+
+    // 自動存檔
+    saveTimer += dt;
+    if (saveTimer >= SAVE_INTERVAL) {
+      saveTimer = 0;
+      saveGame();
     }
   }
 
   updateTowerPanel();
 
-  // 統計面板每 200ms 更新一次
   statsTimer += dt;
   if (statsTimer > 0.2) {
     statsTimer = 0;
@@ -2798,7 +3039,12 @@ function gameLoop(timestamp) {
   requestAnimationFrame(gameLoop);
 }
 
+// ============ 初始化 ============
+const loaded = loadGame();
 updateUI();
+if (loaded) {
+  log(`已載入存檔（第 ${wave} 波）`, 3000);
+}
 requestAnimationFrame(gameLoop);
 </script>
 </body>
