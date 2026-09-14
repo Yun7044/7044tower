@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0518">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="塔防">
+<meta name="mobile-web-app-capable" content="yes">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>塔防</title>
@@ -8,23 +16,17 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
     width: 100%; height: 100%; overflow: hidden;
-    background:
-      radial-gradient(ellipse at 50% 50%, #2a1a5a 0%, #0a0518 70%, #050510 100%);
-    color: #fff;
+    background: #000; color: #fff;
     font-family: system-ui, -apple-system, sans-serif;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
   #game {
-    position: fixed;
-    display: block;
+    position: fixed; display: block;
     touch-action: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
-    box-shadow:
-      0 0 60px rgba(150, 80, 220, 0.35),
-      0 0 120px rgba(100, 50, 180, 0.2);
   }
 
    /* ===== UI 收起 ===== */
@@ -67,11 +69,9 @@
       url('bg.jpg') center center / cover no-repeat;
     display: none; flex-direction: column;
     align-items: center; justify-content: center;
-    padding: max(30px, env(safe-area-inset-top)) 20px max(30px, env(safe-area-inset-bottom));
-    z-index: 50; gap: 12px;
+    padding: 30px 20px; z-index: 50; gap: 12px;
     overflow-y: auto;
   }
- 
   #mainMenu.show { display: flex; }
 
   #mainMenu::before {
@@ -1026,6 +1026,30 @@
   @media (orientation: portrait) {
     body:not(.in-menu) #rotateNotice { display: flex; }
   }
+
+  /* --- 新增：分支進化 UI 樣式 --- */
+#branch-options {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+    border-top: 1px dashed #555;
+    padding-top: 8px;
+}
+.btn-branch {
+    background: #1e2a38;
+    border: 1px solid #00ffcc;
+    color: #fff;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    transition: 0.2s;
+}
+.btn-branch:hover { background: #2c3e50; box-shadow: 0 0 8px rgba(0,255,204,0.4); }
+.btn-branch .b-title { font-weight: bold; color: #00ffcc; font-size: 13px; }
+.btn-branch .b-desc { font-size: 11px; color: #aaa; margin-top: 2px; }
+
 </style>
 </head>
 <body class="in-menu">
@@ -1124,6 +1148,17 @@
     <div id="towerStats"></div>
   </div>
   <button id="upgradeBtn">升級</button>
+  <!-- 在原本的 #upgrade-panel 裡面插入這一段 -->
+<div id="branch-options">
+    <button class="btn-branch" onclick="evolveSelectedTower('A')">
+        <div class="b-title" id="branch-a-title">分支 A</div>
+        <div class="b-desc" id="branch-a-desc">描述...</div>
+    </button>
+    <button class="btn-branch" onclick="evolveSelectedTower('B')">
+        <div class="b-title" id="branch-b-title">分支 B</div>
+        <div class="b-desc" id="branch-b-desc">描述...</div>
+    </button>
+</div>
 </div>
 
 <div id="goldBanner">✨ 金色傳說 ✨</div>
@@ -4670,6 +4705,571 @@ function gameLoop(timestamp) {
 // ============ 初始化 ============
 updateMenuRecords();
 requestAnimationFrame(gameLoop);
+// ============================================================
+// PWA Service Worker 註冊
+// ============================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./sw.js')
+      .then(function(reg) {
+        console.log('[PWA] Service Worker 已註冊:', reg.scope);
+      })
+      .catch(function(err) {
+        console.log('[PWA] Service Worker 註冊失敗:', err);
+      });
+  });
+}
+
+// --- 新增：10 種分支進化詳細設定庫 ---
+const EVOLUTION_DATA = {
+    green: {
+        A: { name: '墨綠塔', color: '#1b4d3e', desc: '攻擊+150%、攻速+50%、射程+30%，第4次發射貫穿3人子彈' },
+        B: { name: '天狼之塔', color: '#00fa9a', desc: '耀粼光環：範圍內友塔20%機率施加【耀粼燃燒】(1%最大血量+15%攻擊)' }
+    },
+    purple: {
+        A: { name: '質量塔', color: '#4b0082', desc: '引力奇點：無傷害，每3秒產生奇點強行將路徑上的敵人拉扯聚攏' },
+        B: { name: '霜凍塔', color: '#00ffff', desc: '寒霜硬控：造成減速，疊滿5層【寒霜】直接凍結敵人 1.8 秒' }
+    },
+    blue: {
+        A: { name: '電磁鏈塔', color: '#00bfff', desc: '穩定電網：100%命中，極快攻速發射電磁鏈連結2個目標施加群體DOT' },
+        B: { name: '超頻藍塔', color: '#1e90ff', desc: '賭徒狂歡：秒殺率升至10%，觸發時產生3x3範圍最大血量爆破' }
+    },
+    orange: {
+        A: { name: '聚能伽馬塔', color: '#ff4500', desc: '單體融化：單光束持續聚焦，傷害每秒增長50%(最高500%)' },
+        B: { name: '超新星塔', color: '#ff8c00', desc: '全場擴散：鎖定主目標時，向周圍小怪散射微型雷射造成持續AOE' }
+    },
+    silver: {
+        A: { name: '全金屬狂潮塔', color: '#7f8c8d', desc: '過熱保證：滿級進5秒【過熱】子彈數翻倍，過熱後緩慢降級不掉空檔' },
+        B: { name: '霰彈加特林塔', color: '#d35400', desc: '近戰掃射：轉為超近距離扇形掃射，等級越高彈丸越多角度越寬' }
+    }
+};
+
+// --- 新增：執行塔進化動作 ---
+function evolveSelectedTower(branch) {
+    if (!selectedTower || selectedTower.branch) return;
+
+    selectedTower.branch = branch;
+    const evo = EVOLUTION_DATA[selectedTower.baseType || selectedTower.type][branch];
+    
+    // 變更外觀與屬性
+    selectedTower.color = evo.color;
+    
+    // 綠塔 Branch A (墨綠塔) 面板數值爆發
+    if ((selectedTower.baseType || selectedTower.type) === 'green' && branch === 'A') {
+        selectedTower.damage *= 2.5;
+        selectedTower.speed *= 0.5;
+        selectedTower.range *= 1.3;
+    }
+
+    if (typeof updateUI === 'function') updateUI();
+    if (typeof closeUpgradePanel === 'function') closeUpgradePanel();
+}
+
+// --- 新增：於面板開啟時檢查是否顯示分支按鈕 ---
+// (請在您的 openUpgradePanel 函式最後一行直接加入這段)
+function checkShowBranchUI(tower) {
+    const branchBox = document.getElementById('branch-options');
+    if (!branchBox) return;
+    
+    // 條件：滿級或指定等級 (如 Lv.3) 且尚未進化
+    if (tower.level >= 3 && !tower.branch) {
+        branchBox.style.display = 'flex';
+        const typeKey = tower.baseType || tower.type;
+        const evo = EVOLUTION_DATA[typeKey];
+        if (evo) {
+            document.getElementById('branch-a-title').innerText = `分支 A: ${evo.A.name}`;
+            document.getElementById('branch-a-desc').innerText = evo.A.desc;
+            document.getElementById('branch-b-title').innerText = `分支 B: ${evo.B.name}`;
+            document.getElementById('branch-b-desc').innerText = evo.B.desc;
+        }
+    } else {
+        branchBox.style.display = 'none';
+    }
+}
+
 </script>
+
+<script>
+// ============================================================
+// 綠塔進化系統（新增區塊，不改動任何原程式碼）
+// ============================================================
+(function() {
+    'use strict';
+
+    console.log('[進化] 綠塔進化系統載入中...');
+
+    // ============ 狀態追蹤（用 WeakMap，不汙染原物件） ============
+    const _evo = new WeakMap();
+
+    function getEvo(tower) {
+        if (!tower) return null;
+        if (!_evo.has(tower)) {
+            _evo.set(tower, {
+                evolution: null,       // null | 'A' | 'B'
+                attackCount: 0,        // 墨綠塔 4 次攻擊計數
+                siriusBuffed: false,   // 天狼光環 buff
+                baseConfig: tower.config,
+                baseType: tower.type,
+            });
+        }
+        return _evo.get(tower);
+    }
+
+    // ============ 灼燒（耀粼燃燒）狀態系統 ============
+    const BURN_MAX_STACKS = 5;
+    const BURN_DURATION = 3.0;
+
+    function applyBurn(enemy, sourceDamage) {
+        if (!enemy || !enemy.alive) return;
+        if (!enemy._burn) enemy._burn = { stacks: 0, timer: 0, srcDmg: 0 };
+        enemy._burn.stacks = Math.min(BURN_MAX_STACKS, enemy._burn.stacks + 1);
+        enemy._burn.timer = BURN_DURATION;
+        enemy._burn.srcDmg = Math.max(enemy._burn.srcDmg, sourceDamage);
+    }
+
+    function tickBurn(enemy, dt) {
+        const b = enemy._burn;
+        if (!b || b.stacks <= 0) return;
+        b.timer -= dt;
+        if (b.timer <= 0) { b.stacks = 0; return; }
+        const dps = (enemy.maxHp * 0.01 + b.srcDmg * 0.15) * b.stacks;
+        const actual = enemy.takeDamage(dps * dt);
+        if (actual > 0) addDamage('green', actual);
+    }
+
+    // ============ 包裝 Enemy.update 處理灼燒 ============
+    const _origEnemyUpdate = Enemy.prototype.update;
+    Enemy.prototype.update = function(dt) {
+        if (this.alive && this._burn && this._burn.stacks > 0) {
+            tickBurn(this, dt);
+        }
+        _origEnemyUpdate.call(this, dt);
+    };
+
+    // ============ 包裝 Enemy.draw 顯示灼燒火焰 ============
+    const _origEnemyDraw = Enemy.prototype.draw;
+    Enemy.prototype.draw = function() {
+        _origEnemyDraw.call(this);
+        if (this.alive && this._burn && this._burn.stacks > 0) {
+            const p = this.getPos();
+            const r = this.isBoss ? 22 : 13;
+            const intensity = Math.min(1, this._burn.stacks / BURN_MAX_STACKS);
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, ' + Math.floor(180 - intensity * 80) + ', 60, ' + (0.5 + intensity * 0.5) + ')';
+            ctx.lineWidth = 2 + intensity * 2;
+            ctx.shadowColor = '#ff6600';
+            ctx.shadowBlur = 10 * intensity;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+            // 火焰粒子
+            for (let i = 0; i < this._burn.stacks; i++) {
+                const t = performance.now() / 200 + i * 0.7;
+                const fx = p.x + Math.sin(t) * 6;
+                const fy = p.y - r - 4 - ((performance.now() / 100 + i * 30) % 15);
+                ctx.fillStyle = 'rgba(255, ' + Math.floor(150 + Math.sin(t) * 50) + ', 50, 0.8)';
+                ctx.beginPath();
+                ctx.arc(fx, fy, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    };
+
+    // ============ 貫穿子彈（墨綠塔專用） ============
+    function PierceBullet(tower, target) {
+        Bullet.call(this, tower, target);
+        this.pierce = true;
+        this.color = '#5fe08a';
+        this.speed = 700;
+    }
+    PierceBullet.prototype = Object.create(Bullet.prototype);
+    PierceBullet.prototype.constructor = PierceBullet;
+    PierceBullet.prototype.update = function(dt) {
+        if (!this.alive) return;
+        if (!this.target.alive) { this.alive = false; return; }
+        const tp = this.target.getPos();
+        const dx = tp.x - this.x, dy = tp.y - this.y;
+        const dist = Math.hypot(dx, dy), move = this.speed * dt;
+        if (dist <= move) {
+            let dmg = this.damage;
+            if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
+            // 主目標
+            const actual = this.target.takeDamage(dmg);
+            addDamage('green', actual);
+            // 附近敵人吃半傷
+            for (let i = 0; i < enemies.length; i++) {
+                const e = enemies[i];
+                if (!e.alive || e === this.target) continue;
+                const ep = e.getPos();
+                if (Math.hypot(ep.x - tp.x, ep.y - tp.y) <= 70) {
+                    addDamage('green', e.takeDamage(dmg * 0.5));
+                }
+            }
+            sfxHit();
+            this.alive = false;
+        } else {
+            this.x += (dx / dist) * move;
+            this.y += (dy / dist) * move;
+        }
+    };
+    PierceBullet.prototype.draw = function() {
+        if (!this.alive) return;
+        ctx.save();
+        ctx.shadowColor = '#5fe08a';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#b0ffd0';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    };
+
+    // ============ 包裝 Tower.prototype.fire 加入綠塔進化行為 ============
+    const _origTowerFire = Tower.prototype.fire;
+    Tower.prototype.fire = function(target) {
+        const state = getEvo(this);
+
+        // 墨綠塔：第 4 次攻擊發射貫穿彈
+        if (state.evolution === 'A') {
+            this.fireFlash = 1;
+            state.attackCount++;
+            if (state.attackCount >= 4) {
+                state.attackCount = 0;
+                bullets.push(new PierceBullet(this, target));
+                log('🌿 墨綠貫穿！', 700);
+            } else {
+                bullets.push(new Bullet(this, target));
+            }
+            sfxShoot();
+            return;
+        }
+
+        // 其他塔：走原路徑
+        const lenBefore = bullets.length;
+        _origTowerFire.call(this, target);
+
+        // 天狼 buff：這發子彈 20% 機率附帶灼燒
+        if (state.siriusBuffed && bullets.length > lenBefore) {
+            const b = bullets[bullets.length - 1];
+            if (b && b.target === target && Math.random() < 0.20) {
+                b._burnOnHit = true;
+                b._srcDmg = this.damage;
+            }
+        }
+    };
+
+    // ============ 包裝 Bullet.update 處理灼燒附魔 ============
+    const _origBulletUpdate = Bullet.prototype.update;
+    Bullet.prototype.update = function(dt) {
+        const willBurn = this._burnOnHit && this.alive && this.target && this.target.alive;
+        let hpBefore = willBurn ? this.target.hp : 0;
+
+        _origBulletUpdate.call(this, dt);
+
+        if (willBurn && this.target) {
+            const damaged = this.target.hp < hpBefore;
+            if (damaged) {
+                applyBurn(this.target, this._srcDmg || 15);
+            }
+        }
+    };
+
+    // ============ 包裝 Tower.drawBody 給進化塔獨特外觀 ============
+    const _origDrawBody = Tower.prototype.drawBody;
+    Tower.prototype.drawBody = function(x, y, alpha) {
+        const st = getEvo(this);
+        if (!st.evolution) {
+            _origDrawBody.call(this, x, y, alpha);
+            return;
+        }
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        const color = st.evolution === 'A' ? '#1b4d3e' : '#00fa9a';
+        drawTowerBase(x, y, color, st.evolution === 'B');
+        ctx.restore();
+        drawEvolvedIcon(st.evolution, x, y, 70);
+    };
+
+    function drawEvolvedIcon(branch, x, y, size) {
+        ctx.save();
+        const s = size;
+        if (branch === 'A') {
+            // 墨綠塔：深綠水晶 + 十字葉紋
+            const h = s * 0.42, w = s * 0.22;
+            ctx.shadowColor = '#2ecc71';
+            ctx.shadowBlur = 14;
+            ctx.beginPath();
+            ctx.moveTo(x, y - h);
+            ctx.lineTo(x + w, y - h * 0.3);
+            ctx.lineTo(x + w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w, y - h * 0.3);
+            ctx.closePath();
+            const g = ctx.createLinearGradient(x, y - h, x, y + h);
+            g.addColorStop(0, '#5fe08a');
+            g.addColorStop(0.5, '#1b4d3e');
+            g.addColorStop(1, '#0a2018');
+            ctx.fillStyle = g;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#a8ffd0';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            // 葉紋
+            ctx.strokeStyle = '#a8ffd0';
+            ctx.lineWidth = 1.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x, y - h * 0.7);
+            ctx.lineTo(x, y + h * 0.6);
+            ctx.moveTo(x - w * 0.5, y - h * 0.1);
+            ctx.lineTo(x + w * 0.5, y - h * 0.1);
+            ctx.stroke();
+        } else {
+            // 天狼之塔：亮綠水晶 + 火焰光環
+            const h = s * 0.4, w = s * 0.2;
+            ctx.shadowColor = '#00fa9a';
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.moveTo(x, y - h);
+            ctx.lineTo(x + w, y - h * 0.3);
+            ctx.lineTo(x + w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w, y - h * 0.3);
+            ctx.closePath();
+            const g = ctx.createLinearGradient(x, y - h, x, y + h);
+            g.addColorStop(0, '#c8ffd8');
+            g.addColorStop(0.4, '#00fa9a');
+            g.addColorStop(1, '#0a5030');
+            ctx.fillStyle = g;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#e0ffe8';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            // 光環（脈動）
+            const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 300);
+            ctx.strokeStyle = 'rgba(255, 180, 60, ' + (0.5 + pulse * 0.5) + ')';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#ff8800';
+            ctx.shadowBlur = 12 * pulse;
+            ctx.beginPath();
+            ctx.arc(x, y, s * 0.42, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    // ============ 天狼光環更新（範圍內友方塔 buff） ============
+    function updateSiriusAuras() {
+        for (let i = 0; i < SPOTS.length; i++) {
+            if (SPOTS[i].tower) getEvo(SPOTS[i].tower).siriusBuffed = false;
+        }
+        for (let i = 0; i < SPOTS.length; i++) {
+            const t = SPOTS[i].tower;
+            if (!t) continue;
+            const st = getEvo(t);
+            if (st.evolution !== 'B') continue;
+            for (let j = 0; j < SPOTS.length; j++) {
+                const o = SPOTS[j].tower;
+                if (!o || o === t) continue;
+                const d = Math.hypot(SPOTS[j].x - SPOTS[i].x, SPOTS[j].y - SPOTS[i].y);
+                if (d <= t.range) getEvo(o).siriusBuffed = true;
+            }
+        }
+    }
+    setInterval(updateSiriusAuras, 60);
+
+    // ============ 天狼光環視覺化（畫一個淡淡的圓） ============
+    const _origTowerDraw = Tower.prototype.draw;
+    Tower.prototype.draw = function() {
+        const st = getEvo(this);
+        // 天狼塔：先畫光環範圍
+        if (st.evolution === 'B') {
+            const x = this.x, y = this.y;
+            ctx.save();
+            const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 500);
+            const grad = ctx.createRadialGradient(x, y, 0, x, y, this.range);
+            grad.addColorStop(0, 'rgba(0, 250, 154, ' + (0.12 + pulse * 0.06) + ')');
+            grad.addColorStop(1, 'rgba(0, 250, 154, 0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(x, y, this.range, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0, 250, 154, ' + (0.3 + pulse * 0.2) + ')';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([8, 8]);
+            ctx.lineDashOffset = -performance.now() / 60;
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
+        _origTowerDraw.call(this);
+    };
+
+    // ============ 進化判定 ============
+    function canEvolve(tower) {
+        if (!tower) return false;
+        const st = getEvo(tower);
+        if (st.evolution) return false;
+        if (st.baseType !== 'green') return false;
+        if (tower.level < 3) return false;
+        return true;
+    }
+
+    // ============ 執行進化 ============
+    function doEvolve(branch) {
+        const tower = selectedTower;
+        if (!tower || !canEvolve(tower)) return;
+        const st = getEvo(tower);
+        st.evolution = branch;
+        st.attackCount = 0;
+
+        if (branch === 'A') {
+            tower.damage *= 2.5;
+            tower.baseFireInterval /= 1.5;
+            tower.fireInterval = tower.baseFireInterval;
+            tower.range *= 1.3;
+            tower.config = Object.assign({}, st.baseConfig, { name: '墨綠塔', color: '#1b4d3e' });
+            log('🌿 綠塔進化為【墨綠塔】！', 3000);
+        } else {
+            tower.damage *= 1.25;
+            tower.baseFireInterval /= 1.25;
+            tower.fireInterval = tower.baseFireInterval;
+            tower.config = Object.assign({}, st.baseConfig, { name: '天狼之塔', color: '#00fa9a' });
+            log('🌟 綠塔進化為【天狼之塔】！', 3000);
+        }
+
+        sfxUpgrade();
+        updateUI();
+        updateTowerPanel();
+        saveGame();
+
+        const box = document.getElementById('branch-options');
+        if (box) box.style.display = 'none';
+    }
+
+    // 覆寫原本的 evolveSelectedTower
+    window.evolveSelectedTower = function(branch) {
+        doEvolve(branch);
+    };
+
+    // ============ 進化 UI 顯示 ============
+    function updateEvolveUI() {
+        const box = document.getElementById('branch-options');
+        if (!box) return;
+        const tower = selectedTower;
+        if (!tower || !canEvolve(tower)) {
+            box.style.display = 'none';
+            return;
+        }
+        box.style.display = 'flex';
+        const titleA = document.getElementById('branch-a-title');
+        const descA = document.getElementById('branch-a-desc');
+        const titleB = document.getElementById('branch-b-title');
+        const descB = document.getElementById('branch-b-desc');
+        if (titleA) titleA.innerText = '🌿 分支 A：墨綠塔';
+        if (descA) descA.innerText = '攻擊 +150%、攻速 +50%、射程 +30%\n第 4 次攻擊發射貫穿彈（命中最多 3 名敵人）';
+        if (titleB) titleB.innerText = '🌟 分支 B：天狼之塔';
+        if (descB) descB.innerText = '攻擊 +25%、攻速 +25%\n耀粼光環：範圍內友方塔攻擊時 20% 機率附加【耀粼燃燒】（1% 最大生命 + 15% 攻擊，可疊 5 層）';
+    }
+    setInterval(updateEvolveUI, 100);
+
+    // ============ 存檔整合（包裝 saveGame 加入 evolution 欄位） ============
+    const _origSaveGame = saveGame;
+    saveGame = function() {
+        if (!currentDifficulty || gameState !== 'playing') return;
+        try {
+            const towerData = [];
+            for (let i = 0; i < SPOTS.length; i++) {
+                const s = SPOTS[i];
+                if (s.tower) {
+                    const st = getEvo(s.tower);
+                    towerData.push({
+                        idx: i,
+                        type: st.baseType,
+                        level: s.tower.level,
+                        evolution: st.evolution,
+                    });
+                }
+            }
+            const data = {
+                version: 1,
+                difficulty: currentDifficulty,
+                money: money,
+                lives: lives,
+                wave: wave,
+                damageStats: damageStats,
+                unlocked: Object.assign({}, unlocked),
+                towers: towerData,
+                timestamp: Date.now(),
+            };
+            localStorage.setItem(getSaveKey(), JSON.stringify(data));
+        } catch (e) {}
+    };
+
+    // ============ 載入整合（包裝 loadGame 還原進化） ============
+    const _origLoadGame = loadGame;
+    loadGame = function() {
+        if (!currentDifficulty) return false;
+        try {
+            const raw = localStorage.getItem(getSaveKey());
+            if (!raw) return false;
+            const data = JSON.parse(raw);
+            if (!data || data.version !== 1 || data.difficulty !== currentDifficulty || data.wave === 0) return false;
+            money = data.money || DIFFICULTIES[currentDifficulty].startMoney;
+            lives = data.lives || DIFFICULTIES[currentDifficulty].startLives;
+            wave = data.wave || 0;
+            damageStats = data.damageStats || {};
+            if (data.unlocked) {
+                for (const k in data.unlocked) {
+                    if (unlocked.hasOwnProperty(k)) unlocked[k] = data.unlocked[k];
+                }
+            }
+            for (let i = 0; i < SPOTS.length; i++) SPOTS[i].tower = null;
+            const towers = data.towers || [];
+            for (let i = 0; i < towers.length; i++) {
+                const t = towers[i];
+                const spot = SPOTS[t.idx];
+                if (!spot) continue;
+                const tower = createTower(spot, t.type);
+                if (!tower) continue;
+                tower.level = Math.min(t.level || 1, MAX_TOWER_LEVEL);
+                if (tower.applyLevel) tower.applyLevel();
+                spot.tower = tower;
+                // 還原進化
+                if (t.evolution) {
+                    const st = getEvo(tower);
+                    st.evolution = t.evolution;
+                    if (t.evolution === 'A') {
+                        tower.damage *= 2.5;
+                        tower.baseFireInterval /= 1.5;
+                        tower.fireInterval = tower.baseFireInterval;
+                        tower.range *= 1.3;
+                        tower.config = Object.assign({}, st.baseConfig, { name: '墨綠塔', color: '#1b4d3e' });
+                    } else {
+                        tower.damage *= 1.25;
+                        tower.baseFireInterval /= 1.25;
+                        tower.fireInterval = tower.baseFireInterval;
+                        tower.config = Object.assign({}, st.baseConfig, { name: '天狼之塔', color: '#00fa9a' });
+                    }
+                }
+            }
+            for (const type in unlocked) {
+                const btn = document.querySelector('.shop-btn[data-type="' + type + '"]');
+                if (!btn) continue;
+                if (unlocked[type]) btn.classList.remove('locked');
+                else btn.classList.add('locked');
+            }
+            updateUI();
+            return true;
+        } catch (e) { return false; }
+    };
+
+    console.log('[進化] 綠塔進化系統載入完成');
+})();
+</script>
+
 </body>
 </html>
