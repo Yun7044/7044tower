@@ -20,12 +20,11 @@
     -webkit-user-select: none;
     -webkit-touch-callout: none;
   }
-    #mainMenu {
+      #mainMenu {
     position: fixed; inset: 0;
     background:
-      radial-gradient(ellipse at 50% 0%, #2a1a5a 0%, transparent 55%),
-      radial-gradient(ellipse at 50% 100%, #1a0a3a 0%, transparent 60%),
-      linear-gradient(180deg, #0a0518 0%, #05050f 100%);
+      linear-gradient(180deg, rgba(10, 5, 25, 0.15) 0%, rgba(5, 2, 15, 0.4) 50%, rgba(5, 2, 15, 0.75) 100%),
+      url('bg.jpg') center center / cover no-repeat;
     display: none; flex-direction: column;
     align-items: center; justify-content: center;
     padding: 30px 20px; z-index: 50; gap: 12px;
@@ -569,32 +568,66 @@
     border: 1px solid rgba(120, 90, 180, 0.35);
     pointer-events: none;
   }
-  .shop-btn .dot {
-    width: 18px; height: 18px;
-    border-radius: 50%;
-    border: 1px solid rgba(0,0,0,0.6);
-    box-shadow: 0 0 8px currentColor;
+    .shop-btn .dot {
+    width: 24px;
+    height: 26px;
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    position: relative;
+    clip-path: polygon(50% 0%, 82% 30%, 68% 100%, 32% 100%, 18% 30%);
+    transition: 0.15s;
   }
-  .shop-btn .price { font-size: 10px; color: #ffd700; margin-top: 1px; }
-  .shop-btn.selected {
-    border-color: #ffd700;
-    box-shadow:
-      0 0 12px #ffd700aa,
-      inset 0 0 12px rgba(255, 215, 0, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.15);
-    transform: translateY(-2px);
+  .shop-btn .dot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.5) 45%, transparent 60%);
+    pointer-events: none;
   }
-  .shop-btn.locked { opacity: 0.28; cursor: not-allowed; }
-  .shop-btn[data-type="white"] .dot { background: radial-gradient(circle at 30% 30%, #fff, #a0a0a0); color: #fff; }
-  .shop-btn[data-type="green"] .dot { background: radial-gradient(circle at 30% 30%, #a8ffd0, #2ecc71); color: #2ecc71; }
-  .shop-btn[data-type="blue"] .dot { background: radial-gradient(circle at 30% 30%, #a8e0ff, #3498db); color: #3498db; }
-  .shop-btn[data-type="purple"] .dot { background: radial-gradient(circle at 30% 30%, #d8a8ff, #9b59b6); color: #9b59b6; }
-  .shop-btn[data-type="orange"] .dot { background: radial-gradient(circle at 30% 30%, #ffc880, #e67e22); color: #e67e22; }
-  .shop-btn[data-type="silver"] .dot { background: radial-gradient(circle at 30% 30%, #f0f0f0, #808080); color: #c0c0c0; }
-  .shop-btn[data-type="amethyst"] .dot { background: radial-gradient(circle at 30% 30%, #e8c8ff, #B088FF); color: #B088FF; }
-  .shop-btn[data-type="jade"] .dot { background: radial-gradient(circle at 30% 30%, #d8ffb8, #66FF66); color: #66FF66; }
-  .shop-btn[data-type="magenta"] .dot { background: radial-gradient(circle at 30% 30%, #ffb8e8, #FF33CC); color: #FF33CC; }
-  .shop-btn[data-type="fireArrow"] .dot { background: radial-gradient(circle at 30% 30%, #ffcc80, #FF4500); color: #FF4500; }
+  .shop-btn[data-type="white"] .dot {
+    background: linear-gradient(180deg, #fff 0%, #e8e8e8 40%, #a0a0a0 100%);
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
+  }
+  .shop-btn[data-type="green"] .dot {
+    background: linear-gradient(180deg, #b8ffd8 0%, #2ecc71 45%, #0a5030 100%);
+    filter: drop-shadow(0 0 5px rgba(46, 204, 113, 0.9));
+  }
+  .shop-btn[data-type="blue"] .dot {
+    background: linear-gradient(180deg, #b8e0ff 0%, #3498db 45%, #0a3050 100%);
+    filter: drop-shadow(0 0 5px rgba(52, 152, 219, 0.9));
+  }
+  .shop-btn[data-type="purple"] .dot {
+    background: linear-gradient(180deg, #e0b8ff 0%, #9b59b6 45%, #401060 100%);
+    filter: drop-shadow(0 0 5px rgba(155, 89, 182, 0.9));
+  }
+  .shop-btn[data-type="orange"] .dot {
+    background: linear-gradient(180deg, #ffd8a0 0%, #e67e22 45%, #702800 100%);
+    filter: drop-shadow(0 0 5px rgba(230, 126, 34, 0.9));
+  }
+  .shop-btn[data-type="silver"] .dot {
+    background: linear-gradient(180deg, #f8f8f8 0%, #c0c0c0 45%, #606060 100%);
+    filter: drop-shadow(0 0 5px rgba(220, 220, 240, 0.8));
+  }
+  .shop-btn[data-type="amethyst"] .dot {
+    background: linear-gradient(180deg, #eed0ff 0%, #B088FF 45%, #502080 100%);
+    filter: drop-shadow(0 0 5px rgba(176, 136, 255, 0.9));
+  }
+  .shop-btn[data-type="jade"] .dot {
+    background: linear-gradient(180deg, #e0ffc0 0%, #66FF66 45%, #1a701a 100%);
+    filter: drop-shadow(0 0 5px rgba(102, 255, 102, 0.9));
+  }
+  .shop-btn[data-type="magenta"] .dot {
+    background: linear-gradient(180deg, #ffc0e8 0%, #FF33CC 45%, #801060 100%);
+    filter: drop-shadow(0 0 5px rgba(255, 51, 204, 0.9));
+  }
+  .shop-btn[data-type="fireArrow"] .dot {
+    background: linear-gradient(180deg, #ffdd80 0%, #ff6600 45%, #801000 100%);
+    filter: drop-shadow(0 0 5px rgba(255, 69, 0, 0.9));
+  }
+  .shop-btn.selected .dot {
+    transform: scale(1.1);
+  }
   .shop-btn .dot { width: 14px; height: 14px; border-radius: 4px; border: 1px solid #00000066; }
   .shop-btn .price { font-size: 10px; color: #ffd700; }
   .shop-btn.selected { border-color: #ffd700; box-shadow: 0 0 10px #ffd70088; background: #22224a; }
@@ -2212,6 +2245,74 @@ Enemy.prototype.draw = function() {
   }
 };
 
+// 通用：六邊形塔底盤
+function drawTowerBase(x, y, color, isSpecial) {
+  const size = 70;
+  const r = size * 0.52;
+  const points = [];
+  for (let i = 0; i < 6; i++) {
+    const a = -Math.PI / 2 + i * Math.PI / 3;
+    points.push({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r });
+  }
+
+  // 地面陰影
+  ctx.save();
+  ctx.translate(x, y + 6);
+  ctx.scale(1, 0.55);
+  ctx.translate(-x, -y);
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < 6; i++) ctx.lineTo(points[i].x, points[i].y);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.fill();
+  ctx.restore();
+
+  // 六邊形主體
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < 6; i++) ctx.lineTo(points[i].x, points[i].y);
+  ctx.closePath();
+
+  if (isSpecial) {
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 18;
+  }
+  ctx.fillStyle = color;
+  ctx.fill();
+  if (isSpecial) ctx.restore();
+
+  // 明暗疊加（上亮下暗）
+  const shade = ctx.createLinearGradient(x, y - r, x, y + r);
+  shade.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+  shade.addColorStop(0.45, 'rgba(255, 255, 255, 0.05)');
+  shade.addColorStop(0.7, 'rgba(0, 0, 0, 0.1)');
+  shade.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
+  ctx.fillStyle = shade;
+  ctx.fill();
+
+  // 深色外框
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // 內圈裝飾線
+  const inset = 5;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = -Math.PI / 2 + i * Math.PI / 3;
+    const px = x + Math.cos(a) * (r - inset);
+    const py = y + Math.sin(a) * (r - inset);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+ 
 // ============ 塔圖案 ============
 function drawTowerIcon(type, x, y, size) {
   ctx.save();
@@ -2221,15 +2322,20 @@ function drawTowerIcon(type, x, y, size) {
   // 通用：水晶柱繪製
   function crystal(fill1, fill2, glowColor, scale) {
     scale = scale || 1;
-    const h = s * 0.36 * scale;
-    const w = s * 0.16 * scale;
-    // 主體
+    const h = s * 0.44 * scale;
+    const w = s * 0.21 * scale;
+    const tipY = y - h;
+
+    // 主體 + 外發光
+    ctx.save();
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = 18;
     ctx.beginPath();
-    ctx.moveTo(x, y - h);
-    ctx.lineTo(x - w, y - h * 0.25);
-    ctx.lineTo(x - w * 0.6, y + h * 0.85);
-    ctx.lineTo(x + w * 0.6, y + h * 0.85);
-    ctx.lineTo(x + w, y - h * 0.25);
+    ctx.moveTo(x, tipY);
+    ctx.lineTo(x - w, y - h * 0.3);
+    ctx.lineTo(x - w * 0.7, y + h * 0.9);
+    ctx.lineTo(x + w * 0.7, y + h * 0.9);
+    ctx.lineTo(x + w, y - h * 0.3);
     ctx.closePath();
     const g = ctx.createLinearGradient(x - w, y - h, x + w, y + h);
     g.addColorStop(0, fill1);
@@ -2237,32 +2343,47 @@ function drawTowerIcon(type, x, y, size) {
     g.addColorStop(1, fill1);
     ctx.fillStyle = g;
     ctx.fill();
-    // 亮面
+    ctx.restore();
+
+    // 左側高光面
     ctx.beginPath();
-    ctx.moveTo(x, y - h);
-    ctx.lineTo(x - w * 0.5, y - h * 0.2);
-    ctx.lineTo(x - w * 0.3, y + h * 0.7);
-    ctx.lineTo(x, y + h * 0.8);
+    ctx.moveTo(x, tipY);
+    ctx.lineTo(x - w * 0.55, y - h * 0.2);
+    ctx.lineTo(x - w * 0.4, y + h * 0.7);
+    ctx.lineTo(x, y + h * 0.85);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
     ctx.fill();
-    // 發光
-    if (glowColor) {
-      ctx.save();
-      ctx.shadowColor = glowColor;
-      ctx.shadowBlur = 10;
-      ctx.strokeStyle = glowColor;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x, y - h);
-      ctx.lineTo(x - w, y - h * 0.25);
-      ctx.lineTo(x - w * 0.6, y + h * 0.85);
-      ctx.lineTo(x + w * 0.6, y + h * 0.85);
-      ctx.lineTo(x + w, y - h * 0.25);
-      ctx.closePath();
-      ctx.stroke();
-      ctx.restore();
-    }
+
+    // 中央亮線
+    ctx.beginPath();
+    ctx.moveTo(x, tipY);
+    ctx.lineTo(x, y + h * 0.9);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // 白色外框
+    ctx.beginPath();
+    ctx.moveTo(x, tipY);
+    ctx.lineTo(x - w, y - h * 0.3);
+    ctx.lineTo(x - w * 0.7, y + h * 0.9);
+    ctx.lineTo(x + w * 0.7, y + h * 0.9);
+    ctx.lineTo(x + w, y - h * 0.3);
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // 頂端光點
+    ctx.save();
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.beginPath();
+    ctx.arc(x, tipY, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   switch (type) {
@@ -2430,20 +2551,11 @@ Tower.prototype.fire = function(target) {
   if (this.type !== 'blue') sfxShoot();
 };
 Tower.prototype.drawBody = function(x, y, alpha) {
-  const size = 70, half = size / 2;
-  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
-  ctx.fillStyle = '#00000066';
-  ctx.fillRect(-half + 2, -half + 3, size, size);
-  if (this.type === 'gold') {
-    const grad = ctx.createLinearGradient(-half, -half, half, half);
-    grad.addColorStop(0, '#fff6b0'); grad.addColorStop(0.5, '#f1c40f'); grad.addColorStop(1, '#b8860b');
-    ctx.fillStyle = grad;
-  } else ctx.fillStyle = this.config.color;
-  ctx.fillRect(-half, -half, size, size);
-  ctx.strokeStyle = this.type === 'gold' ? '#fff6b0' : (this.type === 'cyan' ? '#7ff7ff' : '#00000066');
-  ctx.lineWidth = 2; ctx.strokeRect(-half, -half, size, size);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  drawTowerBase(x, y, this.config.color, this.type === 'gold' || this.type === 'cyan');
   ctx.restore();
-  drawTowerIcon(this.type, x, y, size);
+  drawTowerIcon(this.type, x, y, 70);
 };
 Tower.prototype.draw = function() {
   const x = this.x, y = this.y, size = 70, half = size / 2;
@@ -2546,15 +2658,11 @@ SilverTower.prototype.fire = function(targets) {
   }
 };
 SilverTower.prototype.drawBody = function(x, y, alpha) {
-  const size = 70, half = size / 2;
-  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
-  ctx.fillStyle = '#00000066'; ctx.fillRect(-half + 2, -half + 3, size, size);
-  const grad = ctx.createLinearGradient(-half, -half, half, half);
-  grad.addColorStop(0, '#f0f0f0'); grad.addColorStop(0.5, '#c0c0c0'); grad.addColorStop(1, '#707070');
-  ctx.fillStyle = grad; ctx.fillRect(-half, -half, size, size);
-  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(-half, -half, size, size);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  drawTowerBase(x, y, '#c0c0c0', false);
   ctx.restore();
-  drawTowerIcon('silver', x, y, size);
+  drawTowerIcon('silver', x, y, 70);
 };
 SilverTower.prototype.draw = function() {
   const x = this.x, y = this.y, size = 70, half = size / 2;
@@ -2639,17 +2747,19 @@ BeamTower.prototype.pickRandom = function(n) {
   return alive.slice(0, n);
 };
 BeamTower.prototype.drawBody = function(x, y, alpha) {
-  const size = 70, half = size / 2;
-  ctx.save(); ctx.globalAlpha = alpha;
-  ctx.fillStyle = '#00000066'; ctx.fillRect(x - half + 2, y - half + 3, size, size);
-  ctx.fillStyle = this.config.color; ctx.fillRect(x - half, y - half, size, size);
-  ctx.strokeStyle = '#00000066'; ctx.lineWidth = 2; ctx.strokeRect(x - half, y - half, size, size);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  drawTowerBase(x, y, '#e67e22', false);
   ctx.restore();
-  drawTowerIcon('orange', x, y, size);
+  drawTowerIcon('orange', x, y, 70);
+  // 中央橘色核心
   ctx.save();
   const glow = 0.6 + 0.4 * Math.sin(this.pulse * 8);
-  ctx.fillStyle = 'rgba(255, 220, 120, ' + (glow * 0.6) + ')';
-  ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  ctx.fillStyle = 'rgba(255, 220, 120, ' + (glow * 0.5) + ')';
+  ctx.beginPath();
+  ctx.arc(x, y, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 };
 BeamTower.prototype.draw = function() {
   const x = this.x, y = this.y, size = 70, half = size / 2;
@@ -2742,17 +2852,27 @@ BossTower.prototype.triggerBuff = function() {
   this.buffFlash = 1;
 };
 BossTower.prototype.drawBody = function(x, y, alpha) {
-  const size = 70, half = size / 2;
-  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
-  ctx.fillStyle = '#00000066'; ctx.fillRect(-half + 2, -half + 3, size, size);
-  ctx.fillStyle = '#7b1f1f'; ctx.fillRect(-half, -half, size, size);
-  ctx.strokeStyle = '#00000066'; ctx.lineWidth = 2; ctx.strokeRect(-half, -half, size, size);
-  if (this.buffFlash > 0) {
-    ctx.fillStyle = 'rgba(231, 76, 60, ' + (this.buffFlash * 0.6) + ')';
-    ctx.fillRect(-half, -half, size, size);
-  }
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  drawTowerBase(x, y, '#c0392b', false);
   ctx.restore();
-  drawTowerIcon('red', x, y, size);
+  drawTowerIcon('red', x, y, 70);
+  if (this.buffFlash > 0) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 200, 100, ' + (this.buffFlash * 0.5) + ')';
+    const r = 70 * 0.52;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 3;
+      const px = x + Math.cos(a) * r;
+      const py = y + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
 };
 BossTower.prototype.draw = function() {
   const x = this.x, y = this.y, size = 70, half = size / 2;
@@ -2802,17 +2922,20 @@ MagentaTower.prototype.trigger = function() {
   } else log('💔 品紅塔失敗了...', 2500);
 };
 MagentaTower.prototype.drawBody = function(x, y, alpha) {
-  const size = 70, half = size / 2;
-  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
-  ctx.fillStyle = '#00000066'; ctx.fillRect(-half + 2, -half + 3, size, size);
-  const grad = ctx.createLinearGradient(-half, -half, half, half);
-  grad.addColorStop(0, '#FF66DD'); grad.addColorStop(1, '#CC0099');
-  ctx.fillStyle = grad; ctx.fillRect(-half, -half, size, size);
-  ctx.strokeStyle = '#ffd6f5'; ctx.lineWidth = 2; ctx.strokeRect(-half, -half, size, size);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  drawTowerBase(x, y, '#FF33CC', true);
+  ctx.restore();
+  drawTowerIcon('magenta', x, y, 70);
+  // 倒數數字（疊在水晶上）
+  ctx.save();
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold ' + (size * 0.55) + 'px system-ui';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(Math.ceil(Math.max(0, this.timer)), 0, 1);
+  ctx.font = 'bold 22px system-ui';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = '#FF33CC';
+  ctx.shadowBlur = 8;
+  ctx.fillText(Math.ceil(Math.max(0, this.timer)), x, y + 2);
   ctx.restore();
 };
 MagentaTower.prototype.draw = function() {
@@ -2885,24 +3008,31 @@ FireArrowTower.prototype.fireAt = function(target) {
   this.beams.push({ target: target, timer: 0.06 });
 };
 FireArrowTower.prototype.drawBody = function(x, y, alpha) {
-  const size = 70, half = size / 2;
   const hasBoss = enemies.some(function(e) { return e.isBoss && e.alive; });
-  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
-  ctx.fillStyle = '#00000066'; ctx.fillRect(-half + 2, -half + 3, size, size);
-  const grad = ctx.createLinearGradient(-half, -half, half, half);
-  if (hasBoss) { grad.addColorStop(0, '#ffcc66'); grad.addColorStop(0.5, '#ff6600'); grad.addColorStop(1, '#991100'); }
-  else { grad.addColorStop(0, '#cc4400'); grad.addColorStop(0.5, '#882200'); grad.addColorStop(1, '#441100'); }
-  ctx.fillStyle = grad; ctx.fillRect(-half, -half, size, size);
-  ctx.strokeStyle = hasBoss ? '#ffd700' : '#552200'; ctx.lineWidth = 2;
-  ctx.strokeRect(-half, -half, size, size);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  drawTowerBase(x, y, hasBoss ? '#ff6600' : '#882200', hasBoss);
   ctx.restore();
-  drawTowerIcon('fireArrow', x, y, size);
+  drawTowerIcon('fireArrow', x, y, 70);
   if (hasBoss) {
     ctx.save();
     const glow = 0.6 + 0.4 * Math.sin(this.pulse * 20);
-    ctx.shadowColor = '#FF4500'; ctx.shadowBlur = 20 * glow;
-    ctx.strokeStyle = 'rgba(255, 200, 100, ' + glow + ')'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(x, y, half + 4, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    ctx.shadowColor = '#FF4500';
+    ctx.shadowBlur = 20 * glow;
+    ctx.strokeStyle = 'rgba(255, 200, 100, ' + glow + ')';
+    ctx.lineWidth = 3;
+    const r = 70 * 0.55;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 3;
+      const px = x + Math.cos(a) * r;
+      const py = y + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
   }
 };
 FireArrowTower.prototype.draw = function() {
