@@ -6803,6 +6803,134 @@ function checkShowBranchUI(tower) {
   console.log('[美術] 場景裝飾系統載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 進化 UI 修復：接管 branch-options 顯示
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[UI修復] 接管進化選單...');
+
+    // 1. 把舊的 branch-options 從 DOM 徹底移除
+    const oldBox = document.getElementById('branch-options');
+    if (oldBox && oldBox.parentNode) {
+        oldBox.parentNode.removeChild(oldBox);
+        console.log('[UI修復] 舊選單已移除');
+    }
+
+    // 2. 建立新的選單（不同 ID）
+    const panel = document.getElementById('towerPanel');
+    if (!panel) {
+        console.error('[UI修復] 找不到 towerPanel');
+        return;
+    }
+
+    const newBox = document.createElement('div');
+    newBox.id = 'branch-options-v2';
+    newBox.style.cssText = 'display:none; flex-direction:column; gap:8px; margin-top:8px; border-top:1px dashed #555; padding-top:8px; width:100%;';
+    newBox.innerHTML =
+        '<button class="btn-branch" data-branch="A">' +
+            '<div class="b-title" id="br-a-title">分支 A</div>' +
+            '<div class="b-desc" id="br-a-desc">描述...</div>' +
+        '</button>' +
+        '<button class="btn-branch" data-branch="B">' +
+            '<div class="b-title" id="br-b-title">分支 B</div>' +
+            '<div class="b-desc" id="br-b-desc">描述...</div>' +
+        '</button>';
+
+    // 把選單插到 towerPanel 裡面（和升級按鈕同層）
+    panel.appendChild(newBox);
+
+    // 3. 綁定點擊事件
+    newBox.querySelectorAll('.btn-branch').forEach(function(btn) {
+        btn.addEventListener('pointerdown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const branch = btn.dataset.branch;
+            if (typeof window.evolveSelectedTower === 'function') {
+                window.evolveSelectedTower(branch);
+            }
+            newBox.style.display = 'none';
+        }, { passive: false });
+    });
+
+    // 4. 進化資料（所有塔的文字）
+    const BRANCH_UI = {
+        green: {
+            A: { title: '🌿 分支 A：墨綠塔',
+                 desc: '攻擊 +150%、攻速 +50%、射程 +30%\n第 4 次攻擊發射貫穿彈（命中最多 3 名敵人）' },
+            B: { title: '🌟 分支 B：天狼之塔',
+                 desc: '攻擊 +25%、攻速 +25%\n耀粼光環：範圍內友方塔攻擊時 20% 機率附加【耀粼燃燒】（1% 最大生命 + 15% 攻擊，可疊 5 層）' },
+        },
+        purple: {
+            A: { title: '⚫ 分支 A：質量塔',
+                 desc: '引力奇點：每 3 秒產生奇點\n將附近敵人往中心拉扯（無傷害，純控場）' },
+            B: { title: '❄️ 分支 B：霜凍塔',
+                 desc: '寒霜硬控：命中疊加【寒霜】\n滿 5 層凍結敵人 1.8 秒（Boss 減半）' },
+        },
+        blue: {
+            A: { title: '⚡ 分支 A：電磁鏈塔',
+                 desc: '命中率 100%、攻速極快\n命中時施加【電磁網】（每秒 DOT，可疊 10 層）\n並連鎖到附近 2 名敵人' },
+            B: { title: '💥 分支 B：超頻藍塔',
+                 desc: '命中率提升至 10%\n秒殺成功時產生超頻脈衝\n對周圍敵人造成目標最大生命 20% 傷害' },
+        },
+        orange: {
+            A: { title: '☢️ 分支 A：聚能伽馬塔',
+                 desc: '單體融化：單光束持續聚焦\n傷害每秒增長 50%（最高 500%）' },
+            B: { title: '✨ 分支 B：超新星塔',
+                 desc: '全場擴散：鎖定主目標時\n向周圍小怪散射微型雷射' },
+        },
+        silver: {
+            A: { title: '🔥 分支 A：全金屬狂潮塔',
+                 desc: '滿級進 5 秒【過熱】子彈數翻倍\n過熱後緩慢降級' },
+            B: { title: '💨 分支 B：霰彈加特林塔',
+                 desc: '近戰掃射：超近距離扇形掃射\n等級越高彈丸越多角度越寬' },
+        },
+    };
+
+    // 5. 每幀檢測 UI
+    const EVOLVED_NAMES = ['墨綠塔', '天狼之塔', '質量塔', '霜凍塔', '電磁鏈塔', '超頻藍塔'];
+
+    function updateBranchUI() {
+        const box = document.getElementById('branch-options-v2');
+        if (!box) return;
+
+        const tower = typeof selectedTower !== 'undefined' ? selectedTower : null;
+        if (!tower) { box.style.display = 'none'; return; }
+
+        // 已進化的塔 → 隱藏
+        const name = tower.config && tower.config.name;
+        if (name && EVOLVED_NAMES.indexOf(name) >= 0) {
+            box.style.display = 'none';
+            return;
+        }
+
+        // 未滿 Lv.3 → 隱藏
+        if (tower.level < 3) { box.style.display = 'none'; return; }
+
+        // 找對應的進化資料
+        const data = BRANCH_UI[tower.type];
+        if (!data) { box.style.display = 'none'; return; }
+
+        // 顯示並更新文字
+        box.style.display = 'flex';
+        const tA = document.getElementById('br-a-title');
+        const dA = document.getElementById('br-a-desc');
+        const tB = document.getElementById('br-b-title');
+        const dB = document.getElementById('br-b-desc');
+        if (tA) tA.innerText = data.A.title;
+        if (dA) dA.innerText = data.A.desc;
+        if (tB) tB.innerText = data.B.title;
+        if (dB) dB.innerText = data.B.desc;
+    }
+
+    // 每 30ms 更新（和舊計時器同頻率，但我們操控的是新 ID）
+    setInterval(updateBranchUI, 30);
+
+    console.log('[UI修復] 新選單已接管');
+})();
+</script>
   
 </body>
 </html>
