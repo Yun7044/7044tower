@@ -13,6 +13,98 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>塔防</title>
 <style>
+
+/* 底部商店科技感改造 */
+#bottomBar {
+  background: linear-gradient(to top, rgba(10,10,20,0.98), rgba(20,20,35,0.8));
+  border-top: 1px solid rgba(100, 80, 150, 0.3);
+  padding: 8px 12px;
+  gap: 8px;
+}
+.shop-btn {
+  width: 50px; height: 50px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #1e1e3a 0%, #0f0f1f 100%);
+  border: 1px solid #3a3a6a;
+  position: relative;
+  transition: all 0.2s;
+}
+.shop-btn:hover { border-color: #ffd700; box-shadow: 0 0 12px rgba(255,215,0,0.4); transform: translateY(-2px); }
+.shop-btn.selected { border-color: #ffd700; box-shadow: 0 0 15px #ffd700; background: #2a2a4a; }
+.shop-btn.locked { opacity: 0.3; filter: grayscale(1); }
+.shop-btn .dot { width: 16px; height: 16px; border-radius: 4px; }
+.shop-btn .price { font-size: 9px; position: absolute; bottom: 2px; right: 4px; color: #ffd700; text-shadow: 0 0 3px #000; }
+
+/* 角標 */
+.shop-btn::after {
+  content: attr(data-tag);
+  position: absolute;
+  top: -6px; right: -6px;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 700;
+  display: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+.shop-btn[data-tag]:not([data-tag=""])::after { display: block; }
+  
+/* 戰鬥頂部欄 - 黑鈦金屬質感 */
+#topBar {
+  background: linear-gradient(180deg, rgba(10, 10, 20, 0.95) 0%, rgba(20, 20, 35, 0.8) 80%, transparent 100%);
+  border-bottom: 1px solid rgba(100, 80, 150, 0.4);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 8px 12px;
+  pointer-events: none;
+}
+.hud-panel { display: flex; gap: 10px; pointer-events: auto; }
+.hud-item { display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.5); border: 1px solid #33335a; border-radius: 6px; padding: 4px 8px; }
+.hud-label { font-size: 11px; color: #aaa; letter-spacing: 1px; { font-size: 14px; }
+.hud-value { font-size: 13px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+.hud-bar-bg { width: 60px; height: 8px; background: #111; border-radius: 4px; overflow: hidden; border: 1px solid #222; }
+.hud-bar-fill { height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); transition: width 0.3s; }
+.hud-bar-fill.wave { background: linear-gradient(90deg, #3498db, #2980b9); }
+.hud-controls { display: flex; gap: 6px; pointer-events: auto; }
+  
+/* 大廳頂部資訊 */
+.lobby-header { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; padding: 15px 20px; z-index: 10; pointer-events: none; }
+.player-info { display: flex; align-items: center; gap: 10px; pointer-events: auto; }
+.avatar-frame { width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, #2a1f3f, #15101f); border: 2px solid #ffd700; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 0 12px rgba(255,215,0,0.4); }
+.player-details { display: flex; flex-direction: column; gap: 2px; }
+.player-name { font-size: 14px; font-weight: 700; color: #fff; cursor: pointer; text-shadow: 0 0 8px rgba(255,215,0,0.5); }
+.player-level { font-size: 11px; color: #aaa; }
+.currency-bar { display: flex; gap: 10px; align-items: center; pointer-events: auto; }
+.currency-item { background: rgba(20, 20, 40, 0.8); border: 1px solid #4a3a6a; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; color: #ffd700; display: flex; gap: 4px; }
+.lobby-settings { background: none; border: none; font-size: 20px; cursor: pointer; color: #aaa; }
+
+/* 星球巡航模式 */
+.planet-selector { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; margin-top: -20px; z-index: 5; flex: 1; }
+.planet-info { text-align: center; }
+.planet-info h3 { font-size: 24px; color: #fff; letter-spacing: 4px; margin-bottom: 4px; text-shadow: 0 0 15px rgba(255,255,255,0.5); }
+.planet-info p { font-size: 12px; color: #aaa; letter-spacing: 1px; }
+.planet-info .record { font-size: 12px; color: #ffd700; margin-top: 5px; }
+.planet-display { display: flex; align-items: center; gap: 30px; }
+.planet-arrow { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: #fff; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 18px; transition: 0.2s; }
+.planet-arrow:hover { background: rgba(255,255,255,0.3); transform: scale(1.1); }
+.planet-sphere { width: 160px; height: 160px; border-radius: 50%; position: relative; transition: all 0.5s ease; }
+.planet-sphere.easy { background: radial-gradient(circle at 30% 30%, #b8ffd8, #2ecc71, #0a5030); box-shadow: 0 0 40px rgba(46,204,113,0.6), inset -20px -20px 50px rgba(0,0,0,0.8); animation: rotatePlanet 20s linear infinite; }
+.planet-sphere.normal { background: radial-gradient(circle at 30% 30%, #fff2a8, #f1c40f, #8a6a1a); box-shadow: 0 0 40px rgba(241,196,15,0.6), inset -20px -20px 50px rgba(0,0,0,0.8); animation: rotatePlanet 20s linear infinite; }
+.planet-sphere.hard { background: radial-gradient(circle at 30% 30%, #ffb8b8, #e74c3c, #7b1f1f); box-shadow: 0 0 40px rgba(231,76,60,0.6), inset -20px -20px 50px rgba(0,0,0,0.8); animation: rotatePlanet 20s linear infinite; }
+@keyframes rotatePlanet { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+.planet-indicators { display: flex; gap: 10px; }
+.indicator { width: 10px; height: 10px; border-radius: 50%; background: #333; transition: 0.3s; cursor: pointer; }
+.indicator.active { background: #ffd700; box-shadow: 0 0 10px #ffd700; }
+.launch-btn { background: linear-gradient(135deg, #e67e22, #d35400); border: 2px solid #ffd700; color: #fff; font-size: 18px; padding: 14px 40px; border-radius: 30px; margin-top: 15px; box-shadow: 0 0 20px rgba(230,126,34,0.6); }
+.launch-btn:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,215,0,0.8); }
+
+/* 底部 Dock */
+.lobby-dock { position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 15px; padding: 15px; background: linear-gradient(to top, rgba(10,10,20,0.95), transparent); z-index: 10; }
+.dock-btn { background: rgba(20, 20, 40, 0.9); border: 1px solid #4a3a6a; color: #ccc; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; transition: 0.2s; }
+.dock-btn:hover { border-color: #ffd700; color: #ffd700; background: rgba(255,215,0,0.1); transform: translateY(-3px); }
+  
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
     width: 100%; height: 100%; overflow: hidden;
@@ -1149,16 +1241,62 @@
 <canvas id="game" width="960" height="540"></canvas>
 
 <div id="mainMenu" class="show">
+  <!-- 頂部玩家資訊欄 -->
+  <div class="lobby-header">
+    <div class="player-info">
+      <div class="avatar-frame">👤</div>
+      <div class="player-details">
+        <div class="player-name" id="playerNameEl">載入中...</div>
+        <div class="player-level">Lv. <span id="playerLevel">1</span></div>
+      </div>
+    </div>
+    <div class="currency-bar">
+      <div class="currency-item">💰 <span id="lobbyGold">0</span></div>
+      <div class="currency-item">💎 <span id="lobbyDiamond">0</span></div>
+      <button class="lobby-settings" id="settingsBtn">⚙️</button>
+    </div>
+  </div>
 
-<div class="menu-deco" aria-hidden="true">
-  <i style="left:6%;  width:6px;height:6px;animation-duration:15s;animation-delay:0s;   --dx:34px"></i>
-  <i style="left:19%; width:4px;height:4px;animation-duration:19s;animation-delay:2.5s; --dx:-26px"></i>
-  <i style="left:33%; width:7px;height:7px;animation-duration:13s;animation-delay:5s;   --dx:44px"></i>
-  <i style="left:47%; width:5px;height:5px;animation-duration:21s;animation-delay:1.2s; --dx:-38px"></i>
-  <i style="left:61%; width:4px;height:4px;animation-duration:17s;animation-delay:7.5s; --dx:28px"></i>
-  <i style="left:74%; width:6px;height:6px;animation-duration:14s;animation-delay:3.8s; --dx:-32px"></i>
-  <i style="left:86%; width:5px;height:5px;animation-duration:20s;animation-delay:9s;   --dx:36px"></i>
-  <i style="left:94%; width:3px;height:3px;animation-duration:23s;animation-delay:6s;   --dx:-20px"></i>
+  <!-- 中央星球巡航選擇區 -->
+  <div class="planet-selector">
+    <div class="planet-info" id="planetInfo">
+      <h3 id="planetTitle">簡單模式</h3>
+      <p id="planetDesc">共 30 關 ｜ 適合新手</p>
+      <div class="record" id="recEasy">載入中...</div>
+    </div>
+    
+    <div class="planet-display">
+      <button class="planet-arrow" id="prevPlanet">◀</button>
+      <div class="planet-sphere easy" id="planetSphere"></div>
+      <button class="planet-arrow" id="nextPlanet">▶</button>
+    </div>
+
+    <div class="planet-indicators">
+      <span class="indicator active" data-diff="easy"></span>
+      <span class="indicator" data-diff="normal"></span>
+      <span class="indicator" data-diff="hard"></span>
+    </div>
+
+    <button class="menu-action launch-btn" id="launchBtn">🚀 開始巡航</button>
+  </div>
+
+<button class="shop-btn" data-type="white" data-tag="熱門"><div class="dot"></div><div class="price">10</div></button>
+<button class="shop-btn locked" data-type="green" data-tag="均衡"><div class="dot"></div><div class="price">20</div></button>
+<button class="shop-btn locked" data-type="blue" data-tag="秒殺"><div class="dot"></div><div class="price">35</div></button>
+<button class="shop-btn" data-type="purple" data-tag="控場"><div class="dot"></div><div class="price">50</div></button>
+<button class="shop-btn" data-type="magenta" data-tag="賭徒"><div class="dot"></div><div class="price">55</div></button>
+<button class="shop-btn locked" data-type="orange" data-tag="AOE"><div class="dot"></div><div class="price">65</div></button>
+<button class="shop-btn" data-type="amethyst" data-tag="爆擊"><div class="dot"></div><div class="price">70</div></button>
+<button class="shop-btn" data-type="jade" data-tag="爆傷"><div class="dot"></div><div class="price">85</div></button>
+<button class="shop-btn" data-type="silver" data-tag="成長"><div class="dot"></div><div class="price">100</div></button>
+<button class="shop-btn" data-type="fireArrow" data-tag="打王"><div class="dot"></div><div class="price">120</div></button>
+  
+  <!-- 底部 Dock 欄 -->
+  <div class="lobby-dock">
+    <button class="dock-btn" id="tutorialBtn">📖 教學</button>
+    <button class="dock-btn" id="towerCodexBtn">📚 塔種圖鑑</button>
+    <button class="dock-btn" id="viewLeaderboardBtn">🏆 排行榜</button>
+  </div>
 </div>
   
   <h1>塔防</h1>
@@ -1221,18 +1359,38 @@
 </div>
 
 <div id="topBar">
-  <div class="stat">💰 <span id="money">100</span></div>
-  <div class="stat">❤️ <span id="lives">20</span></div>
-  <div class="stat">🌊 <span id="wave">0</span></div>
-  <div class="stat">🏗 <span id="towerCount">0</span>/15</div>
-  <button id="emuBtn" class="topBtn">🖱</button>
-  <button id="speedBtn" class="topBtn">⏩ x1</button>
-  <button id="musicBtn" class="topBtn">🎵</button>
-  <button id="muteBtn" class="topBtn">🔊</button>
-  <button id="statsBtn" class="topBtn">📊</button>
-  <button id="removeBtn" class="topBtn">🗑</button>
-  <button id="restartBtn" class="topBtn">🔄</button>
-  <button id="homeBtn" class="topBtn">🏠</button>
+  <!-- 左側：防禦狀態 -->
+  <div class="hud-panel">
+    <div class="hud-item">
+      <span class="hud-label">護盾</span>
+      <div class="hud-bar-bg"><div class="hud-bar-fill" id="livesBar" style="width: 100%;"></div></div>
+      <span class="hud-value" id="livesText">20</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">波次</span>
+      <div class="hud-bar-bg"><div class="hud-bar-fill wave" id="waveBar" style="width: 0%;"></div></div>
+      <span class="hud-value" id="waveText">0/30</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-icon">💰</span><span class="hud-value" id="money">100</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-icon">🏗</span><span class="hud-value"><span id="towerCount">0</span>/15</span>
+    </div>
+  </div>
+  
+  <!-- 右側：快捷按鈕 -->
+  <div class="hud-controls">
+    <button id="emuBtn" class="topBtn">🖱</button>
+    <button id="speedBtn" class="topBtn">⏩ x1</button>
+    <button id="musicBtn" class="top }
+Btn">🎵</button>
+    <button id="mute.hBtn" class="topBtn">🔊</udbutton>
+    <button id="statsBtn" class="-icontopBtn">📊</button>
+    <button id="removeBtn" class="topBtn">🗑</button>
+    <button id="restartBtn" class="topBtn">🔄</button>
+    <button id="homeBtn" class="topBtn">🏠</button>
+  </div>
 </div>
 
 <div id="statsPanel" class="hidden">
@@ -2036,10 +2194,82 @@ function log(msg, ms) {
 }
 function updateUI() {
   moneyEl.textContent = Math.floor(money);
-  livesEl.textContent = lives;
-  waveEl.textContent = wave;
-  towerCountEl.textContent = SPOTS.filter(function(s) { return s.tower; }).length;
+  
+  // 更新護盾條
+  const maxLives = DIFFICULTIES[currentDifficulty]?.startLives || 20;
+  const livesPct = Math.max(0, (lives / maxLives) * 100);
+  document.getElementById('livesBar').style.width = livesPct + '%';
+  document.getElementById('livesBar').style.background = livesPct > 50 ? 'linear-gradient(90deg, #2ecc71, #27ae60)' : (livesPct > 20 ? 'linear-gradient(90deg, #f1c40f, #f39c12)' : 'linear-gradient(90deg, #e74c3c, #c0392b)');
+  document.getElementById('livesText').textContent = lives;
+  
+  // 更新波次條
+  const maxWave = DIFFICULTIES[currentDifficulty]?.maxWave || 30;
+  const wavePct = Math.min(100, (wave / maxWave) * 100);
+  document.getElementById('waveBar').style.width = wavePct + '%';
+  document.getElementById('waveText').textContent = wave + '/' + maxWave;
+  
+  // 更新塔數量
+  document.getElementById('towerCount').textContent = SPOTS.filter(function(s) { return s.tower; }).length;
 }
+
+// ============ 傷害跳字系統 ============
+let floatingTexts = [];
+
+function spawnFloatingText(x, y, text, color, size, isCrit = false) {
+  floatingTexts.push({
+    x: x, y: y,
+    text: text,
+    color: color,
+    size: size || 14,
+    life: isCrit ? 1.0 : 0.7,
+    maxLife: isCrit ? 1.0 : 0.7,
+    vy: -50 - Math.random() * 20,
+    vx: (Math.random() - 0.5) * 40,
+    isCrit: isCrit
+  });
+}
+
+// 修改 Enemy.prototype.takeDamage
+const _origTakeDamage = Enemy.prototype.takeDamage;
+Enemy.prototype.takeDamage = function(amount) {
+  const actual = _origTakeDamage.call(this, amount);
+  if (actual > 0) {
+    const p = this.getPos();
+    // 判斷是否為暴擊 (可以根據傷害大小或隨機判斷，這裡簡單用隨機)
+    const isCrit = Math.random() < 0.15; // 15% 機率顯示暴擊特效，你可以根據塔的 critRate 來傳入
+    const dmgText = isCrit ? 'CRITICAL ' + Math.floor(actual) : Math.floor(actual);
+    const color = isCrit ? '#ff4500' : '#ffffff';
+    const size = isCrit ? 20 : 14;
+    spawnFloatingText(p.x, p.y - 15, dmgText, color, size, isCrit);
+  }
+  return actual;
+};
+
+// 在 gameLoop 中更新和繪製跳字
+// 找到 function gameLoop(timestamp) { ... }
+// 在繪製敵人之前加入：
+if (typeof floatingTexts !== 'undefined') {
+  for (let i = floatingTexts.length - 1; i >= 0; i--) {
+    const ft = floatingTexts[i];
+    ft.life -= dt;
+    if (ft.life <= 0) { floatingTexts.splice(i, 1); continue; }
+    ft.x += ft.vx * dt;
+    ft.y += ft.vy * dt;
+    ft.vy += 80 * dt; // 重力
+    
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, ft.life / (ft.maxLife * 0.5));
+    ctx.font = 'bold ' + ft.size + 'px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = ft.color;
+    ctx.shadowColor = ft.isCrit ? '#ff0000' : '#000';
+    ctx.shadowBlur = ft.isCrit ? 10 : 3;
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.restore();
+  }
+}
+  
 function getUpgradeCost(tower) {
   const baseCost = TOWER_TYPES[tower.type].baseCost || 50;
   return Math.floor(baseCost * tower.level * 1.5);
@@ -2108,6 +2338,54 @@ function loadGame() {
 }
 function clearSave() { try { localStorage.removeItem(getSaveKey()); } catch (e) {} }
 
+// ============ 大廳星球選擇邏輯 ============
+let selectedDiff = 'easy';
+const diffData = {
+  easy: { title: '簡單模式', desc: '共 30 關 ｜ 適合新手', className: 'easy' },
+  normal: { title: '普通模式', desc: '共 50 關 ｜ 標準挑戰', className: 'normal' },
+  hard: { title: '困難模式', desc: '共 100 關 ｜ 給勇者', className: 'hard' }
+};
+
+function updatePlanetUI(diff) {
+  selectedDiff = diff;
+  const data = diffData[diff];
+  document.getElementById('planetTitle').textContent = data.title;
+  document.getElementById('planetDesc').textContent = data.desc;
+  
+  const sphere = document.getElementById('planetSphere');
+  sphere.className = 'planet-sphere ' + data.className;
+  
+  document.querySelectorAll('.indicator').forEach(el => {
+    el.classList.toggle('active', el.dataset.diff === diff);
+  });
+}
+
+document.getElementById('prevPlanet')?.addEventListener('click', () => {
+  const order = ['easy', 'normal', 'hard'];
+  let idx = order.indexOf(selectedDiff) - 1;
+  if (idx < 0) idx = order.length - 1;
+  updatePlanetUI(order[idx]);
+});
+
+document.getElementById('nextPlanet')?.addEventListener('click', () => {
+  const order = ['easy', 'normal', 'hard'];
+  let idx = order.indexOf(selectedDiff) + 1;
+  if (idx >= order.length) idx = 0;
+  updatePlanetUI(order[idx]);
+});
+
+document.querySelectorAll('.indicator').forEach(el => {
+  el.addEventListener('click', () => updatePlanetUI(el.dataset.diff));
+});
+
+document.getElementById('launchBtn')?.addEventListener('click', () => {
+  initAudio();
+  startGame(selectedDiff);
+});
+
+// 隱藏原本的難度按鈕（如果還有殘留的話，可以直接在HTML刪除，或這裡隱藏）
+document.querySelectorAll('.diff-btn').forEach(btn => btn.style.display = 'none');
+  
 // ============ 遊戲流程 ============
 function startGame(difficulty) {
   currentDifficulty = difficulty;
@@ -4511,73 +4789,34 @@ function drawMountains() {
  
 function drawPath() {
   ctx.save();
-
-  // === 外層紫色光暈（最寬、最透明）===
+  // 外層光暈
   ctx.beginPath();
   ctx.moveTo(PATH[0].x, PATH[0].y);
   for (let i = 1; i < PATH.length; i++) ctx.lineTo(PATH[i].x, PATH[i].y);
-  ctx.strokeStyle = 'rgba(140, 80, 220, 0.18)';
+  ctx.strokeStyle = 'rgba(140, 80, 220, 0.15)';
   ctx.lineWidth = 58;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.stroke();
 
-  // === 中層紫色光暈 ===
-  ctx.strokeStyle = 'rgba(160, 100, 240, 0.30)';
-  ctx.lineWidth = 48;
-  ctx.stroke();
-
-  // === 石頭路面（深灰帶微紫）===
+  // 中層能量導軌
   ctx.strokeStyle = '#2a2438';
   ctx.lineWidth = 38;
   ctx.stroke();
 
-  // === 路面上的石紋（短線交錯）===
-  ctx.strokeStyle = 'rgba(70, 60, 100, 0.5)';
-  ctx.lineWidth = 1.5;
-  for (let i = 0; i < PATH.length - 1; i++) {
-    const a = PATH[i], b = PATH[i + 1];
-    const len = Math.hypot(b.x - a.x, b.y - a.y);
-    const angle = Math.atan2(b.y - a.y, b.x - a.x);
-    const perpX = -Math.sin(angle), perpY = Math.cos(angle);
-    const segLen = 22;
-    const numSegs = Math.floor(len / segLen);
-    for (let j = 0; j < numSegs; j++) {
-      const t = (j + 0.5) / numSegs;
-      const cx = a.x + (b.x - a.x) * t;
-      const cy = a.y + (b.y - a.y) * t;
-      const halfW = 16;
-      ctx.beginPath();
-      ctx.moveTo(cx - perpX * halfW, cy - perpY * halfW);
-      ctx.lineTo(cx + perpX * halfW, cy + perpY * halfW);
-      ctx.stroke();
-    }
-  }
-
-  // === 內層發光邊（紫色亮線）===
+  // 流動的能量光點
   ctx.strokeStyle = 'rgba(180, 120, 255, 0.8)';
   ctx.lineWidth = 3;
   ctx.shadowColor = '#a060ff';
   ctx.shadowBlur = 12;
+  ctx.setLineDash([20, 30]);
+  ctx.lineDashOffset = -(performance.now() / 30) % 50;
   ctx.stroke();
-  ctx.shadowBlur = 0;
 
-  // === 金塔履帶 ===
-  if (hasGoldTower) {
-    ctx.save();
-    ctx.setLineDash([12, 18]);
-    ctx.lineDashOffset = (performance.now() / 25) % 30;
-    ctx.strokeStyle = 'rgba(200, 150, 20, 0.55)';
-    ctx.lineWidth = 38;
-    ctx.stroke();
-
-    ctx.setLineDash([6, 24]);
-    ctx.lineDashOffset = (performance.now() / 25) % 30;
-    ctx.strokeStyle = 'rgba(255, 215, 0, 0.75)';
-    ctx.lineWidth = 10;
-    ctx.stroke();
-    ctx.restore();
-  }
+  // 內層亮線
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([]);
+  ctx.stroke();
 
   ctx.restore();
 }
@@ -4642,12 +4881,30 @@ function drawSpot(spot) {
     return;
   }
 
-  // 普通格子：暗色六邊形石塊
+  // 普通格子：金屬質感六邊形
   drawHexSpot(x, y, half, {
-    fill1: '#2a2438', fill2: '#15101f',
+    fill1: '#1a1a2e', fill2: '#0a0a14',
     stroke: '#4a3a6a',
-    glow: 'rgba(90, 60, 140, 0.4)',
+    glow: 'rgba(90, 60, 140, 0.2)',
   });
+  
+  // 待機呼吸燈
+  if (!spot.tower) {
+    const pulse = 0.3 + 0.7 * Math.abs(Math.sin(performance.now() / 800 + spot.col + spot.row));
+    ctx.save();
+    ctx.strokeStyle = 'rgba(100, 150, 255, ' + (pulse * 0.4) + ')';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 3;
+      const px = x + Math.cos(a) * (half * 0.8);
+      const py = y + Math.sin(a) * (half * 0.8);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 // 通用六邊形繪製
