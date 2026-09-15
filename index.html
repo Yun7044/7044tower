@@ -6363,6 +6363,694 @@ function checkShowBranchUI(tower) {
     console.log('[進化] 藍塔進化系統載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 橙塔進化系統
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[進化] 橙塔進化系統載入中...');
+
+    const _evo = new WeakMap();
+    function getEvo(t) {
+        if (!t) return null;
+        if (!_evo.has(t)) {
+            _evo.set(t, {
+                evolution: null,
+                baseType: t.type,
+                baseConfig: t.config,
+                focusTarget: null,
+                focusTime: 0,
+            });
+        }
+        return _evo.get(t);
+    }
+
+    // ============ 包裝 BeamTower.update ============
+    const _prevUpdate = BeamTower.prototype.update;
+    BeamTower.prototype.update = function(dt) {
+        const st = getEvo(this);
+        if (!st.evolution || st.baseType !== 'orange') {
+            return _prevUpdate.call(this, dt);
+        }
+
+        this.pulse += dt;
+        if (this.hastedTimer > 0) this.hastedTimer -= dt;
+        const dm = this.hastedTimer > 0 ? 3 : 1;
+
+        // ============ 分支 A：聚能伽馬塔 ============
+        if (st.evolution === 'A') {
+            // 找範圍內血量最高的敵人
+            let best = null, bestHp = -1;
+            for (let i = 0; i < enemies.length; i++) {
+                const e = enemies[i];
+                if (!e.alive) continue;
+                if (e.hp > bestHp) { bestHp = e.hp; best = e; }
+            }
+
+            if (!best) {
+                st.focusTarget = null;
+                st.focusTime = 0;
+                this.beamTargets = [];
+                return;
+            }
+
+            // 目標改變則重置
+            if (st.focusTarget !== best) {
+                st.focusTarget = best;
+                st.focusTime = 0;
+            }
+            st.focusTime += dt;
+
+            // 每秒 +50%，最高 ×6（即 +500%）
+            const mult = Math.min(6, 1 + st.focusTime * 0.5);
+            const dps = this.dps * mult * dm;
+
+            this.beamTargets = [best];
+            const actual = best.takeDamage(dps * dt);
+            if (actual > 0) addDamage('orange', actual);
+            return;
+        }
+
+        // ============ 分支 B：超新星塔 ============
+        if (st.evolution === 'B') {
+            // 主邏輯走原版
+            this.reacquireTimer -= dt;
+            if (this.reacquireTimer <= 0) {
+                this.beamTargets = this.pickRandom(this.beamCount);
+                this.reacquireTimer = this.config.reacquireInterval;
+            }
+            this.beamTargets = this.beamTargets.filter(function(e) { return e.alive; });
+
+            for (let i = 0; i < this.beamTargets.length; i++) {
+                const target = this.beamTargets[i];
+                const actual = target.takeDamage(this.dps * dt * dm);
+                addDamage('orange', actual);
+            }
+
+            // 額外：對每個鎖定目標周圍散射微型雷射
+            for (let i = 0; i < this.beamTargets.length; i++) {
+                const main = this.beamTargets[i];
+                if (!main.alive) continue;
+                const mp = main.getPos();
+                for (let j = 0; j < enemies.length; j++) {
+                    const e = enemies[j];
+                    if (!e.alive || e === main) continue;
+                    const p = e.getPos();
+                    const d = Math.hypot(p.x - mp.x, p.y - mp.y);
+                    if (d <= 100) {
+                        const actual = e.takeDamage(this.dps * 0.5 * dt * dm);
+                        if (actual > 0) addDamage('orange', actual);
+                    }
+                }
+            }
+            return;
+        }
+
+        _prevUpdate.call(this, dt);
+    };
+
+    // ============ 進化外觀 ============
+    function drawOrangeEvolvedIcon(branch, x, y, size) {
+        ctx.save();
+        const s = size;
+        if (branch === 'A') {
+            // 聚能伽馬塔：橘紅色聚焦水晶 + 核心放射
+            const h = s * 0.44, w = s * 0.22;
+            const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 150);
+            ctx.shadowColor = '#ff4500';
+            ctx.shadowBlur = 25;
+            ctx.beginPath();
+            ctx.moveTo(x, y - h);
+            ctx.lineTo(x + w, y - h * 0.3);
+            ctx.lineTo(x + w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w, y - h * 0.3);
+            ctx.closePath();
+            const g = ctx.createLinearGradient(x, y - h, x, y + h);
+            g.addColorStop(0, '#ffe0a0');
+            g.addColorStop(0.4, '#ff4500');
+            g.addColorStop(1, '#4a1200');
+            ctx.fillStyle = g;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#ffd0a0';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            // 中心核
+            ctx.fillStyle = 'rgba(255, 255, 200, ' + pulse + ')';
+            ctx.shadowColor = '#ffcc00';
+            ctx.shadowBlur = 18 * pulse;
+            ctx.beginPath();
+            ctx.arc(x, y, 5 + pulse * 3, 0, Math.PI * 2);
+            ctx.fill();
+            // 聚焦光環
+            ctx.strokeStyle = 'rgba(255, 140, 60, ' + (0.5 + pulse * 0.4) + ')';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, s * 0.35 + pulse * 4, 0, Math.PI * 2);
+            ctx.stroke();
+        } else {
+            // 超新星塔：橘金色 + 星芒
+            const h = s * 0.44, w = s * 0.22;
+            ctx.shadowColor = '#ff8c00';
+            ctx.shadowBlur = 25;
+            ctx.beginPath();
+            ctx.moveTo(x, y - h);
+            ctx.lineTo(x + w, y - h * 0.3);
+            ctx.lineTo(x + w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w, y - h * 0.3);
+            ctx.closePath();
+            const g = ctx.createLinearGradient(x, y - h, x, y + h);
+            g.addColorStop(0, '#fff8c0');
+            g.addColorStop(0.4, '#ff8c00');
+            g.addColorStop(1, '#6a2800');
+            ctx.fillStyle = g;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#ffe0a0';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            // 旋轉星芒
+            const spin = performance.now() / 400;
+            ctx.strokeStyle = 'rgba(255, 220, 140, 0.9)';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#ffcc00';
+            ctx.shadowBlur = 12;
+            for (let i = 0; i < 8; i++) {
+                const a = i * Math.PI / 4 + spin;
+                const r1 = s * 0.32;
+                const r2 = s * 0.46;
+                ctx.beginPath();
+                ctx.moveTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1);
+                ctx.lineTo(x + Math.cos(a) * r2, y + Math.sin(a) * r2);
+                ctx.stroke();
+            }
+        }
+        ctx.restore();
+    }
+
+    const _prevDrawBody = BeamTower.prototype.drawBody;
+    BeamTower.prototype.drawBody = function(x, y, alpha) {
+        const st = getEvo(this);
+        if (st.evolution && st.baseType === 'orange') {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            const color = st.evolution === 'A' ? '#ff4500' : '#ff8c00';
+            drawTowerBase(x, y, color, true);
+            ctx.restore();
+            drawOrangeEvolvedIcon(st.evolution, x, y, 70);
+            return;
+        }
+        _prevDrawBody.call(this, x, y, alpha);
+    };
+
+    // 包裝 draw：顯示聚能時間 / 超新星散射光
+    const _prevDraw = BeamTower.prototype.draw;
+    BeamTower.prototype.draw = function() {
+        const st = getEvo(this);
+        if (st.evolution === 'A' && st.focusTarget && st.focusTarget.alive && st.focusTime > 0) {
+            const t = st.focusTarget.getPos();
+            const mult = Math.min(6, 1 + st.focusTime * 0.5);
+            const intensity = (mult - 1) / 5;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, ' + Math.floor(120 + intensity * 135) + ', 60, ' + (0.5 + intensity * 0.5) + ')';
+            ctx.lineWidth = 4 + intensity * 6;
+            ctx.shadowColor = '#ff4500';
+            ctx.shadowBlur = 15 + intensity * 20;
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y);
+            ctx.lineTo(t.x, t.y);
+            ctx.stroke();
+            ctx.restore();
+        }
+        if (st.evolution === 'B') {
+            for (let i = 0; i < this.beamTargets.length; i++) {
+                const main = this.beamTargets[i];
+                if (!main.alive) continue;
+                const mp = main.getPos();
+                ctx.save();
+                ctx.strokeStyle = 'rgba(255, 200, 100, 0.5)';
+                ctx.lineWidth = 1.5;
+                ctx.shadowColor = '#ffaa00';
+                ctx.shadowBlur = 8;
+                for (let j = 0; j < enemies.length; j++) {
+                    const e = enemies[j];
+                    if (!e.alive || e === main) continue;
+                    const p = e.getPos();
+                    if (Math.hypot(p.x - mp.x, p.y - mp.y) <= 100) {
+                        ctx.beginPath();
+                        ctx.moveTo(mp.x, mp.y);
+                        ctx.lineTo(p.x, p.y);
+                        ctx.stroke();
+                    }
+                }
+                ctx.restore();
+            }
+        }
+        _prevDraw.call(this);
+    };
+
+    // ============ 進化判定 & 執行 ============
+    function canEvolve(t) {
+        if (!t) return false;
+        const st = getEvo(t);
+        return !st.evolution && st.baseType === 'orange' && t.level >= 3;
+    }
+
+    function doOrangeEvolve(branch) {
+        const t = selectedTower;
+        if (!t || !canEvolve(t)) return;
+        const st = getEvo(t);
+        st.evolution = branch;
+        if (branch === 'A') {
+            t.config = Object.assign({}, st.baseConfig, { name: '聚能伽馬塔', color: '#ff4500' });
+            log('☢️ 橙塔進化為【聚能伽馬塔】！', 3000);
+        } else {
+            t.config = Object.assign({}, st.baseConfig, { name: '超新星塔', color: '#ff8c00' });
+            log('✨ 橙塔進化為【超新星塔】！', 3000);
+        }
+        sfxUpgrade();
+        updateUI();
+        updateTowerPanel();
+        saveGame();
+    }
+
+    const _prevEvolve = window.evolveSelectedTower;
+    window.evolveSelectedTower = function(branch) {
+        if (!selectedTower) return;
+        const st = getEvo(selectedTower);
+        if (st.baseType === 'orange') doOrangeEvolve(branch);
+        else if (typeof _prevEvolve === 'function') _prevEvolve(branch);
+    };
+
+    console.log('[進化] 橙塔進化系統載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 銀塔進化系統
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[進化] 銀塔進化系統載入中...');
+
+    const _evo = new WeakMap();
+    function getEvo(t) {
+        if (!t) return null;
+        if (!_evo.has(t)) {
+            _evo.set(t, {
+                evolution: null,
+                baseType: t.type,
+                baseConfig: t.config,
+                overheat: null,
+            });
+        }
+        return _evo.get(t);
+    }
+
+    // ============ 霰彈彈丸 ============
+    function ShotgunPellet(tower, target, angleOffset, level) {
+        this.x = tower.x;
+        this.y = tower.y;
+        const tp = target.getPos();
+        const baseAngle = Math.atan2(tp.y - this.y, tp.x - this.x);
+        this.angle = baseAngle + angleOffset;
+        this.speed = 900;
+        this.range = 170;
+        this.distance = 0;
+        this.damage = 5 + (level - 1) * 2.5;
+        this.alive = true;
+        this.towerType = 'silver';
+        this.critRate = tower.critRate || 0;
+        this.critDamage = tower.critDamage || 2.0;
+    }
+    ShotgunPellet.prototype.update = function(dt) {
+        if (!this.alive) return;
+        const move = this.speed * dt;
+        this.x += Math.cos(this.angle) * move;
+        this.y += Math.sin(this.angle) * move;
+        this.distance += move;
+        if (this.distance >= this.range) { this.alive = false; return; }
+
+        for (let i = 0; i < enemies.length; i++) {
+            const e = enemies[i];
+            if (!e.alive) continue;
+            const p = e.getPos();
+            const r = e.isBoss ? 22 : 14;
+            if (Math.hypot(p.x - this.x, p.y - this.y) <= r) {
+                let dmg = this.damage;
+                if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
+                const actual = e.takeDamage(dmg);
+                if (actual > 0) addDamage('silver', actual);
+                this.alive = false;
+                sfxHit();
+                return;
+            }
+        }
+    };
+    ShotgunPellet.prototype.draw = function() {
+        if (!this.alive) return;
+        ctx.save();
+        ctx.fillStyle = '#fff4b0';
+        ctx.shadowColor = '#ffcc00';
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    };
+
+    // ============ 包裝 SilverTower.update ============
+    const _prevUpdate = SilverTower.prototype.update;
+    SilverTower.prototype.update = function(dt) {
+        const st = getEvo(this);
+        if (!st.evolution || st.baseType !== 'silver') {
+            return _prevUpdate.call(this, dt);
+        }
+
+        this.pulse += dt;
+        this.fireFlash = Math.max(0, this.fireFlash - dt * 5);
+
+        // ============ 分支 A：全金屬狂潮塔 ============
+        if (st.evolution === 'A') {
+            // 檢查過熱觸發
+            if (this.level >= this.config.maxLevel && (!st.overheat || st.overheat.timer <= 0) && !st.overheatCooldown) {
+                st.overheat = { timer: 5.0 };
+                log('🔥 全金屬狂潮：過熱啟動！', 2000);
+            }
+
+            if (st.overheat && st.overheat.timer > 0) {
+                st.overheat.timer -= dt;
+                this.idleTimer = 0;
+                if (st.overheat.timer <= 0) {
+                    st.overheat = null;
+                    st.overheatCooldown = 2.0; // 過熱後緩衝
+                }
+            } else {
+                if (st.overheatCooldown > 0) st.overheatCooldown -= dt;
+                this.idleTimer += dt;
+                if (this.idleTimer >= this.config.decayTime) {
+                    this.idleTimer = 0;
+                    if (this.level > 1) this.level--;
+                }
+            }
+
+            this.cooldown -= dt;
+            if (this.cooldown > 0) return;
+
+            const bulletCount = (st.overheat && st.overheat.timer > 0) ? this.level * 2 : this.level;
+            const targets = this.findTargets(bulletCount);
+            if (targets.length === 0) return;
+            this.fire(targets);
+            this.cooldown = this.config.fireInterval;
+            this.idleTimer = 0;
+            this.attackCount++;
+            if (this.attackCount >= this.config.attacksPerLevel) {
+                this.attackCount = 0;
+                if (this.level < this.config.maxLevel) this.level++;
+            }
+            return;
+        }
+
+        // ============ 分支 B：霰彈加特林塔 ============
+        if (st.evolution === 'B') {
+            this.idleTimer += dt;
+            if (this.idleTimer >= this.config.decayTime) {
+                this.idleTimer = 0;
+                if (this.level > 1) this.level--;
+            }
+
+            this.cooldown -= dt;
+            if (this.cooldown > 0) return;
+
+            // 找最近的敵人
+            let best = null, bestD = Infinity;
+            for (let i = 0; i < enemies.length; i++) {
+                const e = enemies[i];
+                if (!e.alive) continue;
+                const p = e.getPos();
+                const d = Math.hypot(p.x - this.x, p.y - this.y);
+                if (d < bestD) { bestD = d; best = e; }
+            }
+            if (!best || bestD > 250) return;
+
+            const count = Math.min(4 + this.level, 14);
+            const spread = 0.4 + Math.min(this.level, 8) * 0.12;
+            for (let i = 0; i < count; i++) {
+                const offset = count > 1 ? (i / (count - 1) - 0.5) * spread : 0;
+                bullets.push(new ShotgunPellet(this, best, offset, this.level));
+            }
+            this.fireFlash = 1;
+            this.cooldown = this.config.fireInterval;
+            this.idleTimer = 0;
+            this.attackCount++;
+            if (this.attackCount >= this.config.attacksPerLevel) {
+                this.attackCount = 0;
+                if (this.level < this.config.maxLevel) this.level++;
+            }
+            sfxShoot();
+            return;
+        }
+
+        _prevUpdate.call(this, dt);
+    };
+
+    // ============ 進化外觀 ============
+    function drawSilverEvolvedIcon(branch, x, y, size) {
+        ctx.save();
+        const s = size;
+        if (branch === 'A') {
+            // 全金屬狂潮塔：金屬堆疊 + 紅色核心
+            for (let k = 2; k >= 0; k--) {
+                const scale = 1 - k * 0.15;
+                const yOff = -k * s * 0.04;
+                const h = s * 0.18 * scale;
+                const w = s * 0.22 * scale;
+                ctx.beginPath();
+                ctx.moveTo(x, y - h + yOff);
+                ctx.lineTo(x - w, y + yOff - h * 0.2);
+                ctx.lineTo(x - w, y + h * 0.6 + yOff);
+                ctx.lineTo(x + w, y + h * 0.6 + yOff);
+                ctx.lineTo(x + w, y + yOff - h * 0.2);
+                ctx.closePath();
+                const g = ctx.createLinearGradient(x - w, y - h + yOff, x + w, y + h + yOff);
+                g.addColorStop(0, '#f0f0f0');
+                g.addColorStop(0.5, '#909090');
+                g.addColorStop(1, '#404040');
+                ctx.fillStyle = g;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+            }
+            // 紅色核心
+            const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 100);
+            ctx.shadowColor = '#ff2020';
+            ctx.shadowBlur = 20 * pulse;
+            ctx.fillStyle = 'rgba(255, 80, 80, ' + pulse + ')';
+            ctx.beginPath();
+            ctx.arc(x, y - s * 0.30, 5 + pulse * 3, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // 霰彈加特林塔：金屬 + 散射口
+            const h = s * 0.36, w = s * 0.24;
+            ctx.beginPath();
+            ctx.moveTo(x, y - h);
+            ctx.lineTo(x - w, y - h * 0.2);
+            ctx.lineTo(x - w, y + h * 0.7);
+            ctx.lineTo(x + w, y + h * 0.7);
+            ctx.lineTo(x + w, y - h * 0.2);
+            ctx.closePath();
+            const g = ctx.createLinearGradient(x - w, y, x + w, y);
+            g.addColorStop(0, '#c0c0c0');
+            g.addColorStop(0.5, '#606060');
+            g.addColorStop(1, '#303030');
+            ctx.fillStyle = g;
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            // 散熱孔
+            ctx.fillStyle = '#202020';
+            for (let k = 0; k < 3; k++) {
+                ctx.beginPath();
+                ctx.arc(x - w * 0.5 + k * w * 0.5, y - h * 0.1, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            // 出口散射光
+            const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 200);
+            ctx.strokeStyle = 'rgba(255, 200, 100, ' + pulse + ')';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#ffaa00';
+            ctx.shadowBlur = 12 * pulse;
+            for (let k = 0; k < 3; k++) {
+                const a = Math.PI / 2 + (k - 1) * 0.35;
+                ctx.beginPath();
+                ctx.moveTo(x, y + h * 0.3);
+                ctx.lineTo(x + Math.cos(a) * s * 0.4, y + Math.sin(a) * s * 0.4);
+                ctx.stroke();
+            }
+        }
+        ctx.restore();
+    }
+
+    const _prevDrawBody = SilverTower.prototype.drawBody;
+    SilverTower.prototype.drawBody = function(x, y, alpha) {
+        const st = getEvo(this);
+        if (st.evolution && st.baseType === 'silver') {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            const color = st.evolution === 'A' ? '#909090' : '#606060';
+            drawTowerBase(x, y, color, st.evolution === 'A');
+            ctx.restore();
+            drawSilverEvolvedIcon(st.evolution, x, y, 70);
+            return;
+        }
+        _prevDrawBody.call(this, x, y, alpha);
+    };
+
+    // ============ 進化判定 & 執行 ============
+    function canEvolve(t) {
+        if (!t) return false;
+        const st = getEvo(t);
+        return !st.evolution && st.baseType === 'silver' && t.level >= 3;
+    }
+
+    function doSilverEvolve(branch) {
+        const t = selectedTower;
+        if (!t || !canEvolve(t)) return;
+        const st = getEvo(t);
+        st.evolution = branch;
+        if (branch === 'A') {
+            t.config = Object.assign({}, st.baseConfig, { name: '全金屬狂潮塔', color: '#909090' });
+            log('🔥 銀塔進化為【全金屬狂潮塔】！', 3000);
+        } else {
+            t.config = Object.assign({}, st.baseConfig, { name: '霰彈加特林塔', color: '#606060' });
+            log('💨 銀塔進化為【霰彈加特林塔】！', 3000);
+        }
+        sfxUpgrade();
+        updateUI();
+        updateTowerPanel();
+        saveGame();
+    }
+
+    const _prevEvolve = window.evolveSelectedTower;
+    window.evolveSelectedTower = function(branch) {
+        if (!selectedTower) return;
+        const st = getEvo(selectedTower);
+        if (st.baseType === 'silver') doSilverEvolve(branch);
+        else if (typeof _prevEvolve === 'function') _prevEvolve(branch);
+    };
+
+    console.log('[進化] 銀塔進化系統載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 最終存檔整合（接管橙塔、銀塔）
+// ============================================================
+(function() {
+    'use strict';
+
+    function getEvolutionFromConfig(tower) {
+        const n = tower.config && tower.config.name;
+        if (n === '墨綠塔') return { base: 'green', branch: 'A' };
+        if (n === '天狼之塔') return { base: 'green', branch: 'B' };
+        if (n === '質量塔') return { base: 'purple', branch: 'A' };
+        if (n === '霜凍塔') return { base: 'purple', branch: 'B' };
+        if (n === '電磁鏈塔') return { base: 'blue', branch: 'A' };
+        if (n === '超頻藍塔') return { base: 'blue', branch: 'B' };
+        if (n === '聚能伽馬塔') return { base: 'orange', branch: 'A' };
+        if (n === '超新星塔') return { base: 'orange', branch: 'B' };
+        if (n === '全金屬狂潮塔') return { base: 'silver', branch: 'A' };
+        if (n === '霰彈加特林塔') return { base: 'silver', branch: 'B' };
+        return null;
+    }
+
+    saveGame = function() {
+        if (!currentDifficulty || gameState !== 'playing') return;
+        try {
+            const towerData = [];
+            for (let i = 0; i < SPOTS.length; i++) {
+                const s = SPOTS[i];
+                if (s.tower) {
+                    const evo = getEvolutionFromConfig(s.tower);
+                    towerData.push({
+                        idx: i,
+                        type: evo ? evo.base : s.tower.type,
+                        level: s.tower.level,
+                        evolution: evo ? evo.branch : null,
+                    });
+                }
+            }
+            const data = {
+                version: 1,
+                difficulty: currentDifficulty,
+                money: money,
+                lives: lives,
+                wave: wave,
+                damageStats: damageStats,
+                unlocked: Object.assign({}, unlocked),
+                towers: towerData,
+                timestamp: Date.now(),
+            };
+            localStorage.setItem(getSaveKey(), JSON.stringify(data));
+        } catch (e) {}
+    };
+
+    loadGame = function() {
+        if (!currentDifficulty) return false;
+        try {
+            const raw = localStorage.getItem(getSaveKey());
+            if (!raw) return false;
+            const data = JSON.parse(raw);
+            if (!data || data.version !== 1 || data.difficulty !== currentDifficulty || data.wave === 0) return false;
+            money = data.money || DIFFICULTIES[currentDifficulty].startMoney;
+            lives = data.lives || DIFFICULTIES[currentDifficulty].startLives;
+            wave = data.wave || 0;
+            damageStats = data.damageStats || {};
+            if (data.unlocked) {
+                for (const k in data.unlocked) {
+                    if (unlocked.hasOwnProperty(k)) unlocked[k] = data.unlocked[k];
+                }
+            }
+            for (let i = 0; i < SPOTS.length; i++) SPOTS[i].tower = null;
+            const towers = data.towers || [];
+            for (let i = 0; i < towers.length; i++) {
+                const t = towers[i];
+                const spot = SPOTS[t.idx];
+                if (!spot) continue;
+                const tower = createTower(spot, t.type);
+                if (!tower) continue;
+                tower.level = Math.min(t.level || 1, MAX_TOWER_LEVEL);
+                if (tower.applyLevel) tower.applyLevel();
+                spot.tower = tower;
+                if (t.evolution) {
+                    const oldSel = selectedTower;
+                    selectedTower = tower;
+                    try { window.evolveSelectedTower(t.evolution); } catch (e) {}
+                    selectedTower = oldSel;
+                }
+            }
+            for (const type in unlocked) {
+                const btn = document.querySelector('.shop-btn[data-type="' + type + '"]');
+                if (!btn) continue;
+                if (unlocked[type]) btn.classList.remove('locked');
+                else btn.classList.add('locked');
+            }
+            updateUI();
+            return true;
+        } catch (e) { return false; }
+    };
+
+    console.log('[存檔] 最終整合完成');
+})();
+</script>
   
 <script>
 (function() {
