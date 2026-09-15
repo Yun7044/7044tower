@@ -5882,490 +5882,6 @@ function checkShowBranchUI(tower) {
 
 <script>
 // ============================================================
-// 藍塔進化系統（新增區塊）
-// ============================================================
-(function() {
-    'use strict';
-
-    console.log('[進化] 藍塔進化系統載入中...');
-
-    const _evo = new WeakMap();
-    function getEvo(tower) {
-        if (!tower) return null;
-        if (!_evo.has(tower)) {
-            _evo.set(tower, {
-                evolution: null,
-                baseType: tower.type,
-                baseConfig: tower.config,
-            });
-        }
-        return _evo.get(tower);
-    }
-
-    // ============ 電磁網 DOT 狀態 ============
-    const ELEC_MAX_STACKS = 10;
-    const ELEC_DURATION = 3.0;
-    const ELEC_DPS_PER_STACK = 1.8;
-
-    function applyElectric(enemy, level) {
-        if (!enemy || !enemy.alive) return;
-        if (!enemy._electric) enemy._electric = { stacks: 0, timer: 0 };
-        enemy._electric.stacks = Math.min(ELEC_MAX_STACKS, enemy._electric.stacks + 1);
-        enemy._electric.timer = ELEC_DURATION;
-        enemy._electric.level = level || 1;
-    }
-
-    function tickElectric(enemy, dt) {
-        const e = enemy._electric;
-        if (!e || e.stacks <= 0) return;
-        e.timer -= dt;
-        if (e.timer <= 0) { e.stacks = 0; return; }
-        const dps = ELEC_DPS_PER_STACK * e.stacks * (1 + (e.level - 1) * 0.15);
-        const actual = enemy.takeDamage(dps * dt);
-        if (actual > 0) addDamage('blue', actual);
-    }
-
-    // 包裝 Enemy.update 處理電磁 DOT
-    const _prevEnemyUpdate = Enemy.prototype.update;
-    Enemy.prototype.update = function(dt) {
-        if (this.alive && this._electric && this._electric.stacks > 0) {
-            tickElectric(this, dt);
-        }
-        _prevEnemyUpdate.call(this, dt);
-    };
-
-    // 包裝 Enemy.draw 顯示電弧
-    const _prevEnemyDraw = Enemy.prototype.draw;
-    Enemy.prototype.draw = function() {
-        _prevEnemyDraw.call(this);
-        if (!this.alive) return;
-        const e = this._electric;
-        if (!e || e.stacks <= 0) return;
-        const p = this.getPos();
-        const r = this.isBoss ? 22 : 13;
-        const intensity = Math.min(1, e.stacks / ELEC_MAX_STACKS);
-        ctx.save();
-        const arcCount = Math.ceil(e.stacks / 2);
-        const seed = Math.floor(performance.now() / 80);
-        for (let i = 0; i < arcCount; i++) {
-            const a1 = (seed + i * 1.37) % (Math.PI * 2);
-            const a2 = a1 + 0.9 + (i % 3) * 0.3;
-            ctx.strokeStyle = 'rgba(100, 200, 255, ' + (0.4 + intensity * 0.5) + ')';
-            ctx.lineWidth = 1.2;
-            ctx.shadowColor = '#00aaff';
-            ctx.shadowBlur = 8;
-            const R = r + 3;
-            ctx.beginPath();
-            ctx.moveTo(p.x + Math.cos(a1) * R, p.y + Math.sin(a1) * R);
-            for (let s = 1; s <= 3; s++) {
-                const t = s / 3;
-                const a = a1 + (a2 - a1) * t;
-                const jitter = ((seed + s * 7 + i * 3) % 5 - 2) * 0.8;
-                ctx.lineTo(p.x + Math.cos(a) * (R + jitter), p.y + Math.sin(a) * (R + jitter));
-            }
-            ctx.stroke();
-        }
-        ctx.restore();
-    };
-
-    // ============ 超頻脈衝爆炸視覺 ============
-    const _explosions = [];
-    function spawnExplosion(x, y) {
-        _explosions.push({ x: x, y: y, timer: 0.4, maxLife: 0.4 });
-    }
-
-    // 包裝 drawBackground，在繪製背景後疊加爆炸特效
-    const _prevDrawBG = drawBackground;
-    drawBackground = function() {
-        _prevDrawBG.call(this);
-        const dt = 1 / 60;
-        for (let i = _explosions.length - 1; i >= 0; i--) {
-            const fx = _explosions[i];
-            fx.timer -= dt;
-            if (fx.timer <= 0) { _explosions.splice(i, 1); continue; }
-            const alpha = fx.timer / fx.maxLife;
-            const t = 1 - alpha;
-            const radius = 20 + t * 90;
-            ctx.save();
-            ctx.strokeStyle = 'rgba(120, 200, 255, ' + (alpha * 0.9) + ')';
-            ctx.lineWidth = 4 * alpha;
-            ctx.shadowColor = '#00aaff';
-            ctx.shadowBlur = 20;
-            ctx.beginPath();
-            ctx.arc(fx.x, fx.y, radius, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.strokeStyle = 'rgba(220, 240, 255, ' + alpha + ')';
-            ctx.lineWidth = 2 * alpha;
-            ctx.beginPath();
-            ctx.arc(fx.x, fx.y, radius * 0.6, 0, Math.PI * 2);
-            ctx.stroke();
-            // 電光從中心射出
-            for (let k = 0; k < 6; k++) {
-                const a = k * Math.PI / 3 + t * 0.5;
-                ctx.strokeStyle = 'rgba(180, 230, 255, ' + (alpha * 0.7) + ')';
-                ctx.lineWidth = 2 * alpha;
-                ctx.beginPath();
-                ctx.moveTo(fx.x, fx.y);
-                ctx.lineTo(fx.x + Math.cos(a) * radius, fx.y + Math.sin(a) * radius);
-                ctx.stroke();
-            }
-            ctx.restore();
-        }
-    };
-
-    // ============ 包裝 Tower.fire 標記子彈分支 ============
-    const _prevTowerFire = Tower.prototype.fire;
-    Tower.prototype.fire = function(target) {
-        const st = getEvo(this);
-        const before = bullets.length;
-        _prevTowerFire.call(this, target);
-        if (st.evolution && st.baseType === 'blue') {
-            for (let i = before; i < bullets.length; i++) {
-                bullets[i]._blueBranch = st.evolution;
-                bullets[i]._blueLevel = this.level;
-            }
-        }
-    };
-
-    // ============ 包裝 Bullet.update 處理藍塔進化效果 ============
-    const _prevBulletUpdate = Bullet.prototype.update;
-    Bullet.prototype.update = function(dt) {
-        const branch = this._blueBranch;
-        const target = this.target;
-        const wasAlive = target ? target.alive : false;
-        const hpBefore = wasAlive ? target.hp : 0;
-
-        _prevBulletUpdate.call(this, dt);
-
-        if (!branch || !target || !wasAlive) return;
-
-        // ============ 分支 A：電磁鏈塔 ============
-        if (branch === 'A') {
-            const hit = target.hp < hpBefore || (target.hp <= 0 && wasAlive);
-            if (hit) {
-                applyElectric(target, this._blueLevel);
-                // 連鎖 2 個附近敵人
-                const tp = target.getPos();
-                const nearby = [];
-                for (let i = 0; i < enemies.length; i++) {
-                    const e = enemies[i];
-                    if (!e.alive || e === target) continue;
-                    const p = e.getPos();
-                    const d = Math.hypot(p.x - tp.x, p.y - tp.y);
-                    if (d <= 120) nearby.push({ e: e, d: d });
-                }
-                nearby.sort(function(a, b) { return a.d - b.d; });
-                const chainCount = Math.min(2, nearby.length);
-                for (let i = 0; i < chainCount; i++) {
-                    applyElectric(nearby[i].e, this._blueLevel);
-                }
-            }
-        }
-
-        // ============ 分支 B：超頻藍塔 ============
-        if (branch === 'B') {
-            const killed = wasAlive && (target.hp <= 0 || !target.alive);
-            if (killed && !target.isBoss) {
-                const tp = target.getPos();
-                const maxHp = target.maxHp;
-                const explosionDmg = maxHp * 0.20;
-                for (let i = 0; i < enemies.length; i++) {
-                    const e = enemies[i];
-                    if (!e.alive || e === target) continue;
-                    const p = e.getPos();
-                    const d = Math.hypot(p.x - tp.x, p.y - tp.y);
-                    if (d <= 120) {
-                        let dmg = explosionDmg;
-                        if (e.isBoss) dmg *= 0.3;
-                        const actual = e.takeDamage(dmg);
-                        if (actual > 0) addDamage('blue', actual);
-                    }
-                }
-                spawnExplosion(tp.x, tp.y);
-                sfxHit();
-            }
-        }
-    };
-
-    // ============ 包裝 applyLevel 維持進化後的屬性 ============
-    const _prevApplyLevel = Tower.prototype.applyLevel;
-    Tower.prototype.applyLevel = function() {
-        _prevApplyLevel.call(this);
-        const st = getEvo(this);
-        if (!st.evolution || st.baseType !== 'blue') return;
-        if (st.evolution === 'A') {
-            // 電磁鏈塔：100% 命中、不秒殺、有小額基礎傷害
-            this.hitChance = 1;
-            this.killChance = 0;
-            this.damage = 1.5 + (this.level - 1) * 0.5;
-        } else if (st.evolution === 'B') {
-            // 超頻藍塔：命中率 10%
-            this.hitChance = 0.10;
-            this.killChance = 1;
-        }
-    };
-
-    // ============ 進化外觀 ============
-    function drawBlueEvolvedIcon(branch, x, y, size) {
-        ctx.save();
-        const s = size;
-        if (branch === 'A') {
-            // 電磁鏈塔：電藍色水晶 + 電弧
-            const h = s * 0.44, w = s * 0.18;
-            ctx.shadowColor = '#00bfff';
-            ctx.shadowBlur = 20;
-            ctx.beginPath();
-            ctx.moveTo(x, y - h);
-            ctx.lineTo(x + w, y - h * 0.3);
-            ctx.lineTo(x + w * 0.7, y + h * 0.85);
-            ctx.lineTo(x - w * 0.7, y + h * 0.85);
-            ctx.lineTo(x - w, y - h * 0.3);
-            ctx.closePath();
-            const g = ctx.createLinearGradient(x, y - h, x, y + h);
-            g.addColorStop(0, '#e0f8ff');
-            g.addColorStop(0.4, '#00bfff');
-            g.addColorStop(1, '#003a66');
-            ctx.fillStyle = g;
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = '#c0f0ff';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            // 中央閃電
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.lineCap = 'round';
-            ctx.shadowColor = '#00ffff';
-            ctx.shadowBlur = 10;
-            ctx.beginPath();
-            ctx.moveTo(x - s * 0.04, y - h * 0.55);
-            ctx.lineTo(x + s * 0.02, y - h * 0.1);
-            ctx.lineTo(x - s * 0.04, y - h * 0.05);
-            ctx.lineTo(x + s * 0.05, y + h * 0.55);
-            ctx.stroke();
-        } else {
-            // 超頻藍塔：亮藍色水晶 + 脈動光環
-            const h = s * 0.46, w = s * 0.20;
-            const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 120);
-            ctx.shadowColor = '#1e90ff';
-            ctx.shadowBlur = 25;
-            ctx.beginPath();
-            ctx.moveTo(x, y - h);
-            ctx.lineTo(x + w, y - h * 0.3);
-            ctx.lineTo(x + w * 0.7, y + h * 0.85);
-            ctx.lineTo(x - w * 0.7, y + h * 0.85);
-            ctx.lineTo(x - w, y - h * 0.3);
-            ctx.closePath();
-            const g = ctx.createLinearGradient(x, y - h, x, y + h);
-            g.addColorStop(0, '#ffffff');
-            g.addColorStop(0.3, '#80d0ff');
-            g.addColorStop(0.7, '#1e90ff');
-            g.addColorStop(1, '#004488');
-            ctx.fillStyle = g;
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = '#e0f4ff';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            // 脈動光點
-            ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.7 + pulse * 0.3) + ')';
-            ctx.shadowColor = '#80d0ff';
-            ctx.shadowBlur = 15 * pulse;
-            ctx.beginPath();
-            ctx.arc(x, y - h * 0.2, 3 + pulse * 2, 0, Math.PI * 2);
-            ctx.fill();
-            // 外光環
-            ctx.strokeStyle = 'rgba(120, 200, 255, ' + (0.4 + pulse * 0.4) + ')';
-            ctx.lineWidth = 2;
-            ctx.shadowBlur = 12 * pulse;
-            ctx.beginPath();
-            ctx.arc(x, y, s * 0.4 + pulse * 3, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-        ctx.restore();
-    }
-
-    const _prevDrawBody = Tower.prototype.drawBody;
-    Tower.prototype.drawBody = function(x, y, alpha) {
-        const st = getEvo(this);
-        if (st.evolution && st.baseType === 'blue') {
-            ctx.save();
-            ctx.globalAlpha = alpha;
-            const color = st.evolution === 'A' ? '#00bfff' : '#1e90ff';
-            drawTowerBase(x, y, color, true);
-            ctx.restore();
-            drawBlueEvolvedIcon(st.evolution, x, y, 70);
-            return;
-        }
-        _prevDrawBody.call(this, x, y, alpha);
-    };
-
-    // ============ 進化判定 ============
-    function canEvolve(tower) {
-        if (!tower) return false;
-        const st = getEvo(tower);
-        if (st.evolution) return false;
-        if (st.baseType !== 'blue') return false;
-        if (tower.level < 3) return false;
-        return true;
-    }
-
-    // ============ 執行進化 ============
-    function doBlueEvolve(branch) {
-        const tower = selectedTower;
-        if (!tower || !canEvolve(tower)) return;
-        const st = getEvo(tower);
-        st.evolution = branch;
-        if (branch === 'A') {
-            tower.hitChance = 1;
-            tower.killChance = 0;
-            tower.damage = 1.5 + (tower.level - 1) * 0.5;
-            tower.config = Object.assign({}, st.baseConfig, { name: '電磁鏈塔', color: '#00bfff' });
-            log('⚡ 藍塔進化為【電磁鏈塔】！', 3000);
-        } else {
-            tower.hitChance = 0.10;
-            tower.killChance = 1;
-            tower.config = Object.assign({}, st.baseConfig, { name: '超頻藍塔', color: '#1e90ff' });
-            log('💥 藍塔進化為【超頻藍塔】！', 3000);
-        }
-        sfxUpgrade();
-        updateUI();
-        updateTowerPanel();
-        saveGame();
-        const box = document.getElementById('branch-options');
-        if (box) box.style.display = 'none';
-    }
-
-    // ============ 接管全域 evolveSelectedTower ============
-    const _prevEvolveFn = window.evolveSelectedTower;
-    window.evolveSelectedTower = function(branch) {
-        if (!selectedTower) return;
-        const st = getEvo(selectedTower);
-        if (st.baseType === 'blue') {
-            doBlueEvolve(branch);
-        } else if (typeof _prevEvolveFn === 'function') {
-            _prevEvolveFn(branch);
-        }
-    };
-
-    // ============ 進化 UI ============
-    function updateEvolveUI() {
-        const box = document.getElementById('branch-options');
-        if (!box) return;
-        const tower = selectedTower;
-        if (!tower) { box.style.display = 'none'; return; }
-        const st = getEvo(tower);
-        if (st.baseType !== 'blue') return;
-        if (st.evolution || tower.level < 3) {
-            box.style.display = 'none';
-            return;
-        }
-        box.style.display = 'flex';
-        const tA = document.getElementById('branch-a-title');
-        const dA = document.getElementById('branch-a-desc');
-        const tB = document.getElementById('branch-b-title');
-        const dB = document.getElementById('branch-b-desc');
-        if (tA) tA.innerText = '⚡ 分支 A：電磁鏈塔';
-        if (dA) dA.innerText = '命中率 100%、攻速極快\n命中時施加【電磁網】（每秒 DOT，可疊 10 層）\n並連鎖到附近 2 名敵人';
-        if (tB) tB.innerText = '💥 分支 B：超頻藍塔';
-        if (dB) dB.innerText = '命中率提升至 10%\n秒殺成功時產生超頻脈衝\n對周圍敵人造成目標最大生命 20% 傷害';
-    }
-    setInterval(updateEvolveUI, 30);
-
-    // ============ 存檔整合 ============
-    function getEvolutionFromConfig(tower) {
-        const n = tower.config && tower.config.name;
-        if (n === '墨綠塔') return { base: 'green', branch: 'A' };
-        if (n === '天狼之塔') return { base: 'green', branch: 'B' };
-        if (n === '質量塔') return { base: 'purple', branch: 'A' };
-        if (n === '霜凍塔') return { base: 'purple', branch: 'B' };
-        if (n === '電磁鏈塔') return { base: 'blue', branch: 'A' };
-        if (n === '超頻藍塔') return { base: 'blue', branch: 'B' };
-        return null;
-    }
-
-    saveGame = function() {
-        if (!currentDifficulty || gameState !== 'playing') return;
-        try {
-            const towerData = [];
-            for (let i = 0; i < SPOTS.length; i++) {
-                const s = SPOTS[i];
-                if (s.tower) {
-                    const evo = getEvolutionFromConfig(s.tower);
-                    towerData.push({
-                        idx: i,
-                        type: evo ? evo.base : s.tower.type,
-                        level: s.tower.level,
-                        evolution: evo ? evo.branch : null,
-                    });
-                }
-            }
-            const data = {
-                version: 1,
-                difficulty: currentDifficulty,
-                money: money,
-                lives: lives,
-                wave: wave,
-                damageStats: damageStats,
-                unlocked: Object.assign({}, unlocked),
-                towers: towerData,
-                timestamp: Date.now(),
-            };
-            localStorage.setItem(getSaveKey(), JSON.stringify(data));
-        } catch (e) {}
-    };
-
-    loadGame = function() {
-        if (!currentDifficulty) return false;
-        try {
-            const raw = localStorage.getItem(getSaveKey());
-            if (!raw) return false;
-            const data = JSON.parse(raw);
-            if (!data || data.version !== 1 || data.difficulty !== currentDifficulty || data.wave === 0) return false;
-            money = data.money || DIFFICULTIES[currentDifficulty].startMoney;
-            lives = data.lives || DIFFICULTIES[currentDifficulty].startLives;
-            wave = data.wave || 0;
-            damageStats = data.damageStats || {};
-            if (data.unlocked) {
-                for (const k in data.unlocked) {
-                    if (unlocked.hasOwnProperty(k)) unlocked[k] = data.unlocked[k];
-                }
-            }
-            for (let i = 0; i < SPOTS.length; i++) SPOTS[i].tower = null;
-            const towers = data.towers || [];
-            for (let i = 0; i < towers.length; i++) {
-                const t = towers[i];
-                const spot = SPOTS[t.idx];
-                if (!spot) continue;
-                const tower = createTower(spot, t.type);
-                if (!tower) continue;
-                tower.level = Math.min(t.level || 1, MAX_TOWER_LEVEL);
-                if (tower.applyLevel) tower.applyLevel();
-                spot.tower = tower;
-                if (t.evolution) {
-                    const oldSel = selectedTower;
-                    selectedTower = tower;
-                    try { window.evolveSelectedTower(t.evolution); } catch (e) {}
-                    selectedTower = oldSel;
-                }
-            }
-            for (const type in unlocked) {
-                const btn = document.querySelector('.shop-btn[data-type="' + type + '"]');
-                if (!btn) continue;
-                if (unlocked[type]) btn.classList.remove('locked');
-                else btn.classList.add('locked');
-            }
-            updateUI();
-            return true;
-        } catch (e) { return false; }
-    };
-
-    console.log('[進化] 藍塔進化系統載入完成');
-})();
-</script>
-
-<script>
-// ============================================================
 // 橙塔進化系統
 // ============================================================
 (function() {
@@ -6947,6 +6463,490 @@ function checkShowBranchUI(tower) {
     };
 
     console.log('[進化] 銀塔進化系統載入完成');
+})();
+</script>
+  
+<script>
+// ============================================================
+// 藍塔進化系統（新增區塊）
+// ============================================================
+(function() {
+    'use strict';
+
+    console.log('[進化] 藍塔進化系統載入中...');
+
+    const _evo = new WeakMap();
+    function getEvo(tower) {
+        if (!tower) return null;
+        if (!_evo.has(tower)) {
+            _evo.set(tower, {
+                evolution: null,
+                baseType: tower.type,
+                baseConfig: tower.config,
+            });
+        }
+        return _evo.get(tower);
+    }
+
+    // ============ 電磁網 DOT 狀態 ============
+    const ELEC_MAX_STACKS = 10;
+    const ELEC_DURATION = 3.0;
+    const ELEC_DPS_PER_STACK = 1.8;
+
+    function applyElectric(enemy, level) {
+        if (!enemy || !enemy.alive) return;
+        if (!enemy._electric) enemy._electric = { stacks: 0, timer: 0 };
+        enemy._electric.stacks = Math.min(ELEC_MAX_STACKS, enemy._electric.stacks + 1);
+        enemy._electric.timer = ELEC_DURATION;
+        enemy._electric.level = level || 1;
+    }
+
+    function tickElectric(enemy, dt) {
+        const e = enemy._electric;
+        if (!e || e.stacks <= 0) return;
+        e.timer -= dt;
+        if (e.timer <= 0) { e.stacks = 0; return; }
+        const dps = ELEC_DPS_PER_STACK * e.stacks * (1 + (e.level - 1) * 0.15);
+        const actual = enemy.takeDamage(dps * dt);
+        if (actual > 0) addDamage('blue', actual);
+    }
+
+    // 包裝 Enemy.update 處理電磁 DOT
+    const _prevEnemyUpdate = Enemy.prototype.update;
+    Enemy.prototype.update = function(dt) {
+        if (this.alive && this._electric && this._electric.stacks > 0) {
+            tickElectric(this, dt);
+        }
+        _prevEnemyUpdate.call(this, dt);
+    };
+
+    // 包裝 Enemy.draw 顯示電弧
+    const _prevEnemyDraw = Enemy.prototype.draw;
+    Enemy.prototype.draw = function() {
+        _prevEnemyDraw.call(this);
+        if (!this.alive) return;
+        const e = this._electric;
+        if (!e || e.stacks <= 0) return;
+        const p = this.getPos();
+        const r = this.isBoss ? 22 : 13;
+        const intensity = Math.min(1, e.stacks / ELEC_MAX_STACKS);
+        ctx.save();
+        const arcCount = Math.ceil(e.stacks / 2);
+        const seed = Math.floor(performance.now() / 80);
+        for (let i = 0; i < arcCount; i++) {
+            const a1 = (seed + i * 1.37) % (Math.PI * 2);
+            const a2 = a1 + 0.9 + (i % 3) * 0.3;
+            ctx.strokeStyle = 'rgba(100, 200, 255, ' + (0.4 + intensity * 0.5) + ')';
+            ctx.lineWidth = 1.2;
+            ctx.shadowColor = '#00aaff';
+            ctx.shadowBlur = 8;
+            const R = r + 3;
+            ctx.beginPath();
+            ctx.moveTo(p.x + Math.cos(a1) * R, p.y + Math.sin(a1) * R);
+            for (let s = 1; s <= 3; s++) {
+                const t = s / 3;
+                const a = a1 + (a2 - a1) * t;
+                const jitter = ((seed + s * 7 + i * 3) % 5 - 2) * 0.8;
+                ctx.lineTo(p.x + Math.cos(a) * (R + jitter), p.y + Math.sin(a) * (R + jitter));
+            }
+            ctx.stroke();
+        }
+        ctx.restore();
+    };
+
+    // ============ 超頻脈衝爆炸視覺 ============
+    const _explosions = [];
+    function spawnExplosion(x, y) {
+        _explosions.push({ x: x, y: y, timer: 0.4, maxLife: 0.4 });
+    }
+
+    // 包裝 drawBackground，在繪製背景後疊加爆炸特效
+    const _prevDrawBG = drawBackground;
+    drawBackground = function() {
+        _prevDrawBG.call(this);
+        const dt = 1 / 60;
+        for (let i = _explosions.length - 1; i >= 0; i--) {
+            const fx = _explosions[i];
+            fx.timer -= dt;
+            if (fx.timer <= 0) { _explosions.splice(i, 1); continue; }
+            const alpha = fx.timer / fx.maxLife;
+            const t = 1 - alpha;
+            const radius = 20 + t * 90;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(120, 200, 255, ' + (alpha * 0.9) + ')';
+            ctx.lineWidth = 4 * alpha;
+            ctx.shadowColor = '#00aaff';
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.arc(fx.x, fx.y, radius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(220, 240, 255, ' + alpha + ')';
+            ctx.lineWidth = 2 * alpha;
+            ctx.beginPath();
+            ctx.arc(fx.x, fx.y, radius * 0.6, 0, Math.PI * 2);
+            ctx.stroke();
+            // 電光從中心射出
+            for (let k = 0; k < 6; k++) {
+                const a = k * Math.PI / 3 + t * 0.5;
+                ctx.strokeStyle = 'rgba(180, 230, 255, ' + (alpha * 0.7) + ')';
+                ctx.lineWidth = 2 * alpha;
+                ctx.beginPath();
+                ctx.moveTo(fx.x, fx.y);
+                ctx.lineTo(fx.x + Math.cos(a) * radius, fx.y + Math.sin(a) * radius);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+    };
+
+    // ============ 包裝 Tower.fire 標記子彈分支 ============
+    const _prevTowerFire = Tower.prototype.fire;
+    Tower.prototype.fire = function(target) {
+        const st = getEvo(this);
+        const before = bullets.length;
+        _prevTowerFire.call(this, target);
+        if (st.evolution && st.baseType === 'blue') {
+            for (let i = before; i < bullets.length; i++) {
+                bullets[i]._blueBranch = st.evolution;
+                bullets[i]._blueLevel = this.level;
+            }
+        }
+    };
+
+    // ============ 包裝 Bullet.update 處理藍塔進化效果 ============
+    const _prevBulletUpdate = Bullet.prototype.update;
+    Bullet.prototype.update = function(dt) {
+        const branch = this._blueBranch;
+        const target = this.target;
+        const wasAlive = target ? target.alive : false;
+        const hpBefore = wasAlive ? target.hp : 0;
+
+        _prevBulletUpdate.call(this, dt);
+
+        if (!branch || !target || !wasAlive) return;
+
+        // ============ 分支 A：電磁鏈塔 ============
+        if (branch === 'A') {
+            const hit = target.hp < hpBefore || (target.hp <= 0 && wasAlive);
+            if (hit) {
+                applyElectric(target, this._blueLevel);
+                // 連鎖 2 個附近敵人
+                const tp = target.getPos();
+                const nearby = [];
+                for (let i = 0; i < enemies.length; i++) {
+                    const e = enemies[i];
+                    if (!e.alive || e === target) continue;
+                    const p = e.getPos();
+                    const d = Math.hypot(p.x - tp.x, p.y - tp.y);
+                    if (d <= 120) nearby.push({ e: e, d: d });
+                }
+                nearby.sort(function(a, b) { return a.d - b.d; });
+                const chainCount = Math.min(2, nearby.length);
+                for (let i = 0; i < chainCount; i++) {
+                    applyElectric(nearby[i].e, this._blueLevel);
+                }
+            }
+        }
+
+        // ============ 分支 B：超頻藍塔 ============
+        if (branch === 'B') {
+            const killed = wasAlive && (target.hp <= 0 || !target.alive);
+            if (killed && !target.isBoss) {
+                const tp = target.getPos();
+                const maxHp = target.maxHp;
+                const explosionDmg = maxHp * 0.20;
+                for (let i = 0; i < enemies.length; i++) {
+                    const e = enemies[i];
+                    if (!e.alive || e === target) continue;
+                    const p = e.getPos();
+                    const d = Math.hypot(p.x - tp.x, p.y - tp.y);
+                    if (d <= 120) {
+                        let dmg = explosionDmg;
+                        if (e.isBoss) dmg *= 0.3;
+                        const actual = e.takeDamage(dmg);
+                        if (actual > 0) addDamage('blue', actual);
+                    }
+                }
+                spawnExplosion(tp.x, tp.y);
+                sfxHit();
+            }
+        }
+    };
+
+    // ============ 包裝 applyLevel 維持進化後的屬性 ============
+    const _prevApplyLevel = Tower.prototype.applyLevel;
+    Tower.prototype.applyLevel = function() {
+        _prevApplyLevel.call(this);
+        const st = getEvo(this);
+        if (!st.evolution || st.baseType !== 'blue') return;
+        if (st.evolution === 'A') {
+            // 電磁鏈塔：100% 命中、不秒殺、有小額基礎傷害
+            this.hitChance = 1;
+            this.killChance = 0;
+            this.damage = 1.5 + (this.level - 1) * 0.5;
+        } else if (st.evolution === 'B') {
+            // 超頻藍塔：命中率 10%
+            this.hitChance = 0.10;
+            this.killChance = 1;
+        }
+    };
+
+    // ============ 進化外觀 ============
+    function drawBlueEvolvedIcon(branch, x, y, size) {
+        ctx.save();
+        const s = size;
+        if (branch === 'A') {
+            // 電磁鏈塔：電藍色水晶 + 電弧
+            const h = s * 0.44, w = s * 0.18;
+            ctx.shadowColor = '#00bfff';
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.moveTo(x, y - h);
+            ctx.lineTo(x + w, y - h * 0.3);
+            ctx.lineTo(x + w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w, y - h * 0.3);
+            ctx.closePath();
+            const g = ctx.createLinearGradient(x, y - h, x, y + h);
+            g.addColorStop(0, '#e0f8ff');
+            g.addColorStop(0.4, '#00bfff');
+            g.addColorStop(1, '#003a66');
+            ctx.fillStyle = g;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#c0f0ff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            // 中央閃電
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.moveTo(x - s * 0.04, y - h * 0.55);
+            ctx.lineTo(x + s * 0.02, y - h * 0.1);
+            ctx.lineTo(x - s * 0.04, y - h * 0.05);
+            ctx.lineTo(x + s * 0.05, y + h * 0.55);
+            ctx.stroke();
+        } else {
+            // 超頻藍塔：亮藍色水晶 + 脈動光環
+            const h = s * 0.46, w = s * 0.20;
+            const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 120);
+            ctx.shadowColor = '#1e90ff';
+            ctx.shadowBlur = 25;
+            ctx.beginPath();
+            ctx.moveTo(x, y - h);
+            ctx.lineTo(x + w, y - h * 0.3);
+            ctx.lineTo(x + w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w, y - h * 0.3);
+            ctx.closePath();
+            const g = ctx.createLinearGradient(x, y - h, x, y + h);
+            g.addColorStop(0, '#ffffff');
+            g.addColorStop(0.3, '#80d0ff');
+            g.addColorStop(0.7, '#1e90ff');
+            g.addColorStop(1, '#004488');
+            ctx.fillStyle = g;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#e0f4ff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            // 脈動光點
+            ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.7 + pulse * 0.3) + ')';
+            ctx.shadowColor = '#80d0ff';
+            ctx.shadowBlur = 15 * pulse;
+            ctx.beginPath();
+            ctx.arc(x, y - h * 0.2, 3 + pulse * 2, 0, Math.PI * 2);
+            ctx.fill();
+            // 外光環
+            ctx.strokeStyle = 'rgba(120, 200, 255, ' + (0.4 + pulse * 0.4) + ')';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 12 * pulse;
+            ctx.beginPath();
+            ctx.arc(x, y, s * 0.4 + pulse * 3, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    const _prevDrawBody = Tower.prototype.drawBody;
+    Tower.prototype.drawBody = function(x, y, alpha) {
+        const st = getEvo(this);
+        if (st.evolution && st.baseType === 'blue') {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            const color = st.evolution === 'A' ? '#00bfff' : '#1e90ff';
+            drawTowerBase(x, y, color, true);
+            ctx.restore();
+            drawBlueEvolvedIcon(st.evolution, x, y, 70);
+            return;
+        }
+        _prevDrawBody.call(this, x, y, alpha);
+    };
+
+    // ============ 進化判定 ============
+    function canEvolve(tower) {
+        if (!tower) return false;
+        const st = getEvo(tower);
+        if (st.evolution) return false;
+        if (st.baseType !== 'blue') return false;
+        if (tower.level < 3) return false;
+        return true;
+    }
+
+    // ============ 執行進化 ============
+    function doBlueEvolve(branch) {
+        const tower = selectedTower;
+        if (!tower || !canEvolve(tower)) return;
+        const st = getEvo(tower);
+        st.evolution = branch;
+        if (branch === 'A') {
+            tower.hitChance = 1;
+            tower.killChance = 0;
+            tower.damage = 1.5 + (tower.level - 1) * 0.5;
+            tower.config = Object.assign({}, st.baseConfig, { name: '電磁鏈塔', color: '#00bfff' });
+            log('⚡ 藍塔進化為【電磁鏈塔】！', 3000);
+        } else {
+            tower.hitChance = 0.10;
+            tower.killChance = 1;
+            tower.config = Object.assign({}, st.baseConfig, { name: '超頻藍塔', color: '#1e90ff' });
+            log('💥 藍塔進化為【超頻藍塔】！', 3000);
+        }
+        sfxUpgrade();
+        updateUI();
+        updateTowerPanel();
+        saveGame();
+        const box = document.getElementById('branch-options');
+        if (box) box.style.display = 'none';
+    }
+
+    // ============ 接管全域 evolveSelectedTower ============
+    const _prevEvolveFn = window.evolveSelectedTower;
+    window.evolveSelectedTower = function(branch) {
+        if (!selectedTower) return;
+        const st = getEvo(selectedTower);
+        if (st.baseType === 'blue') {
+            doBlueEvolve(branch);
+        } else if (typeof _prevEvolveFn === 'function') {
+            _prevEvolveFn(branch);
+        }
+    };
+
+    // ============ 進化 UI ============
+    function updateEvolveUI() {
+        const box = document.getElementById('branch-options');
+        if (!box) return;
+        const tower = selectedTower;
+        if (!tower) { box.style.display = 'none'; return; }
+        const st = getEvo(tower);
+        if (st.baseType !== 'blue') return;
+        if (st.evolution || tower.level < 3) {
+            box.style.display = 'none';
+            return;
+        }
+        box.style.display = 'flex';
+        const tA = document.getElementById('branch-a-title');
+        const dA = document.getElementById('branch-a-desc');
+        const tB = document.getElementById('branch-b-title');
+        const dB = document.getElementById('branch-b-desc');
+        if (tA) tA.innerText = '⚡ 分支 A：電磁鏈塔';
+        if (dA) dA.innerText = '命中率 100%、攻速極快\n命中時施加【電磁網】（每秒 DOT，可疊 10 層）\n並連鎖到附近 2 名敵人';
+        if (tB) tB.innerText = '💥 分支 B：超頻藍塔';
+        if (dB) dB.innerText = '命中率提升至 10%\n秒殺成功時產生超頻脈衝\n對周圍敵人造成目標最大生命 20% 傷害';
+    }
+    setInterval(updateEvolveUI, 30);
+
+    // ============ 存檔整合 ============
+    function getEvolutionFromConfig(tower) {
+        const n = tower.config && tower.config.name;
+        if (n === '墨綠塔') return { base: 'green', branch: 'A' };
+        if (n === '天狼之塔') return { base: 'green', branch: 'B' };
+        if (n === '質量塔') return { base: 'purple', branch: 'A' };
+        if (n === '霜凍塔') return { base: 'purple', branch: 'B' };
+        if (n === '電磁鏈塔') return { base: 'blue', branch: 'A' };
+        if (n === '超頻藍塔') return { base: 'blue', branch: 'B' };
+        return null;
+    }
+
+    saveGame = function() {
+        if (!currentDifficulty || gameState !== 'playing') return;
+        try {
+            const towerData = [];
+            for (let i = 0; i < SPOTS.length; i++) {
+                const s = SPOTS[i];
+                if (s.tower) {
+                    const evo = getEvolutionFromConfig(s.tower);
+                    towerData.push({
+                        idx: i,
+                        type: evo ? evo.base : s.tower.type,
+                        level: s.tower.level,
+                        evolution: evo ? evo.branch : null,
+                    });
+                }
+            }
+            const data = {
+                version: 1,
+                difficulty: currentDifficulty,
+                money: money,
+                lives: lives,
+                wave: wave,
+                damageStats: damageStats,
+                unlocked: Object.assign({}, unlocked),
+                towers: towerData,
+                timestamp: Date.now(),
+            };
+            localStorage.setItem(getSaveKey(), JSON.stringify(data));
+        } catch (e) {}
+    };
+
+    loadGame = function() {
+        if (!currentDifficulty) return false;
+        try {
+            const raw = localStorage.getItem(getSaveKey());
+            if (!raw) return false;
+            const data = JSON.parse(raw);
+            if (!data || data.version !== 1 || data.difficulty !== currentDifficulty || data.wave === 0) return false;
+            money = data.money || DIFFICULTIES[currentDifficulty].startMoney;
+            lives = data.lives || DIFFICULTIES[currentDifficulty].startLives;
+            wave = data.wave || 0;
+            damageStats = data.damageStats || {};
+            if (data.unlocked) {
+                for (const k in data.unlocked) {
+                    if (unlocked.hasOwnProperty(k)) unlocked[k] = data.unlocked[k];
+                }
+            }
+            for (let i = 0; i < SPOTS.length; i++) SPOTS[i].tower = null;
+            const towers = data.towers || [];
+            for (let i = 0; i < towers.length; i++) {
+                const t = towers[i];
+                const spot = SPOTS[t.idx];
+                if (!spot) continue;
+                const tower = createTower(spot, t.type);
+                if (!tower) continue;
+                tower.level = Math.min(t.level || 1, MAX_TOWER_LEVEL);
+                if (tower.applyLevel) tower.applyLevel();
+                spot.tower = tower;
+                if (t.evolution) {
+                    const oldSel = selectedTower;
+                    selectedTower = tower;
+                    try { window.evolveSelectedTower(t.evolution); } catch (e) {}
+                    selectedTower = oldSel;
+                }
+            }
+            for (const type in unlocked) {
+                const btn = document.querySelector('.shop-btn[data-type="' + type + '"]');
+                if (!btn) continue;
+                if (unlocked[type]) btn.classList.remove('locked');
+                else btn.classList.add('locked');
+            }
+            updateUI();
+            return true;
+        } catch (e) { return false; }
+    };
+
+    console.log('[進化] 藍塔進化系統載入完成');
 })();
 </script>
 
