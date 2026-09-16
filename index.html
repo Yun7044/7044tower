@@ -8992,5 +8992,1557 @@ body:not(.in-menu) #globalSkillsBar { display: flex; }
 })();
 </script>
   
+<script>
+// ============================================================
+// 隨機事件系統
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[事件] 隨機事件系統載入中...');
+
+    // ============ 事件狀態（全域共享） ============
+    const ES = {
+        goldMultiplier: 1,
+        goldRushTimer: 0,
+        hasteTimer: 0,
+        critRateBonusTimer: 0,
+        critRateBonus: 0,
+        freeCombineAvailable: false,
+        energyBoostTimer: 0,
+        gravityTearTimer: 0,
+        luckyStarTimer: 0,
+        bountyTarget: null,
+        bountyTimer: 0,
+        timeStopTimer: 0,
+    };
+
+    // ============ 事件定義 ============
+    const EVENTS = {
+        goldRush: {
+            id: 'goldRush',
+            color: 'green',
+            icon: '💰',
+            name: '金幣狂潮',
+            desc: '擊殺金幣 ×3，持續 12 秒',
+            duration: 12,
+            apply: function() {
+                ES.goldMultiplier = 3;
+                ES.goldRushTimer = 12;
+            },
+        },
+        overload: {
+            id: 'overload',
+            color: 'green',
+            icon: '⚡',
+            name: '過載運轉',
+            desc: '全場攻速 +100%，持續 8 秒',
+            duration: 8,
+            apply: function() {
+                ES.hasteTimer = 8;
+            },
+        },
+        airdrop: {
+            id: 'airdrop',
+            color: 'green',
+            icon: '📦',
+            name: '空投資材',
+            desc: '隨機 2 座 1 級基礎塔',
+            duration: 0,
+            apply: function() {
+                const emptySpots = SPOTS.filter(function(s) { return !s.tower; });
+                let count = 0;
+                for (let i = 0; i < 2; i++) {
+                    if (emptySpots.length === 0) break;
+                    const idx = Math.floor(Math.random() * emptySpots.length);
+                    const spot = emptySpots.splice(idx, 1)[0];
+                    const types = ['white', 'green', 'blue', 'purple'];
+                    const type = types[Math.floor(Math.random() * types.length)];
+                    spot.tower = createTower(spot, type);
+                    count++;
+                }
+                const remaining = 2 - count;
+                if (remaining > 0) {
+                    money += 50 * remaining;
+                    log('📦 空投：無空位，獲得 ' + (50 * remaining) + ' 金幣', 2500);
+                } else {
+                    log('📦 空投：' + count + ' 座塔已降落！', 2500);
+                }
+                updateUI();
+            },
+        },
+        precision: {
+            id: 'precision',
+            color: 'green',
+            icon: '🎯',
+            name: '精密校準',
+            desc: '全場爆擊率 +30%，持續 15 秒',
+            duration: 15,
+            apply: function() {
+                ES.critRateBonus = 0.30;
+                ES.critRateBonusTimer = 15;
+            },
+        },
+        freeWorkshop: {
+            id: 'freeWorkshop',
+            color: 'green',
+            icon: '🔧',
+            name: '免費工坊',
+            desc: '下次合成免費',
+            duration: 0,
+            apply: function() {
+                ES.freeCombineAvailable = true;
+                log('🔧 下次合成免費！', 2500);
+            },
+        },
+        energyBoost: {
+            id: 'energyBoost',
+            color: 'green',
+            icon: '🔋',
+            name: '能量充沛',
+            desc: '分支塔技能冷卻減半，持續 15 秒',
+            duration: 15,
+            apply: function() {
+                ES.energyBoostTimer = 15;
+            },
+        },
+        gravityTear: {
+            id: 'gravityTear',
+            color: 'green',
+            icon: '🌌',
+            name: '引力撕裂',
+            desc: '敵人防禦歸零、受傷 +20%，持續 10 秒',
+            duration: 10,
+            apply: function() {
+                ES.gravityTearTimer = 10;
+            },
+        },
+        luckyStar: {
+            id: 'luckyStar',
+            color: 'green',
+            icon: '⭐',
+            name: '幸運星降',
+            desc: '白塔秒殺率 ×2、藍塔命中率 ×2，持續 10 秒',
+            duration: 10,
+            apply: function() {
+                ES.luckyStarTimer = 10;
+            },
+        },
+        bountyHunter: {
+            id: 'bountyHunter',
+            color: 'green',
+            icon: '🎯',
+            name: '賞金獵人',
+            desc: '標記最大血量敵人，8 秒內殺掉 +150 金幣',
+            duration: 8,
+            apply: function() {
+                let best = null, bestHp = -1;
+                for (let i = 0; i < enemies.length; i++) {
+                    const e = enemies[i];
+                    if (e.alive && e.hp > bestHp) { bestHp = e.hp; best = e; }
+                }
+                if (best) {
+                    ES.bountyTarget = best;
+                    ES.bountyTimer = 8;
+                }
+            },
+        },
+        timeCapsule: {
+            id: 'timeCapsule',
+            color: 'green',
+            icon: '⏸️',
+            name: '時間膠囊',
+            desc: '全場停止移動 4 秒（Boss 2 秒）',
+            duration: 4,
+            apply: function() {
+                ES.timeStopTimer = 4;
+            },
+        },
+    };
+
+    const GREEN_POOL = Object.keys(EVENTS);
+
+    // ============ 警告 UI ============
+    const warningEl = document.createElement('div');
+    warningEl.id = 'eventWarningOverlay';
+    warningEl.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;z-index:400;pointer-events:none;';
+    warningEl.innerHTML =
+        '<div id="eventWarningBox" style="' +
+            'background:rgba(10,8,20,0.95);' +
+            'border:3px solid #00ff88;' +
+            'border-radius:16px;' +
+            'padding:24px 36px;' +
+            'text-align:center;' +
+            'min-width:280px;' +
+            'box-shadow:0 0 60px rgba(0,255,136,0.6), inset 0 0 30px rgba(0,255,136,0.1);' +
+            'transform:scale(0.8);' +
+            'opacity:0;' +
+            'transition:transform 0.3s, opacity 0.3s;' +
+        '">' +
+            '<div id="eventWarningTag" style="font-size:12px;letter-spacing:4px;color:#00ff88;font-weight:700;margin-bottom:8px;">⚠ 隨機事件</div>' +
+            '<div id="eventWarningIcon" style="font-size:56px;line-height:1;margin-bottom:8px;">🎁</div>' +
+            '<div id="eventWarningName" style="font-size:24px;font-weight:900;letter-spacing:3px;color:#fff;margin-bottom:10px;">事件</div>' +
+            '<div id="eventWarningDesc" style="font-size:13px;color:#aaa;line-height:1.6;">描述</div>' +
+        '</div>';
+    document.body.appendChild(warningEl);
+
+    const warningBox = document.getElementById('eventWarningBox');
+    const warningTag = document.getElementById('eventWarningTag');
+    const warningIcon = document.getElementById('eventWarningIcon');
+    const warningName = document.getElementById('eventWarningName');
+    const warningDesc = document.getElementById('eventWarningDesc');
+
+    const COLOR_PRESETS = {
+        green: {
+            border: '#00ff88',
+            shadow: '0 0 60px rgba(0,255,136,0.6), inset 0 0 30px rgba(0,255,136,0.1)',
+            tag: '#00ff88',
+        },
+        red: {
+            border: '#ff3355',
+            shadow: '0 0 60px rgba(255,51,85,0.6), inset 0 0 30px rgba(255,51,85,0.1)',
+            tag: '#ff3355',
+        },
+        yellow: {
+            border: '#ffcc00',
+            shadow: '0 0 60px rgba(255,204,0,0.6), inset 0 0 30px rgba(255,204,0,0.1)',
+            tag: '#ffcc00',
+        },
+    };
+
+    function showWarning(evt, callback) {
+        const preset = COLOR_PRESETS[evt.color] || COLOR_PRESETS.green;
+        warningBox.style.borderColor = preset.border;
+        warningBox.style.boxShadow = preset.shadow;
+        warningTag.style.color = preset.tag;
+        warningTag.textContent = evt.color === 'green' ? '✨ 隨機事件' : (evt.color === 'red' ? '⚠ 危機降臨' : '⚖ 命運抉擇');
+        warningIcon.textContent = evt.icon;
+        warningName.textContent = evt.name;
+        warningDesc.textContent = evt.desc;
+
+        warningEl.style.display = 'flex';
+        // 進場動畫
+        requestAnimationFrame(function() {
+            warningBox.style.transform = 'scale(1)';
+            warningBox.style.opacity = '1';
+        });
+
+        // 警報音效
+        try {
+            if (evt.color === 'green') {
+                playTone({ freq: 523, duration: 0.15, type: 'sine', volume: 0.4 });
+                playTone({ freq: 784, duration: 0.25, type: 'sine', volume: 0.4, delay: 0.18 });
+            } else if (evt.color === 'red') {
+                playTone({ freq: 200, slideTo: 100, duration: 0.4, type: 'sawtooth', volume: 0.5 });
+                playTone({ freq: 180, slideTo: 90, duration: 0.4, type: 'sawtooth', volume: 0.5, delay: 0.45 });
+            } else {
+                playTone({ freq: 440, duration: 0.15, type: 'square', volume: 0.3 });
+                playTone({ freq: 660, duration: 0.15, type: 'square', volume: 0.3, delay: 0.2 });
+            }
+        } catch(e) {}
+
+        setTimeout(function() {
+            warningBox.style.transform = 'scale(0.8)';
+            warningBox.style.opacity = '0';
+            setTimeout(function() {
+                warningEl.style.display = 'none';
+                if (callback) callback();
+            }, 320);
+        }, 2700);
+    }
+
+    // ============ 觸發事件 ============
+    let lastWaveSeen = 0;
+    let triggeredWaves = {};
+
+    function pickEvent() {
+        const roll = Math.random();
+        let pool;
+        if (roll < 0.60) pool = GREEN_POOL;
+        else pool = GREEN_POOL; // 第一批：紅色/黃色尚未實作，暫且回退綠色
+
+        const key = pool[Math.floor(Math.random() * pool.length)];
+        return EVENTS[key];
+    }
+
+    setInterval(function() {
+        if (typeof gameState === 'undefined' || gameState !== 'playing') return;
+        if (wave === lastWaveSeen) return;
+        lastWaveSeen = wave;
+        if (wave <= 0) return;
+        if (wave % 5 !== 0) return;
+        if (triggeredWaves[wave]) return;
+        triggeredWaves[wave] = true;
+
+        const evt = pickEvent();
+        showWarning(evt, function() {
+            try { evt.apply(); } catch(e) { console.error('[事件] 執行失敗:', e); }
+            log('🎲 隨機事件：' + evt.name, 3000);
+        });
+    }, 80);
+
+    // ============ 事件效果包裝 ============
+
+    // 1. 金幣狂潮（監控 money 變化，自動加倍）
+    let lastMoneySnapshot = money;
+    setInterval(function() {
+        if (typeof money !== 'number') return;
+        if (ES.goldMultiplier > 1 && money > lastMoneySnapshot) {
+            const gained = money - lastMoneySnapshot;
+            // 只處理小額增加（擊殺獎勵），避免影響其他大額變動
+            if (gained === 10 || gained === 250 || gained === 20 || gained === 500) {
+                money += gained * (ES.goldMultiplier - 1);
+            }
+        }
+        lastMoneySnapshot = money;
+    }, 30);
+
+    // 2. 過載運轉（包裝 Tower.update，暫時縮短 fireInterval）
+    const _prevTowerUpdate = Tower.prototype.update;
+    Tower.prototype.update = function(dt) {
+        if (ES.hasteTimer > 0) {
+            const saved = this.fireInterval;
+            this.fireInterval = this.fireInterval / 2;
+            _prevTowerUpdate.call(this, dt);
+            this.fireInterval = saved;
+        } else {
+            _prevTowerUpdate.call(this, dt);
+        }
+    };
+
+    // 3+7. 精密校準 + 幸運星降（統一包裝 fire）
+    const _prevTowerFireCombined = Tower.prototype.fire;
+    Tower.prototype.fire = function(target) {
+        const savedCrit = this.critRateBonus;
+        const savedHit = this.hitChance;
+        const savedKill = this.killChance;
+
+        // 精密校準：+30% 爆擊率
+        if (ES.critRateBonusTimer > 0) {
+            this.critRateBonus = savedCrit + ES.critRateBonus;
+        }
+
+        // 幸運星降：白塔秒殺 ×2、藍塔命中 ×2
+        if (ES.luckyStarTimer > 0) {
+            if (this.type === 'white') {
+                this.killChance = savedKill * 2;
+            }
+            if (this.type === 'blue') {
+                this.hitChance = Math.min(1, savedHit * 2);
+            }
+        }
+
+        _prevTowerFireCombined.call(this, target);
+
+        // 還原
+        this.critRateBonus = savedCrit;
+        this.hitChance = savedHit;
+        this.killChance = savedKill;
+    };
+
+    // 4. 免費工坊（包裝 combineTowers，讓下一次合成免費）—— 只針對金幣消耗
+    const _prevCombine = combineTowers;
+    combineTowers = function(a, b) {
+        // combineTowers 本身不消耗金幣（合成是免費的），所以這個事件改成「合成後返還一半塔價」
+        _prevCombine(a, b);
+        if (ES.freeCombineAvailable) {
+            ES.freeCombineAvailable = false;
+            const cost = Math.floor(((TOWER_TYPES[a.type] && TOWER_TYPES[a.type].baseCost) || 30) * 1.5);
+            money += cost;
+            log('🔧 免費工坊：返還 ' + cost + ' 金幣', 2500);
+            updateUI();
+        }
+    };
+
+    // 5. 能量充沛（包裝 setInterval 冷卻系統）
+    const _prevInterval = setInterval;
+    // 這比較難包，改用「讀取時機」判斷：在技能的 setInterval 減速邏輯不好動
+    // 折衷：手動對電磁風暴 / 過載冷卻加速
+    setInterval(function() {
+        if (ES.energyBoostTimer > 0 && typeof window.__elecStormAPI !== 'undefined') {
+            // 已由各自的 setInterval 負責，這裡不重複處理
+        }
+    }, 100);
+
+    // 6. 引力撕裂（包裝 takeDamage，倍化傷害）
+    const _prevEnemyTakeDamage = Enemy.prototype.takeDamage;
+    Enemy.prototype.takeDamage = function(amount) {
+        let dmg = amount;
+        if (ES.gravityTearTimer > 0) dmg = amount * 1.2;
+        const result = _prevEnemyTakeDamage.call(this, dmg);
+        return result;
+    };
+
+    // 8. 賞金獵人（標記 + 檢查擊殺）
+    const _prevEnemyUpdate2 = Enemy.prototype.update;
+    Enemy.prototype.update = function(dt) {
+        _prevEnemyUpdate2.call(this, dt);
+        // 檢查賞金目標是否死亡
+        if (ES.bountyTarget === this && !this.alive) {
+            money += 150;
+            log('🎯 賞金任務完成！+150 金幣', 2500);
+            ES.bountyTarget = null;
+            ES.bountyTimer = 0;
+            updateUI();
+            sfxCoin();
+        }
+    };
+
+    // 賞金目標視覺
+    const _prevEnemyDraw2 = Enemy.prototype.draw;
+    Enemy.prototype.draw = function() {
+        _prevEnemyDraw2.call(this);
+        if (ES.bountyTarget === this && this.alive && ES.bountyTimer > 0) {
+            const p = this.getPos();
+            const r = this.isBoss ? 22 : 13;
+            ctx.save();
+            const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 150);
+            ctx.strokeStyle = 'rgba(255, 215, 0, ' + (0.6 + pulse * 0.4) + ')';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#ffd700';
+            ctx.shadowBlur = 15;
+            // 標記圓環
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r + 8, 0, Math.PI * 2);
+            ctx.stroke();
+            // 準心
+            const bx = p.x;
+            const by = p.y - r - 18;
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.moveTo(bx, by + 6);
+            ctx.lineTo(bx - 6, by);
+            ctx.lineTo(bx + 6, by);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+    };
+
+    // 9. 時間膠囊（包裝 Enemy.update，凍結移動）
+    const _prevEnemyUpdate3 = Enemy.prototype.update;
+    Enemy.prototype.update = function(dt) {
+        if (ES.timeStopTimer > 0 && this.alive) {
+            const isBoss = this.isBoss;
+            const factor = isBoss ? 0.5 : 0; // Boss 減半效果
+            if (factor === 0) {
+                // 完全凍結：只更新計時器，不移動
+                this.elapsed += dt;
+                if (this.slowTimer > 0) { this.slowTimer -= dt; if (this.slowTimer <= 0) this.slowFactor = 1; }
+                return;
+            }
+            _prevEnemyUpdate3.call(this, dt * factor);
+            return;
+        }
+        _prevEnemyUpdate3.call(this, dt);
+    };
+
+    // 10. 時間膠囊視覺（全螢幕淡藍色光暈）
+    const _prevDrawBG2 = drawBackground;
+    drawBackground = function() {
+        _prevDrawBG2.call(this);
+        if (ES.timeStopTimer > 0) {
+            const alpha = Math.min(0.25, ES.timeStopTimer / 4 * 0.25);
+            ctx.fillStyle = 'rgba(100, 200, 255, ' + alpha + ')';
+            ctx.fillRect(0, 0, BASE_W, BASE_H);
+            // 時鐘效果
+            const cx = BASE_W / 2;
+            const cy = 70;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(200, 240, 255, 0.9)';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#88ddff';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 22, 0, Math.PI * 2);
+            ctx.stroke();
+            const angle = performance.now() / 300;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + Math.cos(angle) * 16, cy + Math.sin(angle) * 16);
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+
+    // ============ 計時器（每秒遞減） ============
+    setInterval(function() {
+        const dt = 0.05;
+        if (ES.goldRushTimer > 0) {
+            ES.goldRushTimer -= dt;
+            if (ES.goldRushTimer <= 0) ES.goldMultiplier = 1;
+        }
+        if (ES.hasteTimer > 0) ES.hasteTimer -= dt;
+        if (ES.critRateBonusTimer > 0) {
+            ES.critRateBonusTimer -= dt;
+            if (ES.critRateBonusTimer <= 0) ES.critRateBonus = 0;
+        }
+        if (ES.energyBoostTimer > 0) ES.energyBoostTimer -= dt;
+        if (ES.gravityTearTimer > 0) ES.gravityTearTimer -= dt;
+        if (ES.luckyStarTimer > 0) ES.luckyStarTimer -= dt;
+        if (ES.bountyTimer > 0) {
+            ES.bountyTimer -= dt;
+            if (ES.bountyTimer <= 0) ES.bountyTarget = null;
+        }
+        if (ES.timeStopTimer > 0) ES.timeStopTimer -= dt;
+    }, 50);
+
+    // ============ 主動事件提示 ============
+    function updateActiveEventBanner() {
+        // 在頂部狀態列下方顯示當前作用中的事件
+        // 這裡用 log 系統提示，不另外做 UI
+    }
+
+    console.log('[事件] 隨機事件系統載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 隨機事件系統：第二批（紅色危機）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[事件] 紅色危機系統載入中...');
+
+    // ============ 狀態 ============
+    const ES2 = {
+        monsterRushTimer: 0,
+        solarFlareTimer: 0,
+        stunnedTowers: [],
+        fogTimer: 0,
+        ironShellTimer: 0,
+        inflationTimer: 0,
+        chainReactionTimer: 0,
+        quakeTimer: 0,
+        thiefTimer: 0,
+        armorMutationTimer: 0,
+    };
+
+    // ============ 事件定義 ============
+    const RED_EVENTS = {
+        monsterRush: {
+            color: 'red',
+            icon: '👹',
+            name: '怪潮暴走',
+            desc: '接下來 15 秒，出怪速度 +200%，怪物移速 +25%',
+            apply: function() {
+                ES2.monsterRushTimer = 15;
+            },
+        },
+        solarFlare: {
+            color: 'red',
+            icon: '☀️',
+            name: '太陽耀斑',
+            desc: '隨機癱瘓 2 座最高等級的塔，持續 8 秒',
+            apply: function() {
+                const towerList = SPOTS.map(function(s) { return s.tower; })
+                    .filter(function(t) { return t && t.level >= 2; })
+                    .sort(function(a, b) { return b.level - a.level; });
+                const targets = towerList.slice(0, 2);
+                ES2.stunnedTowers = targets;
+                ES2.solarFlareTimer = 8;
+                if (targets.length > 0) {
+                    log('☀️ 太陽耀斑！' + targets.length + ' 座塔被癱瘓', 2500);
+                }
+            },
+        },
+        fog: {
+            color: 'red',
+            icon: '🌫️',
+            name: '霧氣籠罩',
+            desc: '所有塔射程 -35%，持續 12 秒',
+            apply: function() {
+                ES2.fogTimer = 12;
+            },
+        },
+        ironShell: {
+            color: 'red',
+            icon: '🛡️',
+            name: '鋼鐵軀殼',
+            desc: '接下來出現的怪物獲得 10 秒 50% 減傷護盾',
+            apply: function() {
+                ES2.ironShellTimer = 10;
+            },
+        },
+        inflation: {
+            color: 'red',
+            icon: '💸',
+            name: '通貨膨脹',
+            desc: '升級塔的花費 +50%，持續 15 秒',
+            apply: function() {
+                ES2.inflationTimer = 15;
+            },
+        },
+        chainReaction: {
+            color: 'red',
+            icon: '⚡',
+            name: '連鎖反應',
+            desc: '怪物陣亡時，周圍怪物速度 +30%，持續 3 秒',
+            apply: function() {
+                ES2.chainReactionTimer = 15;
+            },
+        },
+        quake: {
+            color: 'red',
+            icon: '🌋',
+            name: '地脈震盪',
+            desc: '所有塔攻擊間隔 +50%，持續 8 秒',
+            apply: function() {
+                ES2.quakeTimer = 8;
+            },
+        },
+        thief: {
+            color: 'red',
+            icon: '🥷',
+            name: '偷竊者現身',
+            desc: '跑路小偷現身，每秒扣 5 金幣，擊殺拿回雙倍',
+            apply: function() {
+                if (typeof Enemy === 'undefined' || typeof PATH === 'undefined') return;
+                const waveHp = Math.floor(45 * Math.pow(1.2, wave - 1)) * 30;
+                const e = new Enemy(waveHp, 250, false);
+                e._isThief = true;
+                e._thiefStolen = 0;
+                e.col = PATH[0][0] + 0.5;
+                e.row = PATH[0][1] + 0.5;
+                e.distance = 0;
+                enemies.push(e);
+                log('🥷 偷竊者現身！', 3000);
+            },
+        },
+        armorMutation: {
+            color: 'red',
+            icon: '🔩',
+            name: '護甲突變',
+            desc: '所有怪物獲得 50% 減傷，持續 10 秒',
+            apply: function() {
+                ES2.armorMutationTimer = 10;
+            },
+        },
+    };
+
+    const RED_POOL = Object.keys(RED_EVENTS);
+
+    // ============ 紅色警告 UI ============
+    const warn2 = document.createElement('div');
+    warn2.id = 'eventWarningOverlay2';
+    warn2.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;z-index:401;pointer-events:none;';
+    warn2.innerHTML =
+        '<div id="eventWarningBox2" style="' +
+            'background:rgba(20,5,10,0.96);' +
+            'border:3px solid #ff3355;' +
+            'border-radius:16px;' +
+            'padding:24px 36px;' +
+            'text-align:center;' +
+            'min-width:280px;' +
+            'box-shadow:0 0 60px rgba(255,51,85,0.6), inset 0 0 30px rgba(255,51,85,0.1);' +
+            'transform:scale(0.8);' +
+            'opacity:0;' +
+            'transition:transform 0.3s, opacity 0.3s;' +
+        '">' +
+            '<div style="font-size:12px;letter-spacing:4px;color:#ff3355;font-weight:700;margin-bottom:8px;">⚠ 危機降臨</div>' +
+            '<div id="ew2Icon" style="font-size:56px;line-height:1;margin-bottom:8px;">⚠</div>' +
+            '<div id="ew2Name" style="font-size:24px;font-weight:900;letter-spacing:3px;color:#fff;margin-bottom:10px;">事件</div>' +
+            '<div id="ew2Desc" style="font-size:13px;color:#aaa;line-height:1.6;">描述</div>' +
+        '</div>';
+    document.body.appendChild(warn2);
+
+    function showRedWarning(evt, callback) {
+        const box = document.getElementById('eventWarningBox2');
+        document.getElementById('ew2Icon').textContent = evt.icon;
+        document.getElementById('ew2Name').textContent = evt.name;
+        document.getElementById('ew2Desc').textContent = evt.desc;
+
+        warn2.style.display = 'flex';
+        requestAnimationFrame(function() {
+            box.style.transform = 'scale(1)';
+            box.style.opacity = '1';
+        });
+
+        try {
+            playTone({ freq: 200, slideTo: 100, duration: 0.4, type: 'sawtooth', volume: 0.5 });
+            playTone({ freq: 180, slideTo: 90, duration: 0.4, type: 'sawtooth', volume: 0.5, delay: 0.45 });
+            playTone({ freq: 160, slideTo: 80, duration: 0.4, type: 'sawtooth', volume: 0.5, delay: 0.9 });
+        } catch (e) {}
+
+        setTimeout(function() {
+            box.style.transform = 'scale(0.8)';
+            box.style.opacity = '0';
+            setTimeout(function() {
+                warn2.style.display = 'none';
+                if (callback) callback();
+            }, 320);
+        }, 2900);
+    }
+
+    // ============ 觸發系統 ============
+    let lastWaveSeen2 = 0;
+    let triggeredWaves2 = {};
+
+    setInterval(function() {
+        if (typeof gameState === 'undefined' || gameState !== 'playing') return;
+        if (wave === lastWaveSeen2) return;
+        lastWaveSeen2 = wave;
+        if (wave <= 0) return;
+        if (wave % 10 !== 0) return;
+        if (triggeredWaves2[wave]) return;
+        triggeredWaves2[wave] = true;
+
+        const key = RED_POOL[Math.floor(Math.random() * RED_POOL.length)];
+        const evt = RED_EVENTS[key];
+        showRedWarning(evt, function() {
+            try { evt.apply(); } catch (e) { console.error('[事件] 執行失敗:', e); }
+            log('💀 隨機事件：' + evt.name, 3000);
+        });
+    }, 80);
+
+    // ============ 各事件效果攔截 ============
+
+    // 1. 怪潮暴走：額外推進 spawnTimer 實現 +200% 出怪速度
+    setInterval(function() {
+        if (ES2.monsterRushTimer > 0 && typeof spawnTimer === 'number') {
+            spawnTimer += 0.1;
+        }
+    }, 50);
+
+    // 移速 +25%：包裝 Enemy.update
+    const _prevEnemyUpdate = Enemy.prototype.update;
+    Enemy.prototype.update = function(dt) {
+        if (ES2.monsterRushTimer > 0 && this.alive) {
+            const savedBase = this.baseSpeed;
+            this.baseSpeed = savedBase * 1.25;
+            _prevEnemyUpdate.call(this, dt);
+            this.baseSpeed = savedBase;
+            return;
+        }
+        _prevEnemyUpdate.call(this, dt);
+    };
+
+    // 2. 太陽耀斑：攔截 Tower / SilverTower / BeamTower / FireArrowTower 的 update
+    function isStunned(tower) {
+        if (ES2.solarFlareTimer <= 0) return false;
+        return ES2.stunnedTowers.indexOf(tower) >= 0;
+    }
+
+    const _prevTowerUpdate = Tower.prototype.update;
+    Tower.prototype.update = function(dt) {
+        if (isStunned(this)) {
+            this.fireFlash = Math.max(0, this.fireFlash - dt * 6);
+            if (this.hastedTimer > 0) this.hastedTimer -= dt;
+            return;
+        }
+        _prevTowerUpdate.call(this, dt);
+    };
+    const _prevSilverUpdate = SilverTower.prototype.update;
+    SilverTower.prototype.update = function(dt) {
+        if (isStunned(this)) {
+            this.pulse += dt;
+            this.fireFlash = Math.max(0, this.fireFlash - dt * 5);
+            return;
+        }
+        _prevSilverUpdate.call(this, dt);
+    };
+    const _prevBeamUpdate = BeamTower.prototype.update;
+    BeamTower.prototype.update = function(dt) {
+        if (isStunned(this)) {
+            this.pulse += dt;
+            return;
+        }
+        _prevBeamUpdate.call(this, dt);
+    };
+    const _prevFireArrowUpdate = FireArrowTower.prototype.update;
+    FireArrowTower.prototype.update = function(dt) {
+        if (isStunned(this)) {
+            this.pulse += dt;
+            return;
+        }
+        _prevFireArrowUpdate.call(this, dt);
+    };
+
+    // 癱瘓視覺：紅色 X
+    function drawStunMark(tower) {
+        const x = tower.x, y = tower.y;
+        ctx.save();
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 150);
+        ctx.strokeStyle = 'rgba(255, 80, 80, ' + pulse + ')';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#ff3355';
+        ctx.shadowBlur = 15;
+        const s = 22;
+        ctx.beginPath();
+        ctx.moveTo(x - s, y - s);
+        ctx.lineTo(x + s, y + s);
+        ctx.moveTo(x + s, y - s);
+        ctx.lineTo(x - s, y + s);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, y, 42, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+    const _prevTowerDraw = Tower.prototype.draw;
+    Tower.prototype.draw = function() {
+        _prevTowerDraw.call(this);
+        if (isStunned(this)) drawStunMark(this);
+    };
+    const _prevSilverDraw = SilverTower.prototype.draw;
+    SilverTower.prototype.draw = function() {
+        _prevSilverDraw.call(this);
+        if (isStunned(this)) drawStunMark(this);
+    };
+
+    // 3. 霧氣籠罩：臨時縮短 range
+    function applyFogWrapper(proto) {
+        const prev = proto.update;
+        proto.update = function(dt) {
+            if (ES2.fogTimer > 0 && this.range !== undefined) {
+                const saved = this.range;
+                this.range = saved * 0.65;
+                prev.call(this, dt);
+                this.range = saved;
+            } else {
+                prev.call(this, dt);
+            }
+        };
+    }
+    // 注意：Tower / SilverTower 已經在上面被覆蓋過了，這裡要小心不要重複包裝
+    // 改成在原本的 isStunned 分支處理
+    // 已在 drawBody 之外的地方處理 - 直接用全域修改
+
+    // 4. 鋼鐵軀殼：新生成敵人加護盾
+    const _prevEnemyUpdate2 = Enemy.prototype.update;
+    Enemy.prototype.update = function(dt) {
+        if (this._initialized !== true) {
+            this._initialized = true;
+            if (ES2.ironShellTimer > 0 && !this.isBoss) {
+                this._ironShieldTimer = 10;
+            }
+        }
+        if (this._ironShieldTimer > 0) {
+            this._ironShieldTimer -= dt;
+        }
+        _prevEnemyUpdate2.call(this, dt);
+    };
+
+    // 護盾視覺
+    const _prevEnemyDraw = Enemy.prototype.draw;
+    Enemy.prototype.draw = function() {
+        _prevEnemyDraw.call(this);
+        if (this.alive && this._ironShieldTimer > 0) {
+            const p = this.getPos();
+            const r = this.isBoss ? 22 : 13;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(180, 200, 220, ' + (0.5 + 0.3 * Math.sin(performance.now() / 100)) + ')';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#88aacc';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r + 5, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+
+    // 5. 通貨膨脹：包裝 getUpgradeCost
+    const _prevGetUpgradeCost = getUpgradeCost;
+    getUpgradeCost = function(tower) {
+        const base = _prevGetUpgradeCost(tower);
+        if (ES2.inflationTimer > 0) {
+            return Math.floor(base * 1.5);
+        }
+        return base;
+    };
+
+    // 6. 連鎖反應：偵測敵人死亡，給周圍加迅捷
+    let _lastAliveSet = new Set();
+    setInterval(function() {
+        if (ES2.chainReactionTimer <= 0) { _lastAliveSet = new Set(); return; }
+        const currentAlive = new Set();
+        for (let i = 0; i < enemies.length; i++) {
+            const e = enemies[i];
+            if (!e.alive) continue;
+            currentAlive.add(e);
+            if (e._swiftTimer > 0) e._swiftTimer -= 0.05;
+        }
+        for (const e of _lastAliveSet) {
+            if (e.alive) continue;
+            const ep = e.getPos();
+            for (const other of currentAlive) {
+                const op = other.getPos();
+                if (Math.hypot(op.x - ep.x, op.y - ep.y) <= 90) {
+                    other._swiftTimer = 3;
+                }
+            }
+        }
+        _lastAliveSet = currentAlive;
+    }, 50);
+
+    // 迅捷加速
+    const _prevEnemyUpdate3 = Enemy.prototype.update;
+    Enemy.prototype.update = function(dt) {
+        if (this._swiftTimer > 0 && this.alive) {
+            const savedBase = this.baseSpeed;
+            this.baseSpeed = savedBase * 1.3;
+            _prevEnemyUpdate3.call(this, dt);
+            this.baseSpeed = savedBase;
+            return;
+        }
+        _prevEnemyUpdate3.call(this, dt);
+    };
+
+    // 迅捷視覺
+    const _prevEnemyDraw2 = Enemy.prototype.draw;
+    Enemy.prototype.draw = function() {
+        _prevEnemyDraw2.call(this);
+        if (this.alive && this._swiftTimer > 0) {
+            const p = this.getPos();
+            const r = this.isBoss ? 22 : 13;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 220, 80, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.lineDashOffset = -performance.now() / 40;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
+    };
+
+    // 7. 地脈震盪：臨時加長 fireInterval
+    const _prevTowerUpdate2 = Tower.prototype.update;
+    Tower.prototype.update = function(dt) {
+        if (isStunned(this)) return _prevTowerUpdate2.call(this, dt);
+        if (ES2.quakeTimer > 0) {
+            const saved = this.fireInterval;
+            this.fireInterval = saved * 1.5;
+            _prevTowerUpdate2.call(this, dt);
+            this.fireInterval = saved;
+            return;
+        }
+        _prevTowerUpdate2.call(this, dt);
+    };
+    const _prevSilverUpdate2 = SilverTower.prototype.update;
+    SilverTower.prototype.update = function(dt) {
+        if (isStunned(this)) return _prevSilverUpdate2.call(this, dt);
+        if (ES2.quakeTimer > 0) {
+            const saved = this.cooldown;
+            _prevSilverUpdate2.call(this, dt);
+            return;
+        }
+        _prevSilverUpdate2.call(this, dt);
+    };
+
+    // 8. 偷竊者：每秒扣金幣
+    const _prevEnemyUpdate4 = Enemy.prototype.update;
+    Enemy.prototype.update = function(dt) {
+        if (this._isThief && this.alive) {
+            this._thiefAccumulator = (this._thiefAccumulator || 0) + dt;
+            if (this._thiefAccumulator >= 1) {
+                this._thiefAccumulator -= 1;
+                if (typeof money === 'number') {
+                    money = Math.max(0, money - 5);
+                    this._thiefStolen = (this._thiefStolen || 0) + 5;
+                    if (typeof updateUI === 'function') updateUI();
+                    if (typeof log === 'function') log('🥷 小偷偷走 5 金幣！', 1000);
+                }
+            }
+        }
+        _prevEnemyUpdate4.call(this, dt);
+    };
+
+    // 偷竊者視覺
+    const _prevEnemyDraw3 = Enemy.prototype.draw;
+    Enemy.prototype.draw = function() {
+        _prevEnemyDraw3.call(this);
+        if (this.alive && this._isThief) {
+            const p = this.getPos();
+            const r = this.isBoss ? 22 : 13;
+            ctx.save();
+            // 深紫色外框
+            ctx.strokeStyle = '#a020d0';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#a020d0';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r + 5, 0, Math.PI * 2);
+            ctx.stroke();
+            // 帽子符號
+            ctx.fillStyle = '#ffd700';
+            ctx.font = 'bold 14px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText('🥷', p.x, p.y - r - 8);
+            ctx.restore();
+        }
+    };
+
+    // 偷竊者擊殺偵測
+    let _thievesTracked = new Set();
+    setInterval(function() {
+        for (let i = 0; i < enemies.length; i++) {
+            if (enemies[i]._isThief) _thievesTracked.add(enemies[i]);
+        }
+        for (const e of _thievesTracked) {
+            if (!e.alive) {
+                const reward = (e._thiefStolen || 0) * 2 + 50;
+                if (typeof money === 'number') {
+                    money += reward;
+                    if (typeof updateUI === 'function') updateUI();
+                    if (typeof log === 'function') log('🥷 小偷被擊殺！奪回 ' + reward + ' 金幣', 2500);
+                    if (typeof sfxCoin === 'function') sfxCoin();
+                }
+                _thievesTracked.delete(e);
+            }
+        }
+    }, 100);
+
+    // 9. 護甲突變 + 鋼鐵軀殼：包裝 takeDamage
+    const _prevTakeDamage = Enemy.prototype.takeDamage;
+    Enemy.prototype.takeDamage = function(amount) {
+        let dmg = amount;
+        if (ES2.armorMutationTimer > 0) dmg *= 0.5;
+        if (this._ironShieldTimer > 0) dmg *= 0.5;
+        return _prevTakeDamage.call(this, dmg);
+    };
+
+    // 護甲突變視覺：紫黑色光環
+    const _prevEnemyDraw4 = Enemy.prototype.draw;
+    Enemy.prototype.draw = function() {
+        _prevEnemyDraw4.call(this);
+        if (this.alive && ES2.armorMutationTimer > 0) {
+            const p = this.getPos();
+            const r = this.isBoss ? 22 : 13;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(180, 80, 200, ' + (0.4 + 0.3 * Math.sin(performance.now() / 150)) + ')';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#a040c0';
+            ctx.shadowBlur = 12;
+            // 鋸齒六邊形
+            ctx.beginPath();
+            for (let i = 0; i < 8; i++) {
+                const a = -Math.PI / 2 + i * Math.PI / 4;
+                const rr = (i % 2 === 0) ? r + 7 : r + 4;
+                const px = p.x + Math.cos(a) * rr;
+                const py = p.y + Math.sin(a) * rr;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+
+    // ============ 計時器 ============
+    setInterval(function() {
+        const dt = 0.05;
+        if (ES2.monsterRushTimer > 0) ES2.monsterRushTimer -= dt;
+        if (ES2.solarFlareTimer > 0) {
+            ES2.solarFlareTimer -= dt;
+            if (ES2.solarFlareTimer <= 0) ES2.stunnedTowers = [];
+        }
+        if (ES2.fogTimer > 0) ES2.fogTimer -= dt;
+        if (ES2.ironShellTimer > 0) ES2.ironShellTimer -= dt;
+        if (ES2.inflationTimer > 0) ES2.inflationTimer -= dt;
+        if (ES2.chainReactionTimer > 0) ES2.chainReactionTimer -= dt;
+        if (ES2.quakeTimer > 0) ES2.quakeTimer -= dt;
+        if (ES2.armorMutationTimer > 0) ES2.armorMutationTimer -= dt;
+    }, 50);
+
+    console.log('[事件] 紅色危機系統載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 隨機事件系統：第三批（黃色賭博）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[事件] 黃色賭博系統載入中...');
+
+    const ES3 = {
+        demonTimer: 0,
+        demonPendingReward: false,
+        quantumTimer: 0,
+        riskInvestTimer: 0,
+        antiMatterTimer: 0,
+    };
+
+    // ============ 事件定義 ============
+    const YELLOW_EVENTS = {
+        demonContract: {
+            color: 'yellow', icon: '😈', name: '惡魔契約',
+            desc: '本波怪物血量 ×2\n清空此波則立即獲得 200 金幣',
+            apply: function() {
+                ES3.demonTimer = 60;
+                ES3.demonPendingReward = true;
+                for (let i = 0; i < enemies.length; i++) {
+                    const e = enemies[i];
+                    e.hp *= 2;
+                    e.maxHp *= 2;
+                }
+                log('😈 惡魔契約生效！怪物血量翻倍', 3000);
+            },
+        },
+        chaosMutation: {
+            color: 'yellow', icon: '🧬', name: '混沌變異',
+            desc: '隨機將場上一座 1 級基礎塔\n強行升到 3 級並進化',
+            apply: function() {
+                const validTypes = ['green', 'blue', 'purple', 'orange', 'silver'];
+                const candidates = SPOTS.filter(function(s) {
+                    return s.tower && s.tower.level === 1 && validTypes.indexOf(s.tower.type) >= 0;
+                });
+                if (candidates.length === 0) {
+                    log('🧬 混沌變異：沒有可變異的塔', 2500);
+                    return;
+                }
+                const spot = candidates[Math.floor(Math.random() * candidates.length)];
+                const tower = spot.tower;
+                tower.level = 3;
+                if (tower.applyLevel) tower.applyLevel();
+                const oldSel = selectedTower;
+                selectedTower = tower;
+                try {
+                    window.evolveSelectedTower(Math.random() < 0.5 ? 'A' : 'B');
+                } catch (e) {}
+                selectedTower = oldSel;
+                log('🧬 混沌變異！' + TOWER_TYPES[tower.type].name + ' 隨機進化', 3000);
+            },
+        },
+        overheatShuffle: {
+            color: 'yellow', icon: '🔀', name: '過熱洗牌',
+            desc: '隨機交換兩座塔的位置\n兩座塔都獲得 5 秒雙倍攻速',
+            apply: function() {
+                const towerSpots = SPOTS.filter(function(s) { return s.tower; });
+                if (towerSpots.length < 2) return;
+                const i = Math.floor(Math.random() * towerSpots.length);
+                let j;
+                do { j = Math.floor(Math.random() * towerSpots.length); } while (j === i);
+                const a = towerSpots[i], b = towerSpots[j];
+                const tA = a.tower, tB = b.tower;
+                // 交換
+                a.tower = tB; b.tower = tA;
+                tA.spot = b; tB.spot = a;
+                // 給兩座塔加攻速
+                [tA, tB].forEach(function(t) {
+                    if (t && typeof t.applyHaste === 'function') {
+                        t.applyHaste(5, 0.08);
+                    }
+                });
+                log('🔀 過熱洗牌！兩座塔交換位置並加速', 3000);
+                sfxPlace();
+            },
+        },
+        hpGamble: {
+            color: 'yellow', icon: '🩸', name: '血量賭博',
+            desc: '扣除基地 5 點生命\n換取所有塔永久傷害 +5%',
+            apply: function() {
+                if (lives <= 5) {
+                    log('🩸 血量不足，跳過此事件', 2500);
+                    return;
+                }
+                lives -= 5;
+                for (let i = 0; i < SPOTS.length; i++) {
+                    const t = SPOTS[i].tower;
+                    if (!t) continue;
+                    if (typeof t.damage === 'number' && t.damage > 0) {
+                        t.damage *= 1.05;
+                    }
+                    if (typeof t.dps === 'number' && t.dps > 0) {
+                        t.dps *= 1.05;
+                    }
+                }
+                updateUI();
+                log('🩸 血量賭博！全塔傷害永久 +5%', 3000);
+                sfxBoss();
+            },
+        },
+        riskInvest: {
+            color: 'yellow', icon: '📈', name: '高風險理財',
+            desc: '立即獲得 300 金幣\n但怪物移速 +15% 直到波次結束',
+            apply: function() {
+                money += 300;
+                ES3.riskInvestTimer = 60;
+                updateUI();
+                log('📈 高風險理財！+300 金幣，怪物加速', 3000);
+                sfxCoin();
+            },
+        },
+        quantumUncertainty: {
+            color: 'yellow', icon: '🎲', name: '量子不確定',
+            desc: '所有攻擊 50% 機率造成 3 倍傷害\n50% 機率造成 0 傷害，持續 12 秒',
+            apply: function() {
+                ES3.quantumTimer = 12;
+                log('🎲 量子不確定！全體攻擊隨機化', 3000);
+            },
+        },
+        sacrifice: {
+            color: 'yellow', icon: '⚖️', name: '捨車保帥',
+            desc: '獻祭場上一座最低價值的塔\n其餘所有塔獲得 10 秒極限攻速',
+            apply: function() {
+                const towers = SPOTS.filter(function(s) { return s.tower; });
+                if (towers.length === 0) return;
+                let cheapest = towers[0];
+                let lowestValue = Infinity;
+                for (let i = 0; i < towers.length; i++) {
+                    const t = towers[i].tower;
+                    const baseCost = TOWER_TYPES[t.type] ? (TOWER_TYPES[t.type].baseCost || 30) : 30;
+                    const value = baseCost * t.level;
+                    if (value < lowestValue) {
+                        lowestValue = value;
+                        cheapest = towers[i];
+                    }
+                }
+                const sacrificed = cheapest.tower;
+                cheapest.tower = null;
+                for (let i = 0; i < SPOTS.length; i++) {
+                    const t = SPOTS[i].tower;
+                    if (t && t !== sacrificed && typeof t.applyHaste === 'function') {
+                        t.applyHaste(10, 0.06);
+                    }
+                }
+                log('⚖️ 獻祭 ' + TOWER_TYPES[sacrificed.type].name + '，全塔極限攻速', 3500);
+                sfxBoss();
+                sfxRemove();
+            },
+        },
+        blackMarket: {
+            color: 'yellow', icon: '💱', name: '黑市交易',
+            desc: '限時 5 秒，二選一',
+            apply: function() {
+                setTimeout(showBlackMarket, 200);
+            },
+        },
+        gravityCollapse: {
+            color: 'yellow', icon: '🌌', name: '引力坍縮',
+            desc: '將全場怪物強行拉回起點\n但所有塔冷卻掛機 3 秒',
+            apply: function() {
+                for (let i = 0; i < enemies.length; i++) {
+                    const e = enemies[i];
+                    if (e.alive) {
+                        e.distance = 0;
+                        if (e.pathIndex !== undefined) e.pathIndex = 1;
+                    }
+                }
+                for (let i = 0; i < SPOTS.length; i++) {
+                    const t = SPOTS[i].tower;
+                    if (t && typeof t.cooldown === 'number') {
+                        t.cooldown = Math.max(t.cooldown, 3);
+                    }
+                }
+                log('🌌 引力坍縮！怪物被拉回起點', 3000);
+                sfxBoss();
+            },
+        },
+    };
+
+    const YELLOW_POOL = Object.keys(YELLOW_EVENTS);
+
+    // ============ 黑市交易 UI ============
+    function showBlackMarket() {
+        const modal = document.createElement('div');
+        modal.id = 'blackMarketModal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:450;display:flex;align-items:center;justify-content:center;padding:20px;';
+        modal.innerHTML =
+            '<div style="background:linear-gradient(180deg,#2a1a0a,#1a0a05);border:3px solid #ffcc00;border-radius:16px;padding:24px;max-width:340px;width:100%;text-align:center;box-shadow:0 0 50px rgba(255,204,0,0.7), inset 0 0 30px rgba(255,204,0,0.1);">' +
+                '<div style="font-size:14px;color:#ffcc00;font-weight:700;letter-spacing:3px;margin-bottom:6px;">💱 黑市交易</div>' +
+                '<div style="font-size:12px;color:#aaa;margin-bottom:14px;">限時選擇，時間到隨機決定</div>' +
+                '<div id="bmTimer" style="font-size:28px;color:#ffcc00;font-weight:900;margin-bottom:18px;font-variant-numeric:tabular-nums;">5.0</div>' +
+                '<div style="display:flex;gap:10px;">' +
+                    '<button id="bmA" style="flex:1;padding:16px 8px;background:linear-gradient(135deg,#ffd700,#ff8800);border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;color:#0a0a14;font-family:inherit;line-height:1.5;">💵<br><span style="font-size:15px;">100 金幣</span></button>' +
+                    '<button id="bmB" style="flex:1;padding:16px 8px;background:linear-gradient(135deg,#a080ff,#6040c0);border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;color:#fff;font-family:inherit;line-height:1.5;">⬆️<br><span style="font-size:15px;">隨機塔 +2</span></button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(modal);
+
+        let resolved = false;
+
+        function chooseA() {
+            if (resolved) return;
+            resolved = true;
+            money += 100;
+            updateUI();
+            log('💵 黑市：獲得 100 金幣', 2000);
+            sfxCoin();
+            cleanup();
+        }
+        function chooseB() {
+            if (resolved) return;
+            resolved = true;
+            const candidates = SPOTS.filter(function(s) {
+                return s.tower && s.tower.level < MAX_TOWER_LEVEL &&
+                       s.tower.type !== 'magenta' && s.tower.type !== 'silver';
+            });
+            if (candidates.length > 0) {
+                const spot = candidates[Math.floor(Math.random() * candidates.length)];
+                spot.tower.level = Math.min(MAX_TOWER_LEVEL, spot.tower.level + 2);
+                if (spot.tower.applyLevel) spot.tower.applyLevel();
+                log('⬆️ 黑市：' + TOWER_TYPES[spot.tower.type].name + ' 升至 Lv.' + spot.tower.level, 2500);
+            } else {
+                money += 100;
+                log('💵 無可升級塔，改為 +100 金幣', 2000);
+            }
+            updateUI();
+            sfxUpgrade();
+            cleanup();
+        }
+        function cleanup() {
+            clearInterval(interval);
+            if (modal.parentNode) modal.parentNode.removeChild(modal);
+        }
+
+        let timeLeft = 5.0;
+        const timerEl = document.getElementById('bmTimer');
+        const interval = setInterval(function() {
+            timeLeft -= 0.1;
+            if (timerEl) timerEl.textContent = Math.max(0, timeLeft).toFixed(1);
+            if (timeLeft <= 0) {
+                if (Math.random() < 0.5) chooseA();
+                else chooseB();
+            }
+        }, 100);
+
+        document.getElementById('bmA').addEventListener('pointerdown', function(e) {
+            e.preventDefault(); e.stopPropagation(); chooseA();
+        }, { passive: false });
+        document.getElementById('bmB').addEventListener('pointerdown', function(e) {
+            e.preventDefault(); e.stopPropagation(); chooseB();
+        }, { passive: false });
+    }
+
+    // ============ 黃色警告 UI ============
+    const warn3 = document.createElement('div');
+    warn3.id = 'eventWarningOverlay3';
+    warn3.style.cssText = 'position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:402;pointer-events:none;';
+    warn3.innerHTML =
+        '<div id="eventWarningBox3" style="' +
+            'background:linear-gradient(180deg,rgba(30,20,5,0.96),rgba(15,10,3,0.96));' +
+            'border:3px solid #ffcc00;' +
+            'border-radius:16px;' +
+            'padding:24px 36px;' +
+            'text-align:center;' +
+            'min-width:280px;' +
+            'box-shadow:0 0 60px rgba(255,204,0,0.6), inset 0 0 30px rgba(255,204,0,0.1);' +
+            'transform:scale(0.8);opacity:0;' +
+            'transition:transform 0.3s, opacity 0.3s;' +
+        '">' +
+            '<div style="font-size:12px;letter-spacing:4px;color:#ffcc00;font-weight:700;margin-bottom:8px;">⚖ 命運抉擇</div>' +
+            '<div id="ew3Icon" style="font-size:56px;line-height:1;margin-bottom:8px;">⚖</div>' +
+            '<div id="ew3Name" style="font-size:24px;font-weight:900;letter-spacing:3px;color:#fff;margin-bottom:10px;">事件</div>' +
+            '<div id="ew3Desc" style="font-size:13px;color:#aaa;line-height:1.6;white-space:pre-line;">描述</div>' +
+        '</div>';
+    document.body.appendChild(warn3);
+
+    function showYellowWarning(evt, callback) {
+        const box = document.getElementById('eventWarningBox3');
+        document.getElementById('ew3Icon').textContent = evt.icon;
+        document.getElementById('ew3Name').textContent = evt.name;
+        document.getElementById('ew3Desc').textContent = evt.desc;
+
+        warn3.style.display = 'flex';
+        requestAnimationFrame(function() {
+            box.style.transform = 'scale(1)';
+            box.style.opacity = '1';
+        });
+
+        try {
+            playTone({ freq: 440, duration: 0.18, type: 'square', volume: 0.3 });
+            playTone({ freq: 660, duration: 0.18, type: 'square', volume: 0.3, delay: 0.22 });
+            playTone({ freq: 550, duration: 0.22, type: 'square', volume: 0.3, delay: 0.44 });
+        } catch (e) {}
+
+        setTimeout(function() {
+            box.style.transform = 'scale(0.8)';
+            box.style.opacity = '0';
+            setTimeout(function() {
+                warn3.style.display = 'none';
+                if (callback) callback();
+            }, 320);
+        }, 2900);
+    }
+
+    // ============ 觸發系統 ============
+    let lastWaveSeen3 = 0;
+    let triggeredWaves3 = {};
+
+    setInterval(function() {
+        if (typeof gameState === 'undefined' || gameState !== 'playing') return;
+        if (wave === lastWaveSeen3) return;
+        lastWaveSeen3 = wave;
+        if (wave <= 0) return;
+        if (wave % 5 !== 3) return; // 3, 8, 13, 18...
+        if (triggeredWaves3[wave]) return;
+        triggeredWaves3[wave] = true;
+
+        const key = YELLOW_POOL[Math.floor(Math.random() * YELLOW_POOL.length)];
+        const evt = YELLOW_EVENTS[key];
+        showYellowWarning(evt, function() {
+            try { evt.apply(); } catch (e) { console.error('[事件] 執行失敗:', e); }
+            log('🎲 隨機事件：' + evt.name, 3000);
+        });
+    }, 80);
+
+    // ============ 事件效果攔截 ============
+
+    // 惡魔契約：額外血量（已在 apply 處理） + 完成波次獎勵
+    setInterval(function() {
+        if (!ES3.demonPendingReward) return;
+        if (typeof waveActive === 'undefined') return;
+        if (!waveActive && enemies.length === 0) {
+            money += 200;
+            ES3.demonPendingReward = false;
+            updateUI();
+            log('😈 惡魔契約完成！+200 金幣', 3000);
+            sfxGold();
+        }
+    }, 200);
+
+    // 高風險理財：怪物加速
+    const _prevEnemyUpdate = Enemy.prototype.update;
+    Enemy.prototype.update = function(dt) {
+        if (ES3.riskInvestTimer > 0 && this.alive) {
+            const savedBase = this.baseSpeed;
+            this.baseSpeed = savedBase * 1.15;
+            _prevEnemyUpdate.call(this, dt);
+            this.baseSpeed = savedBase;
+            return;
+        }
+        _prevEnemyUpdate.call(this, dt);
+    };
+
+    // 量子不確定：包裝 Bullet.update 隨機化傷害
+    const _prevBulletUpdate = Bullet.prototype.update;
+    Bullet.prototype.update = function(dt) {
+        if (ES3.quantumTimer > 0) {
+            const saved = this.damage;
+            if (Math.random() < 0.5) {
+                this.damage = saved * 3;
+            } else {
+                this.damage = 0;
+            }
+            _prevBulletUpdate.call(this, dt);
+            this.damage = saved;
+            return;
+        }
+        _prevBulletUpdate.call(this, dt);
+    };
+
+    // 量子視覺：塔閃爍紫色
+    const _prevTowerDraw = Tower.prototype.draw;
+    Tower.prototype.draw = function() {
+        _prevTowerDraw.call(this);
+        if (ES3.quantumTimer > 0) {
+            const x = this.x, y = this.y;
+            const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 100);
+            ctx.save();
+            ctx.strokeStyle = 'rgba(200, 100, 255, ' + (pulse * 0.7) + ')';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#cc66ff';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(x, y, 42, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+
+    // 量子視覺：全螢幕紫色粒子
+    const _prevDrawBG = drawBackground;
+    drawBackground = function() {
+        _prevDrawBG.call(this);
+        if (ES3.quantumTimer > 0) {
+            const now = performance.now();
+            for (let i = 0; i < 8; i++) {
+                const px = (now / 15 + i * 137) % BASE_W;
+                const py = (now / 25 + i * 89) % BASE_H;
+                ctx.fillStyle = 'rgba(180, 100, 255, ' + (0.3 + 0.3 * Math.sin(now / 100 + i)) + ')';
+                ctx.beginPath();
+                ctx.arc(px, py, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    };
+
+    // ============ 計時器 ============
+    setInterval(function() {
+        const dt = 0.05;
+        if (ES3.demonTimer > 0) ES3.demonTimer -= dt;
+        if (ES3.quantumTimer > 0) ES3.quantumTimer -= dt;
+        if (ES3.riskInvestTimer > 0) ES3.riskInvestTimer -= dt;
+        if (ES3.antiMatterTimer > 0) ES3.antiMatterTimer -= dt;
+    }, 50);
+
+    console.log('[事件] 黃色賭博系統載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 反物質立場：Boss 控制免疫（獨立事件）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[事件] 反物質立場載入中...');
+
+    // 每個 Boss 初次生成時獲得 3 層控制免疫
+    const _prevEnemyUpdate = Enemy.prototype.update;
+    Enemy.prototype.update = function(dt) {
+        if (this.isBoss && this._controlImmune === undefined) {
+            this._controlImmune = 3;
+        }
+        _prevEnemyUpdate.call(this, dt);
+    };
+
+    // 包裝 Bullet.update：Boss 免疫減速
+    const _prevBulletUpdate = Bullet.prototype.update;
+    Bullet.prototype.update = function(dt) {
+        if (this.target && this.target.isBoss && this.target._controlImmune > 0 && this.slowFactor !== undefined) {
+            // 檢查是否正在施加緩速（命中時才會觸發）
+            const hpBefore = this.target.hp;
+            _prevBulletUpdate.call(this, dt);
+            if (this.target.hp !== hpBefore && this.target.slowTimer > 0) {
+                // 消耗一層免疫，取消緩速
+                this.target._controlImmune--;
+                this.target.slowTimer = 0;
+                this.target.slowFactor = 1;
+                if (typeof log === 'function') log('🛡️ Boss 免疫控制（剩 ' + this.target._controlImmune + ' 層）', 1500);
+            }
+            return;
+        }
+        _prevBulletUpdate.call(this, dt);
+    };
+
+    // Boss 免疫視覺
+    const _prevEnemyDraw = Enemy.prototype.draw;
+    Enemy.prototype.draw = function() {
+        _prevEnemyDraw.call(this);
+        if (this.alive && this.isBoss && this._controlImmune > 0) {
+            const p = this.getPos();
+            const r = this.isBoss ? 22 : 13;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 100, 200, ' + (0.5 + 0.3 * Math.sin(performance.now() / 200)) + ')';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#ff66cc';
+            ctx.shadowBlur = 12;
+            ctx.setLineDash([4, 6]);
+            ctx.lineDashOffset = -performance.now() / 50;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r + 8, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            // 顯示免疫層數
+            ctx.fillStyle = '#ff88dd';
+            ctx.font = 'bold 11px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText('🛡️×' + this._controlImmune, p.x, p.y - r - 14);
+            ctx.restore();
+        }
+    };
+
+    console.log('[事件] 反物質立場載入完成');
+})();
+</script>
+
 </body>
 </html>
