@@ -10163,34 +10163,30 @@ body:not(.in-menu) #globalSkillsBar { display: flex; }
             },
         },
 hpGamble: {
-    color: 'yellow', icon: '🩸', name: '血量賭博',
-    desc: '扣除當前生命的 15%（最多 5 點）\n換取所有塔永久傷害 +5%',
+    color: 'yellow', icon: '💸', name: '收取小費',
+    desc: '扣除當前金幣的 10%\n換取所有塔永久傷害 +5%',
     apply: function() {
-        let deduction = Math.round(lives * 0.15);
-        deduction = Math.max(2, Math.min(5, deduction));
-        if (lives - deduction < 1) {
-            deduction = Math.max(0, lives - 1);
+        const tipAmount = Math.floor(money * 0.10);
+        money = Math.max(0, money - tipAmount);
+        for (let i = 0; i < SPOTS.length; i++) {
+            const t = SPOTS[i].tower;
+            if (!t) continue;
+            if (typeof t.damage === 'number' && t.damage > 0) {
+                t.damage *= 1.05;
+            }
+            if (typeof t.dps === 'number' && t.dps > 0) {
+                t.dps *= 1.05;
+            }
         }
-        if (deduction <= 0) {
-            log('🩸 血量不足，跳過此事件', 2500);
-            return;
+        updateUI();
+        if (tipAmount > 0) {
+            log('💸 收取小費：-' + tipAmount + ' 金幣', 3000);
+        } else {
+            log('💸 收取小費：你沒錢，這次免費', 3000);
         }
-        lives -= deduction;
-                for (let i = 0; i < SPOTS.length; i++) {
-                    const t = SPOTS[i].tower;
-                    if (!t) continue;
-                    if (typeof t.damage === 'number' && t.damage > 0) {
-                        t.damage *= 1.05;
-                    }
-                    if (typeof t.dps === 'number' && t.dps > 0) {
-                        t.dps *= 1.05;
-                    }
-                }
-                updateUI();
-                log('🩸 血量賭博！全塔傷害永久 +5%', 3000);
-                sfxBoss();
-            },
-        },
+        sfxBoss();
+    },
+},
         riskInvest: {
             color: 'yellow', icon: '📈', name: '高風險理財',
             desc: '立即獲得 300 金幣\n但怪物移速 +15% 直到波次結束',
