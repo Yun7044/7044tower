@@ -1160,6 +1160,8 @@
   <i style="left:86%; width:5px;height:5px;animation-duration:20s;animation-delay:9s;   --dx:36px"></i>
   <i style="left:94%; width:3px;height:3px;animation-duration:23s;animation-delay:6s;   --dx:-20px"></i>
 </div>
+
+<div id="versionBadge" style="position:fixed;bottom:2px;right:4px;font-size:9px;color:#444;z-index:99;pointer-events:none;font-family:monospace;">v?</div>
   
   <h1>塔防</h1>
   <div class="subtitle">TOWER DEFENSE</div>
@@ -1359,6 +1361,8 @@ try {
   console.error('[Firebase] 初始化失敗:', e);
 }
 
+document.getElementById('versionBadge').textContent = 'v' + Date.now().toString().slice(-6);
+  
 // ============================================================
 // 玩家名稱
 // ============================================================
@@ -4814,13 +4818,37 @@ requestAnimationFrame(gameLoop);
 // ============================================================
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
-    navigator.serviceWorker.register('./sw.js')
-      .then(function(reg) {
-        console.log('[PWA] Service Worker 已註冊:', reg.scope);
-      })
-      .catch(function(err) {
-        console.log('[PWA] Service Worker 註冊失敗:', err);
+    navigator.serviceWorker.register('./sw.js').then(function(reg) {
+      console.log('[PWA] Service Worker 已註冊:', reg.scope);
+
+      // 每 60 秒檢查一次更新
+      setInterval(function() {
+        reg.update();
+      }, 60000);
+
+      // 偵測到新版本 → 自動啟用
+      reg.addEventListener('updatefound', function() {
+        const newWorker = reg.installing;
+        console.log('[PWA] 發現新版本，下載中...');
+        newWorker.addEventListener('statechange', function() {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            console.log('[PWA] 新版本已就緒，重新載入中...');
+            newWorker.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
       });
+    }).catch(function(err) {
+      console.log('[PWA] Service Worker 註冊失敗:', err);
+    });
+
+    // 監聽 SW 更新 → 重新載入頁面
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+      if (refreshing) return;
+      refreshing = true;
+      console.log('[PWA] 偵測到更新，重新載入...');
+      window.location.reload();
+    });
   });
 }
 
