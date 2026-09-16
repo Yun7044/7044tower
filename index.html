@@ -8332,6 +8332,665 @@ function checkShowBranchUI(tower) {
     console.log('[傷害數字] 載入完成');
 })();
 </script>
+
+<style>
+/* ===== 全域技能列 ===== */
+#globalSkillsBar {
+    position: fixed;
+    left: 50%;
+    bottom: 68px;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 12;
+    padding: 5px 8px;
+    background: rgba(12,12,28,0.8);
+    border: 1.5px solid #4a3a6a;
+    border-radius: 10px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+    transition: transform 0.35s, opacity 0.3s;
+}
+body.ui-hidden #globalSkillsBar {
+    transform: translate(-50%, 200%);
+    opacity: 0;
+    pointer-events: none;
+}
+body.in-menu #globalSkillsBar { display: none; }
+body:not(.in-menu) #globalSkillsBar { display: flex; }
+
+.skill-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #2a1f3f 0%, #15101f 100%);
+    border: 1.5px solid #4a3a6a;
+    color: #ccc;
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-family: inherit;
+    transition: 0.15s;
+    padding: 0;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.skill-btn::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 5px;
+    border: 1px solid rgba(120, 90, 180, 0.3);
+    pointer-events: none;
+}
+.skill-btn:hover:not(.locked):not(.cooling) {
+    border-color: #ffd700;
+    box-shadow: 0 0 12px rgba(255,215,0,0.5);
+    transform: translateY(-2px);
+}
+.skill-btn.unlocked {
+    border-color: #4ec472;
+    box-shadow: 0 0 8px rgba(78,196,114,0.3);
+}
+.skill-btn.locked { opacity: 0.4; cursor: not-allowed; }
+.skill-btn.cooling { cursor: not-allowed; }
+.skill-btn.cooling .skill-icon { opacity: 0.25; }
+.skill-btn.cooling::after {
+    content: attr(data-cd);
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+}
+.skill-btn .cost-tag {
+    position: absolute;
+    bottom: -3px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    color: #ffd700;
+    background: rgba(0,0,0,0.85);
+    padding: 1px 4px;
+    border-radius: 4px;
+    white-space: nowrap;
+    font-weight: 700;
+    pointer-events: none;
+}
+.skill-btn.unlocked .cost-tag { display: none; }
+
+/* ===== 塔技能按鈕 ===== */
+#towerSkillRow {
+    display: none;
+    margin-top: 8px;
+    border-top: 1px dashed #555;
+    padding-top: 8px;
+    width: 100%;
+}
+#towerSkillRow.show { display: flex; }
+.tower-skill-btn {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #2a1f3f, #15101f);
+    border: 1.5px solid #4a3a6a;
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    transition: 0.15s;
+    position: relative;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.tower-skill-btn:hover:not(.cooling) {
+    border-color: #ffd700;
+    box-shadow: 0 0 10px rgba(255,215,0,0.4);
+}
+.tower-skill-btn .btn-label { flex: 1; text-align: left; }
+.tower-skill-btn .btn-cd {
+    font-size: 11px;
+    color: #ffd700;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+.tower-skill-btn.cooling {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+</style>
+
+<div id="globalSkillsBar">
+    <button class="skill-btn locked" id="skillMeteor" title="隕石轟炸">
+        <span class="skill-icon">☄️</span>
+        <span class="cost-tag" id="meteorCostTag">500</span>
+    </button>
+</div>
+
+<script>
+// ============================================================
+// 全域技能：隕石轟炸
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[技能] 隕石系統載入中...');
+
+    const METEOR_KEY = 'towerDefenseMeteorUnlocked_v1';
+    const METEOR_COST = 500;
+    const METEOR_CD = 60;
+    const METEOR_COUNT = 5;
+    const METEOR_DAMAGE = 5000;
+    const METEOR_RADIUS = 100;
+
+    let meteorUnlocked = false;
+    let meteorCooldown = 0;
+    try { meteorUnlocked = localStorage.getItem(METEOR_KEY) === '1'; } catch(e) {}
+
+    const _meteors = [];
+    const _impacts = [];
+
+    // 包裝 drawDragGhost，在最後繪製隕石
+    const _prevDrawGhost = drawDragGhost;
+    drawDragGhost = function() {
+        _prevDrawGhost.call(this);
+
+        const dt = 1 / 60;
+
+        // 更新隕石位置
+        for (let i = _meteors.length - 1; i >= 0; i--) {
+            const m = _meteors[i];
+            m.y += m.speed * dt;
+            // 拖尾粒子
+            m.trail = m.trail || [];
+            m.trail.push({ x: m.x, y: m.y, life: 0.4 });
+            if (m.trail.length > 8) m.trail.shift();
+            for (let k = m.trail.length - 1; k >= 0; k--) {
+                m.trail[k].life -= dt;
+                if (m.trail[k].life <= 0) m.trail.splice(k, 1);
+            }
+
+            if (m.y >= m.targetY) {
+                impactMeteor(m.x, m.targetY);
+                _meteors.splice(i, 1);
+            }
+        }
+
+        // 繪製隕石
+        for (let i = 0; i < _meteors.length; i++) {
+            const m = _meteors[i];
+            // 拖尾
+            for (let k = 0; k < m.trail.length; k++) {
+                const t = m.trail[k];
+                const a = t.life / 0.4;
+                ctx.fillStyle = 'rgba(255, ' + Math.floor(100 + a * 120) + ', 30, ' + (a * 0.6) + ')';
+                ctx.beginPath();
+                ctx.arc(t.x + (Math.random() - 0.5) * 6, t.y, 3 + a * 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            // 隕石本體
+            ctx.save();
+            ctx.shadowColor = '#ff5500';
+            ctx.shadowBlur = 25;
+            const grad = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, 18);
+            grad.addColorStop(0, '#fff8c0');
+            grad.addColorStop(0.4, '#ff6600');
+            grad.addColorStop(1, '#661100');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(m.x, m.y, 16, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            // 目標位置的光圈
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 100, 50, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 6]);
+            ctx.beginPath();
+            ctx.arc(m.x, m.targetY, METEOR_RADIUS * 0.8, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
+
+        // 繪製落地爆炸
+        for (let i = _impacts.length - 1; i >= 0; i--) {
+            const im = _impacts[i];
+            im.timer -= dt;
+            if (im.timer <= 0) { _impacts.splice(i, 1); continue; }
+            const t = 1 - im.timer / im.maxLife;
+            const r = METEOR_RADIUS * (0.3 + t * 0.9);
+            ctx.save();
+            ctx.shadowColor = '#ff4400';
+            ctx.shadowBlur = 30;
+            const alpha = im.timer / im.maxLife;
+            const grad = ctx.createRadialGradient(im.x, im.y, 0, im.x, im.y, r);
+            grad.addColorStop(0, 'rgba(255, 240, 180, ' + alpha + ')');
+            grad.addColorStop(0.5, 'rgba(255, 100, 30, ' + (alpha * 0.8) + ')');
+            grad.addColorStop(1, 'rgba(80, 20, 0, 0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(im.x, im.y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 180, 100, ' + alpha + ')';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(im.x, im.y, r * 0.9, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+
+    function impactMeteor(x, y) {
+        _impacts.push({ x: x, y: y, timer: 0.6, maxLife: 0.6 });
+        sfxHit();
+        for (let i = 0; i < enemies.length; i++) {
+            const e = enemies[i];
+            if (!e.alive) continue;
+            const p = e.getPos();
+            if (Math.hypot(p.x - x, p.y - y) <= METEOR_RADIUS) {
+                let dmg = METEOR_DAMAGE;
+                if (e.isBoss) dmg *= 0.5;
+                e.takeDamage(dmg);
+            }
+        }
+    }
+
+    // 觸發隕石
+    function triggerMeteor() {
+        if (!meteorUnlocked) {
+            if (money < METEOR_COST) {
+                log('金幣不足（需 ' + METEOR_COST + '）', 2000);
+                return;
+            }
+            money -= METEOR_COST;
+            meteorUnlocked = true;
+            try { localStorage.setItem(METEOR_KEY, '1'); } catch(e) {}
+            log('☄️ 隕石轟炸已解鎖！', 3000);
+            updateUI();
+            sfxGold();
+            return;
+        }
+        if (meteorCooldown > 0) {
+            log('☄️ 冷卻中（' + Math.ceil(meteorCooldown) + 's）', 1500);
+            return;
+        }
+        meteorCooldown = METEOR_CD;
+        for (let i = 0; i < METEOR_COUNT; i++) {
+            const rx = 120 + Math.random() * (BASE_W - 240);
+            const ry = 100 + Math.random() * (BASE_H - 220);
+            _meteors.push({
+                x: rx,
+                y: -80 - Math.random() * 60,
+                targetY: ry,
+                speed: 900 + Math.random() * 300,
+                trail: [],
+            });
+        }
+        log('☄️ 隕石轟炸！', 2000);
+        sfxBoss();
+    }
+
+    // 冷卻每幀遞減（包裝 gameLoop 不行，改用 setInterval 較安全）
+    setInterval(function() {
+        if (meteorCooldown > 0) meteorCooldown = Math.max(0, meteorCooldown - 0.05);
+    }, 50);
+
+    // UI 更新
+    function updateSkillUI() {
+        const btn = document.getElementById('skillMeteor');
+        if (!btn) return;
+        if (!meteorUnlocked) {
+            btn.classList.add('locked');
+            btn.classList.remove('cooling', 'unlocked');
+            btn.dataset.cd = '';
+        } else {
+            btn.classList.remove('locked');
+            btn.classList.add('unlocked');
+            if (meteorCooldown > 0) {
+                btn.classList.add('cooling');
+                btn.dataset.cd = Math.ceil(meteorCooldown);
+            } else {
+                btn.classList.remove('cooling');
+                btn.dataset.cd = '';
+            }
+        }
+    }
+    setInterval(updateSkillUI, 100);
+    updateSkillUI();
+
+    // 綁定按鈕
+    const btn = document.getElementById('skillMeteor');
+    if (btn) {
+        btn.addEventListener('pointerdown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            initAudio();
+            triggerMeteor();
+        }, { passive: false });
+    }
+
+    console.log('[技能] 隕石系統載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 塔技能：電磁鏈塔・電磁風暴
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[技能] 電磁風暴載入中...');
+
+    const STORM_KEY = 'towerDefenseElecStormUnlocked_v1';
+    const STORM_COST = 400;
+    const STORM_CD = 40;
+    const STORM_DURATION = 5.0;
+    const STORM_DPS_PERCENT = 0.02; // 每秒 2% 最大生命
+
+    let stormUnlocked = false;
+    let stormCooldown = 0;
+    try { stormUnlocked = localStorage.getItem(STORM_KEY) === '1'; } catch(e) {}
+
+    // 處理電磁風暴的 DOT
+    const _prevEnemyUpdate = Enemy.prototype.update;
+    Enemy.prototype.update = function(dt) {
+        if (this.alive && this._elecStorm > 0) {
+            this._elecStorm -= dt;
+            const dmg = this.maxHp * STORM_DPS_PERCENT * dt;
+            const actual = this.takeDamage(dmg);
+            if (actual > 0) addDamage('blue', actual);
+        }
+        _prevEnemyUpdate.call(this, dt);
+    };
+
+    // 電磁風暴視覺
+    const _prevEnemyDraw = Enemy.prototype.draw;
+    Enemy.prototype.draw = function() {
+        _prevEnemyDraw.call(this);
+        if (!this.alive || !(this._elecStorm > 0)) return;
+        const p = this.getPos();
+        const r = this.isBoss ? 22 : 13;
+        const alpha = Math.min(1, this._elecStorm / 1.5);
+        const seed = Math.floor(performance.now() / 60);
+        ctx.save();
+        ctx.shadowColor = '#00aaff';
+        ctx.shadowBlur = 14;
+        for (let i = 0; i < 4; i++) {
+            const a1 = (seed * 0.4 + i * 1.6) % (Math.PI * 2);
+            const a2 = a1 + 1.3 + (i % 2) * 0.5;
+            const R = r + 5;
+            ctx.strokeStyle = 'rgba(120, 210, 255, ' + alpha + ')';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(p.x + Math.cos(a1) * R, p.y + Math.sin(a1) * R);
+            const mid = a1 + (a2 - a1) * 0.5;
+            ctx.lineTo(p.x + Math.cos(mid) * (R + 6), p.y + Math.sin(mid) * (R + 6));
+            ctx.lineTo(p.x + Math.cos(a2) * R, p.y + Math.sin(a2) * R);
+            ctx.stroke();
+        }
+        ctx.restore();
+    };
+
+    function triggerStorm() {
+        if (!stormUnlocked) {
+            if (money < STORM_COST) {
+                log('金幣不足（需 ' + STORM_COST + '）', 2000);
+                return;
+            }
+            money -= STORM_COST;
+            stormUnlocked = true;
+            try { localStorage.setItem(STORM_KEY, '1'); } catch(e) {}
+            log('⚡ 電磁風暴已解鎖！', 3000);
+            updateUI();
+            sfxGold();
+            return;
+        }
+        if (stormCooldown > 0) {
+            log('⚡ 冷卻中（' + Math.ceil(stormCooldown) + 's）', 1500);
+            return;
+        }
+        stormCooldown = STORM_CD;
+        let count = 0;
+        for (let i = 0; i < enemies.length; i++) {
+            const e = enemies[i];
+            if (!e.alive) continue;
+            e._elecStorm = STORM_DURATION;
+            count++;
+        }
+        log('⚡ 電磁風暴！纏繞 ' + count + ' 名敵人', 2000);
+        sfxBoss();
+    }
+
+    setInterval(function() {
+        if (stormCooldown > 0) stormCooldown = Math.max(0, stormCooldown - 0.05);
+    }, 50);
+
+    // 把函式與狀態暴露給 UI 系統
+    window.__elecStormAPI = {
+        isUnlocked: function() { return stormUnlocked; },
+        getCooldown: function() { return stormCooldown; },
+        trigger: triggerStorm,
+        cost: STORM_COST,
+    };
+
+    console.log('[技能] 電磁風暴載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 塔技能：聚能伽馬塔・過載
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[技能] 過載載入中...');
+
+    const OVERLOAD_KEY = 'towerDefenseOverloadUnlocked_v1';
+    const OVERLOAD_COST = 600;
+    const OVERLOAD_CD = 45;
+    const OVERLOAD_DURATION = 8.0;
+
+    let overloadUnlocked = false;
+    let overloadCooldown = 0;
+    let overloadActive = 0;
+    try { overloadUnlocked = localStorage.getItem(OVERLOAD_KEY) === '1'; } catch(e) {}
+
+    // 包裝 BeamTower.update，處理過載狀態
+    const _prevBeamUpdate = BeamTower.prototype.update;
+    BeamTower.prototype.update = function(dt) {
+        // 檢查過載 + 這是聚能伽馬塔
+        if (overloadActive > 0 && this.config && this.config.name === '聚能伽馬塔') {
+            this.pulse += dt;
+            if (this.hastedTimer > 0) this.hastedTimer -= dt;
+            const dm = this.hastedTimer > 0 ? 3 : 1;
+
+            // 找範圍內血量最高的敵人
+            let best = null, bestHp = -1;
+            for (let i = 0; i < enemies.length; i++) {
+                const e = enemies[i];
+                if (!e.alive) continue;
+                if (e.hp > bestHp) { bestHp = e.hp; best = e; }
+            }
+            if (!best) {
+                this.beamTargets = [];
+                return;
+            }
+            // 直接 ×6 傷害
+            const dps = this.dps * 6 * dm;
+            this.beamTargets = [best];
+            const actual = best.takeDamage(dps * dt);
+            if (actual > 0) addDamage('orange', actual);
+            return;
+        }
+        _prevBeamUpdate.call(this, dt);
+    };
+
+    // 過載視覺：塔發光
+    const _prevBeamDraw = BeamTower.prototype.draw;
+    BeamTower.prototype.draw = function() {
+        if (overloadActive > 0 && this.config && this.config.name === '聚能伽馬塔') {
+            const x = this.x, y = this.y;
+            ctx.save();
+            const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 80);
+            ctx.shadowColor = '#ff3300';
+            ctx.shadowBlur = 30 * pulse;
+            ctx.strokeStyle = 'rgba(255, 100, 30, ' + pulse + ')';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(x, y, 45, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+        _prevBeamDraw.call(this);
+    };
+
+    function triggerOverload() {
+        if (!overloadUnlocked) {
+            if (money < OVERLOAD_COST) {
+                log('金幣不足（需 ' + OVERLOAD_COST + '）', 2000);
+                return;
+            }
+            money -= OVERLOAD_COST;
+            overloadUnlocked = true;
+            try { localStorage.setItem(OVERLOAD_KEY, '1'); } catch(e) {}
+            log('☢️ 過載已解鎖！', 3000);
+            updateUI();
+            sfxGold();
+            return;
+        }
+        if (overloadCooldown > 0) {
+            log('☢️ 冷卻中（' + Math.ceil(overloadCooldown) + 's）', 1500);
+            return;
+        }
+        overloadCooldown = OVERLOAD_CD;
+        overloadActive = OVERLOAD_DURATION;
+        log('☢️ 聚能伽馬塔・過載啟動！', 2500);
+        sfxGold();
+    }
+
+    setInterval(function() {
+        if (overloadCooldown > 0) overloadCooldown = Math.max(0, overloadCooldown - 0.05);
+        if (overloadActive > 0) overloadActive = Math.max(0, overloadActive - 0.05);
+    }, 50);
+
+    window.__overloadAPI = {
+        isUnlocked: function() { return overloadUnlocked; },
+        getCooldown: function() { return overloadCooldown; },
+        getActive: function() { return overloadActive; },
+        trigger: triggerOverload,
+        cost: OVERLOAD_COST,
+    };
+
+    console.log('[技能] 過載載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 塔技能 UI 整合
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[UI] 塔技能列載入中...');
+
+    // 在 towerPanel 內插入塔技能列
+    const panel = document.getElementById('towerPanel');
+    if (!panel) {
+        console.error('[UI] 找不到 towerPanel');
+        return;
+    }
+
+    const row = document.createElement('div');
+    row.id = 'towerSkillRow';
+    row.innerHTML = '<button class="tower-skill-btn" id="towerSkillBtn">' +
+        '<span class="btn-label" id="towerSkillLabel">技能</span>' +
+        '<span class="btn-cd" id="towerSkillCd"></span>' +
+        '</button>';
+    panel.appendChild(row);
+
+    const btn = document.getElementById('towerSkillBtn');
+    const label = document.getElementById('towerSkillLabel');
+    const cdEl = document.getElementById('towerSkillCd');
+
+    btn.addEventListener('pointerdown', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        initAudio();
+        const t = selectedTower;
+        if (!t) return;
+        const name = t.config && t.config.name;
+        if (name === '電磁鏈塔' && window.__elecStormAPI) {
+            window.__elecStormAPI.trigger();
+        } else if (name === '聚能伽馬塔' && window.__overloadAPI) {
+            window.__overloadAPI.trigger();
+        }
+    }, { passive: false });
+
+    function updateTowerSkillUI() {
+        const t = typeof selectedTower !== 'undefined' ? selectedTower : null;
+        if (!t) { row.classList.remove('show'); return; }
+        const name = t.config && t.config.name;
+        if (name === '電磁鏈塔' && window.__elecStormAPI) {
+            row.classList.add('show');
+            const api = window.__elecStormAPI;
+            if (!api.isUnlocked()) {
+                label.textContent = '⚡ 電磁風暴（解鎖 ' + api.cost + '💰）';
+                cdEl.textContent = '';
+                btn.classList.remove('cooling');
+            } else if (api.getCooldown() > 0) {
+                label.textContent = '⚡ 電磁風暴';
+                cdEl.textContent = '冷卻 ' + Math.ceil(api.getCooldown()) + 's';
+                btn.classList.add('cooling');
+            } else {
+                label.textContent = '⚡ 電磁風暴（就緒）';
+                cdEl.textContent = '';
+                btn.classList.remove('cooling');
+            }
+        } else if (name === '聚能伽馬塔' && window.__overloadAPI) {
+            row.classList.add('show');
+            const api = window.__overloadAPI;
+            if (!api.isUnlocked()) {
+                label.textContent = '☢️ 過載（解鎖 ' + api.cost + '💰）';
+                cdEl.textContent = '';
+                btn.classList.remove('cooling');
+            } else if (api.getActive() > 0) {
+                label.textContent = '☢️ 過載中！';
+                cdEl.textContent = api.getActive().toFixed(1) + 's';
+                btn.classList.add('cooling');
+            } else if (api.getCooldown() > 0) {
+                label.textContent = '☢️ 過載';
+                cdEl.textContent = '冷卻 ' + Math.ceil(api.getCooldown()) + 's';
+                btn.classList.add('cooling');
+            } else {
+                label.textContent = '☢️ 過載（就緒）';
+                cdEl.textContent = '';
+                btn.classList.remove('cooling');
+            }
+        } else {
+            row.classList.remove('show');
+        }
+    }
+    setInterval(updateTowerSkillUI, 100);
+
+    console.log('[UI] 塔技能列載入完成');
+})();
+</script>
   
 </body>
 </html>
