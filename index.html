@@ -13620,6 +13620,114 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     console.log('[皮膚8] ★ 載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 皮膚解鎖修正：通關自動解鎖對應皮膚
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[皮膚9] 解鎖修正載入中...');
+
+    const UNLOCKED_KEY = 'towerDefenseUnlockedSkins_v1';
+
+    function readUnlocked() {
+        try {
+            const r = localStorage.getItem(UNLOCKED_KEY);
+            if (!r) return { classic: true };
+            const o = JSON.parse(r);
+            o.classic = true;
+            return o;
+        } catch (e) { return { classic: true }; }
+    }
+
+    function writeUnlocked(o) {
+        try { localStorage.setItem(UNLOCKED_KEY, JSON.stringify(o)); } catch (e) {}
+    }
+
+    function unlockSkin(id, skinName) {
+        const u = readUnlocked();
+        if (u[id] === true) return false;
+        u[id] = true;
+        writeUnlocked(u);
+        if (typeof log === 'function') log('🎨 解鎖新皮膚：' + skinName + '！', 3000);
+        if (typeof sfxGold === 'function') sfxGold();
+        console.log('[皮膚9] 解鎖：' + id);
+        return true;
+    }
+
+    // ============ 包裝 finishGame 處理通關解鎖 ============
+    const _originalFinishGame = finishGame;
+
+    finishGame = function(didVictory) {
+        // 先呼叫原版
+        _originalFinishGame.call(this, didVictory);
+
+        if (!didVictory) return;
+
+        const diff = typeof currentDifficulty !== 'undefined' ? currentDifficulty : null;
+        if (!diff) return;
+
+        // 取得起始生命（判斷無傷）
+        const startLives = (typeof DIFFICULTIES !== 'undefined' && DIFFICULTIES[diff])
+            ? DIFFICULTIES[diff].startLives
+            : 20;
+
+        const isPerfect = (typeof lives !== 'undefined' && lives === startLives);
+
+        console.log('[皮膚9] 通關：' + diff + '，剩餘生命：' + lives + ' / ' + startLives + '，無傷：' + isPerfect);
+
+        // 依難度解鎖
+        if (diff === 'easy') {
+            unlockSkin('grass', '草原');
+        } else if (diff === 'normal') {
+            unlockSkin('gold', '黃金');
+        } else if (diff === 'hard') {
+            unlockSkin('dark', '暗黑');
+        }
+
+        // 無傷通關（任一難度）→ 純白
+        if (isPerfect) {
+            unlockSkin('white', '純白');
+        }
+    };
+
+    // ============ 首次進化 → 解鎖生物 ============
+    const _originalEvolve = window.evolveSelectedTower;
+    if (typeof _originalEvolve === 'function') {
+        window.evolveSelectedTower = function(branch) {
+            const result = _originalEvolve.call(this, branch);
+            // 進化成功後解鎖生物
+            setTimeout(function() {
+                unlockSkin('bio', '生物');
+            }, 200);
+            return result;
+        };
+    }
+
+    // ============ 頁面載入時，檢查玩家是否已經通關過（補救舊進度） ============
+    setTimeout(function() {
+        // 檢查玩家各難度的最佳紀錄，如果通關過就補解鎖
+        const firstEasyKey = 'towerDefenseFirstClear_easy';
+        const firstNormalKey = 'towerDefenseFirstClear_normal';
+        const firstHardKey = 'towerDefenseFirstClear_hard';
+
+        try {
+            if (localStorage.getItem(firstEasyKey)) {
+                unlockSkin('grass', '草原');
+            }
+            if (localStorage.getItem(firstNormalKey)) {
+                unlockSkin('gold', '黃金');
+            }
+            if (localStorage.getItem(firstHardKey)) {
+                unlockSkin('dark', '暗黑');
+            }
+        } catch (e) {}
+    }, 1500);
+
+    console.log('[皮膚9] 解鎖修正載入完成');
+})();
+</script>
   
 </body>
 </html>
