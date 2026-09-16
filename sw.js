@@ -1,7 +1,8 @@
 // ============================================================
-// Service Worker — 塔防
+// Service Worker — 塔防（自動更新版）
 // ============================================================
-const CACHE_NAME = 'tower-defense-v1';
+const CACHE_VERSION = 'v' + Date.now(); // 每次瀏覽器重新載入 SW 就會換新版本號
+const CACHE_NAME = 'tower-defense-' + CACHE_VERSION;
 const CACHE_ASSETS = [
   './',
   './index.html',
@@ -12,12 +13,12 @@ const CACHE_ASSETS = [
   './bg.jpg',
 ];
 
-// 安裝：預先快取檔案
+// 安裝：跳過等待
 self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(CACHE_NAME).then(function(cache) {
       return cache.addAll(CACHE_ASSETS).catch(function(err) {
-        console.log('[SW] 部分檔案快取失敗（可能未準備）:', err);
+        console.log('[SW] 部分檔案快取失敗:', err);
       });
     }).then(function() {
       return self.skipWaiting();
@@ -25,13 +26,14 @@ self.addEventListener('install', function(event) {
   );
 });
 
-// 啟用：清掉舊版快取
+// 啟用：清掉所有舊版快取
 self.addEventListener('activate', function(event) {
   event.waitUntil(
     caches.keys().then(function(keys) {
       return Promise.all(
         keys.map(function(key) {
           if (key !== CACHE_NAME) {
+            console.log('[SW] 刪除舊快取:', key);
             return caches.delete(key);
           }
         })
@@ -46,40 +48,58 @@ self.addEventListener('activate', function(event) {
 self.addEventListener('fetch', function(event) {
   const url = event.request.url;
 
-  // 1. Firebase / Google API 的請求：完全不快取，直接走網路
+  // Firebase 完全走網路
   if (url.indexOf('firebase') !== -1 ||
       url.indexOf('googleapis.com') !== -1 ||
       url.indexOf('gstatic.com') !== -1 ||
       url.indexOf('firebaseio.com') !== -1) {
-    return; // 讓瀏覽器自己處理
+    return;
   }
 
-  // 2. 只處理 GET 請求
   if (event.request.method !== 'GET') return;
 
-  // 3. 其他資源：先看快取，沒有再走網路（Cache First）
+  // HTML 檔案永遠優先走網路（避免卡舊版）
+  if (event.request.destination === 'document' ||
+      url.endsWith('.html') ||
+      url.endsWith('/')) {
+    event.respondWith(
+      fetch(event.request).then(function(response) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(function(cache) {
+          cache.put(event.request, clone);
+        });
+        return response;
+      }).catch(function() {
+        return caches.match(event.request).then(function(cached) {
+          return cached || caches.match('./index.html');
+        });
+      })
+    );
+    return;
+  }
+
+  // 其他資源：先快取
   event.respondWith(
     caches.match(event.request).then(function(cached) {
       if (cached) return cached;
 
       return fetch(event.request).then(function(response) {
-        // 只快取成功的回應
         if (!response || response.status !== 200 || response.type === 'opaque') {
           return response;
         }
-
-        const responseClone = response.clone();
+        const clone = response.clone();
         caches.open(CACHE_NAME).then(function(cache) {
-          cache.put(event.request, responseClone);
+          cache.put(event.request, clone);
         });
-
         return response;
-      }).catch(function() {
-        // 網路失敗時，如果是 HTML 請求就回傳 index.html
-        if (event.request.destination === 'document') {
-          return caches.match('./index.html');
-        }
       });
     })
   );
+});
+
+// 收到訊息時立刻更新
+self.addEventListener('message', function(event) {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
