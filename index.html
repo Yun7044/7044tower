@@ -8207,6 +8207,131 @@ function checkShowBranchUI(tower) {
     console.log('[存檔] 最終整合完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 傷害數字彈出系統
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[傷害數字] 載入中...');
+
+    const _damageNumbers = [];
+    const _lastDmgTime = new WeakMap();
+    const THROTTLE_MS = 100;
+    const MAX_NUMBERS = 60;
+
+    function spawnDamageNumber(enemy, dmg, killed) {
+        if (!enemy || dmg <= 0) return;
+        const p = enemy.getPos();
+        const jitterX = (Math.random() - 0.5) * 24;
+        const dmgInt = Math.round(dmg);
+
+        let text, color, size, isKO = false;
+
+        if (killed && !enemy.isBoss) {
+            // 秒殺 / 擊殺 → 金色 K.O.
+            isKO = true;
+            text = 'K.O.';
+            color = '#ffd700';
+            size = 26;
+        } else if (dmg >= 500) {
+            text = '-' + dmgInt;
+            color = '#ff3333';
+            size = 22;
+        } else if (dmg >= 100) {
+            text = '-' + dmgInt;
+            color = '#ff8844';
+            size = 18;
+        } else if (dmg >= 30) {
+            text = '-' + dmgInt;
+            color = '#ffffff';
+            size = 15;
+        } else {
+            text = '-' + dmgInt;
+            color = '#bbbbbb';
+            size = 13;
+        }
+
+        _damageNumbers.push({
+            x: p.x + jitterX,
+            y: p.y - 18,
+            text: text,
+            color: color,
+            size: size,
+            life: 0.85,
+            maxLife: 0.85,
+            vy: -75,
+            isKO: isKO,
+        });
+
+        if (_damageNumbers.length > MAX_NUMBERS) {
+            _damageNumbers.splice(0, _damageNumbers.length - MAX_NUMBERS);
+        }
+    }
+
+    // 包裝 takeDamage 攔截傷害
+    const _origTakeDamage = Enemy.prototype.takeDamage;
+    Enemy.prototype.takeDamage = function(amount) {
+        const wasAlive = this.alive;
+        const result = _origTakeDamage.call(this, amount);
+        const killed = wasAlive && !this.alive;
+
+        const now = performance.now();
+        const last = _lastDmgTime.get(this) || 0;
+        // 節流：100ms 內同一個敵人只顯示一個數字（除非被擊殺）
+        if (now - last < THROTTLE_MS && !killed) {
+            return result;
+        }
+        _lastDmgTime.set(this, now);
+        spawnDamageNumber(this, result, killed);
+        return result;
+    };
+
+    // 包裝 drawDragGhost，在最後一層繪製傷害數字
+    const _prevDrawDragGhost = drawDragGhost;
+    drawDragGhost = function() {
+        _prevDrawDragGhost.call(this);
+
+        const dt = 1 / 60;
+        for (let i = _damageNumbers.length - 1; i >= 0; i--) {
+            const d = _damageNumbers[i];
+            d.life -= dt;
+            d.y += d.vy * dt;
+            d.vy *= 0.96;
+            if (d.life <= 0) _damageNumbers.splice(i, 1);
+        }
+
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        for (let i = 0; i < _damageNumbers.length; i++) {
+            const d = _damageNumbers[i];
+            const alpha = d.life > 0.3 ? 1 : d.life / 0.3;
+            ctx.globalAlpha = alpha;
+            ctx.font = 'bold ' + d.size + 'px system-ui, -apple-system, sans-serif';
+
+            // 黑邊
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+            ctx.lineWidth = d.isKO ? 4 : 3;
+            ctx.strokeText(d.text, d.x, d.y);
+
+            // 填色
+            ctx.fillStyle = d.color;
+            if (d.isKO) {
+                ctx.shadowColor = '#ffd700';
+                ctx.shadowBlur = 15;
+            }
+            ctx.fillText(d.text, d.x, d.y);
+            ctx.shadowBlur = 0;
+        }
+        ctx.restore();
+    };
+
+    console.log('[傷害數字] 載入完成');
+})();
+</script>
   
 </body>
 </html>
