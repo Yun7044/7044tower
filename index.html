@@ -13095,5 +13095,100 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
 })();
 </script>
 
+<script>
+// ============================================================
+// 皮膚系統：修正事件穿透
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[皮膚5] 事件穿透修正載入中...');
+
+    // ============ 修 1：詳情彈窗開啟時，皮膚面板完全隔離 ============
+    const modal = document.getElementById('skinDetailV3');
+    const panel = document.getElementById('skinPanelV3');
+
+    if (modal && panel) {
+        // 用 MutationObserver 監聽 modal 的 display 變化
+        const observer = new MutationObserver(function() {
+            const isOpen = modal.style.display === 'flex';
+            if (isOpen) {
+                // 彈窗開啟：禁用皮膚面板所有事件
+                panel.style.pointerEvents = 'none';
+                // 額外保險：讓面板稍微變暗，視覺上也知道它在後面
+                panel.style.opacity = '0.4';
+                panel.style.transition = 'opacity 0.2s';
+            } else {
+                panel.style.pointerEvents = 'auto';
+                panel.style.opacity = '1';
+            }
+        });
+        observer.observe(modal, { attributes: true, attributeFilter: ['style'] });
+        console.log('[皮膚5] 彈窗隔離器已綁定');
+    }
+
+    // ============ 修 2：點彈窗背景也能關閉 ============
+    if (modal) {
+        modal.addEventListener('pointerdown', function(e) {
+            // 只有點到「modal 本身」才關（不是點到內部的白框）
+            if (e.target === modal) {
+                e.preventDefault();
+                e.stopPropagation();
+                modal.style.display = 'none';
+            }
+        }, true); // 捕獲階段攔截
+    }
+
+    // ============ 修 3：關閉按鈕的防連點 ============
+    const closeBtn = document.getElementById('sdV3Close');
+    if (closeBtn) {
+        let lastCloseTime = 0;
+        closeBtn.addEventListener('pointerdown', function(e) {
+            const now = performance.now();
+            if (now - lastCloseTime < 300) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            lastCloseTime = now;
+        }, true);
+    }
+
+    // ============ 修 4：卡片點擊防連點 ============
+    // 皮膚面板的卡片如果被連點，會連續彈出兩個彈窗（或先開再關）
+    let lastCardClickTime = 0;
+    const grid = document.getElementById('skinGridV3');
+    if (grid) {
+        grid.addEventListener('click', function(e) {
+            const now = performance.now();
+            if (now - lastCardClickTime < 400) {
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                return;
+            }
+            lastCardClickTime = now;
+        }, true);
+        console.log('[皮膚5] 卡片防連點已綁定');
+    }
+
+    // ============ 修 5：點卡片時，自動滾動到該卡片位置（可選） ============
+    // 避免「手指還在下方，但點到的是上面卡片」的錯位感
+    // （這個是 nice-to-have，不做也不會壞）
+
+    // ============ 修 6：彈窗開啟時禁止頁面滾動（iOS 常有的問題） ============
+    if (modal) {
+        const scrollObserver = new MutationObserver(function() {
+            if (modal.style.display === 'flex') {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
+            }
+        });
+        scrollObserver.observe(modal, { attributes: true, attributeFilter: ['style'] });
+    }
+
+    console.log('[皮膚5] 事件穿透修正載入完成');
+})();
+</script>
+  
 </body>
 </html>
