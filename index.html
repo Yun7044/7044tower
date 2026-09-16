@@ -11478,5 +11478,1622 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
 })();
 </script>
   
+<style>
+/* ===== 主選單按鈕改成兩行兩列 ===== */
+.menu-row {
+    flex-wrap: wrap;
+}
+.menu-row .menu-action {
+    width: calc(50% - 5px) !important;
+    min-width: 0;
+    font-size: 13px !important;
+    padding: 14px 6px !important;
+    letter-spacing: 1px !important;
+}
+
+#skinBtn {
+    border: 2px solid #8a4a6a;
+    color: #e8b8d0;
+    box-shadow:
+        0 0 0 1px rgba(255, 100, 180, 0.2),
+        0 4px 20px rgba(255, 100, 180, 0.15),
+        inset 0 0 24px rgba(255, 100, 180, 0.08);
+}
+#skinBtn:hover {
+    border-color: #ff88c8;
+    box-shadow: 0 0 0 1px rgba(255, 100, 180, 0.4), 0 6px 28px rgba(255, 100, 180, 0.35);
+}
+
+/* ===== 皮膚面板 ===== */
+#skinPanel {
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(ellipse at top, #2a1a4a 0%, transparent 60%),
+        #05050f;
+    display: none;
+    flex-direction: column;
+    padding: 20px;
+    z-index: 75;
+    overflow: hidden;
+    padding-top: max(20px, env(safe-area-inset-top));
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+#skinPanel.show { display: flex; }
+
+.skin-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    max-width: 560px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    flex-shrink: 0;
+}
+.skin-header h2 {
+    font-size: 22px;
+    font-weight: 900;
+    background: linear-gradient(180deg, #ffd8a0, #c060a0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 4px;
+}
+.skin-close {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: rgba(20, 20, 40, 0.9);
+    border: 2px solid #33335a;
+    color: #ccc;
+    font-size: 18px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: 0.15s;
+}
+.skin-close:hover { border-color: #ffd700; color: #ffd700; }
+
+.skin-tickets {
+    max-width: 560px;
+    width: 100%;
+    margin: 0 auto 14px;
+    background: linear-gradient(135deg, rgba(60, 30, 80, 0.6), rgba(30, 15, 50, 0.6));
+    border: 2px solid #6a4a8a;
+    border-radius: 12px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+.skin-tickets .ticket-label {
+    font-size: 13px;
+    color: #c8a8e8;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+.skin-tickets .ticket-count {
+    font-size: 22px;
+    color: #ffd700;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+}
+
+.skin-grid {
+    flex: 1;
+    overflow-y: auto;
+    max-width: 560px;
+    width: 100%;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding-right: 4px;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+}
+.skin-grid::-webkit-scrollbar { width: 6px; }
+.skin-grid::-webkit-scrollbar-thumb { background: #4a3a6a; border-radius: 3px; }
+
+.skin-card {
+    background: linear-gradient(135deg, rgba(30, 20, 60, 0.9), rgba(15, 10, 35, 0.9));
+    border: 2px solid #33335a;
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: 0.2s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+.skin-card:hover { transform: translateY(-2px); border-color: #6a5a9a; }
+.skin-card.equipped {
+    border-color: #4ec472;
+    box-shadow: 0 0 16px rgba(78, 196, 114, 0.4);
+}
+.skin-card.locked { opacity: 0.68; }
+.skin-card .skin-preview {
+    width: 100%;
+    aspect-ratio: 1.6 / 1;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.15);
+}
+.skin-card .skin-preview .pv-sky {
+    position: absolute;
+    inset: 0;
+}
+.skin-card .skin-preview .pv-star {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 3px #fff;
+}
+.skin-card .skin-preview .pv-path {
+    position: absolute;
+    left: -5%;
+    right: -5%;
+    top: 50%;
+    height: 26%;
+    transform: translateY(-50%);
+    border-radius: 50px;
+}
+.skin-card .skin-preview .pv-tower {
+    position: absolute;
+    bottom: 12%;
+    left: 50%;
+    width: 18%;
+    aspect-ratio: 1;
+    transform: translateX(-50%);
+    clip-path: polygon(50% 0%, 82% 30%, 68% 100%, 32% 100%, 18% 30%);
+}
+.skin-card .skin-name {
+    font-size: 14px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 1px;
+}
+.skin-card .skin-desc {
+    font-size: 11px;
+    color: #888;
+    line-height: 1.4;
+    min-height: 30px;
+}
+.skin-card .skin-badge {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(0,0,0,0.75);
+    letter-spacing: 1px;
+    z-index: 2;
+}
+.skin-card.equipped .skin-badge {
+    background: #4ec472;
+    color: #0a0a14;
+}
+.skin-card.locked .skin-badge {
+    background: rgba(60, 20, 20, 0.85);
+    color: #ff8888;
+}
+
+/* ===== 皮膚詳情彈窗（點卡片時） ===== */
+#skinDetailModal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 320;
+    padding: 20px;
+}
+#skinDetailModal.show { display: flex; }
+#skinDetailBox {
+    background: linear-gradient(180deg, rgba(30, 20, 50, 0.98), rgba(15, 10, 30, 0.98));
+    border: 2px solid #8a4a6a;
+    border-radius: 16px;
+    padding: 22px 24px;
+    max-width: 320px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(255, 100, 180, 0.4);
+}
+#skinDetailBox .sd-preview {
+    width: 100%;
+    aspect-ratio: 1.6 / 1;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.15);
+}
+#skinDetailBox .sd-name {
+    font-size: 20px;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 3px;
+    margin-bottom: 8px;
+}
+#skinDetailBox .sd-desc {
+    font-size: 13px;
+    color: #aaa;
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+#skinDetailBox .sd-condition {
+    font-size: 12px;
+    color: #ffd700;
+    padding: 8px 12px;
+    background: rgba(255, 215, 0, 0.08);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+#skinDetailBox .sd-actions {
+    display: flex;
+    gap: 8px;
+}
+#skinDetailBox button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 1px;
+    transition: 0.15s;
+}
+#skinDetailBox .btn-close-sd {
+    background: #333;
+    color: #ccc;
+}
+#skinDetailBox .btn-action-sd {
+    background: linear-gradient(135deg, #ffd700, #ff8800);
+    color: #0a0a14;
+}
+#skinDetailBox .btn-action-sd:disabled {
+    background: #444;
+    color: #888;
+    cursor: not-allowed;
+}
+</style>
+
+<div id="skinPanel">
+    <div class="skin-header">
+        <h2>🎨 皮膚</h2>
+        <button class="skin-close" id="closeSkin">✕</button>
+    </div>
+    <div class="skin-tickets">
+        <span class="ticket-label">🎟️ 皮膚券</span>
+        <span class="ticket-count" id="ticketCount">0</span>
+    </div>
+    <div class="skin-grid" id="skinGrid"></div>
+</div>
+
+<div id="skinDetailModal">
+    <div id="skinDetailBox">
+        <div class="sd-preview" id="sdPreview"></div>
+        <div class="sd-name" id="sdName"></div>
+        <div class="sd-desc" id="sdDesc"></div>
+        <div class="sd-condition" id="sdCondition"></div>
+        <div class="sd-actions">
+            <button class="btn-close-sd" id="sdClose">關閉</button>
+            <button class="btn-action-sd" id="sdAction">使用</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// 皮膚系統：第一批（骨架 + 面板）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[皮膚] 皮膚系統載入中...');
+
+    const TICKETS_KEY = 'towerDefenseSkinTickets_v1';
+    const CURRENT_SKIN_KEY = 'towerDefenseCurrentSkin_v1';
+    const UNLOCKED_KEY = 'towerDefenseUnlockedSkins_v1';
+
+    // ============ 皮膚資料 ============
+    const SKINS = [
+        {
+            id: 'classic',
+            name: '經典',
+            desc: '深紫星空，金色光輝。遊戲原本的樣子。',
+            unlock: 'always',
+            condition: '預設皮膚',
+            sky: ['#15062a', '#1a0840', '#0a0418', '#050208'],
+            path: 'linear-gradient(90deg, #a060ff, #b478ff)',
+            pathGlow: 'rgba(160, 100, 240, 0.6)',
+            tower: 'linear-gradient(180deg, #fff 0%, #c0c0c0 100%)',
+            accent: '#ffd700',
+        },
+        {
+            id: 'grass',
+            name: '草原',
+            desc: '翠綠草原，大地氣息。生命與自然的擁抱。',
+            unlock: 'first_easy_clear',
+            condition: '首次通關「簡單模式」',
+            sky: ['#0a2a0a', '#1a4a1a', '#0a1a0a', '#050805'],
+            path: 'linear-gradient(90deg, #4ec472, #88d888)',
+            pathGlow: 'rgba(78, 196, 114, 0.6)',
+            tower: 'linear-gradient(180deg, #e0ffd0 0%, #4a8a3a 100%)',
+            accent: '#4ec472',
+        },
+        {
+            id: 'deepsea',
+            name: '深海',
+            desc: '深藍大海，青綠極光。靜謐而深邃的力量。',
+            unlock: 'shop_300',
+            condition: '商店購買（300 皮膚券）',
+            price: 300,
+            sky: ['#041a2a', '#0a3a5a', '#04141a', '#020508'],
+            path: 'linear-gradient(90deg, #4a90ff, #00e5ff)',
+            pathGlow: 'rgba(74, 144, 255, 0.6)',
+            tower: 'linear-gradient(180deg, #d0f0ff 0%, #2060a0 100%)',
+            accent: '#4a90ff',
+        },
+        {
+            id: 'inferno',
+            name: '烈焰',
+            desc: '暗紅熔岩，橘金灼熱。毀滅與重生的循環。',
+            unlock: 'shop_400',
+            condition: '商店購買（400 皮膚券）',
+            price: 400,
+            sky: ['#2a0a05', '#5a1a0a', '#1a0502', '#0a0200'],
+            path: 'linear-gradient(90deg, #ff4500, #ffd700)',
+            pathGlow: 'rgba(255, 69, 0, 0.6)',
+            tower: 'linear-gradient(180deg, #ffd0a0 0%, #a02000 100%)',
+            accent: '#ff4500',
+        },
+        {
+            id: 'bio',
+            name: '生物',
+            desc: '螢光綠脈動，漆黑深邃。有機體與機械的融合。',
+            unlock: 'first_evolve',
+            condition: '首次進化一座塔',
+            sky: ['#0a1a0a', '#1a3a1a', '#050a05', '#020502'],
+            path: 'linear-gradient(90deg, #66FF66, #00e5ff)',
+            pathGlow: 'rgba(102, 255, 102, 0.6)',
+            tower: 'linear-gradient(180deg, #d0ffd0 0%, #2a7a2a 100%)',
+            accent: '#66FF66',
+        },
+        {
+            id: 'gold',
+            name: '黃金',
+            desc: '全金閃耀，王者風範。征服普通模式的證明。',
+            unlock: 'normal_clear',
+            condition: '通關「普通模式」',
+            sky: ['#2a1a05', '#4a3010', '#1a0f02', '#0a0500'],
+            path: 'linear-gradient(90deg, #ffd700, #ffaa00)',
+            pathGlow: 'rgba(255, 215, 0, 0.7)',
+            tower: 'linear-gradient(180deg, #fff8c0 0%, #b87000 100%)',
+            accent: '#ffd700',
+        },
+        {
+            id: 'dark',
+            name: '暗黑',
+            desc: '全黑深淵，紫色邪光。征服困難模式的證明。',
+            unlock: 'hard_clear',
+            condition: '通關「困難模式」',
+            sky: ['#050508', '#0a0518', '#020205', '#000000'],
+            path: 'linear-gradient(90deg, #6040a0, #a060ff)',
+            pathGlow: 'rgba(100, 60, 160, 0.6)',
+            tower: 'linear-gradient(180deg, #a080c0 0%, #301050 100%)',
+            accent: '#a060ff',
+        },
+        {
+            id: 'white',
+            name: '純白',
+            desc: '純白無瑕，淡藍光輝。無損通關的至高榮耀。',
+            unlock: 'perfect_clear',
+            condition: '無損通關任一難度',
+            sky: ['#e0e8ff', '#b8d0ff', '#a0b8e0', '#8098c0'],
+            path: 'linear-gradient(90deg, #ffffff, #b8d0ff)',
+            pathGlow: 'rgba(255, 255, 255, 0.7)',
+            tower: 'linear-gradient(180deg, #ffffff 0%, #a0c0e0 100%)',
+            accent: '#ffffff',
+        },
+    ];
+
+    // ============ 儲存 ============
+    function loadTickets() {
+        try { return parseInt(localStorage.getItem(TICKETS_KEY) || '0', 10) || 0; } catch (e) { return 0; }
+    }
+    function saveTickets(n) {
+        try { localStorage.setItem(TICKETS_KEY, String(Math.max(0, Math.floor(n)))); } catch (e) {}
+    }
+    function loadCurrentSkin() {
+        try { return localStorage.getItem(CURRENT_SKIN_KEY) || 'classic'; } catch (e) { return 'classic'; }
+    }
+    function saveCurrentSkin(id) {
+        try { localStorage.setItem(CURRENT_SKIN_KEY, id); } catch (e) {}
+    }
+    function loadUnlockedSkins() {
+        try {
+            const raw = localStorage.getItem(UNLOCKED_KEY);
+            if (!raw) return { classic: true };
+            const obj = JSON.parse(raw);
+            obj.classic = true;
+            return obj;
+        } catch (e) { return { classic: true }; }
+    }
+    function saveUnlockedSkins(obj) {
+        try { localStorage.setItem(UNLOCKED_KEY, JSON.stringify(obj)); } catch (e) {}
+    }
+
+    let tickets = loadTickets();
+    let currentSkinId = loadCurrentSkin();
+    let unlockedSkins = loadUnlockedSkins();
+
+    // ============ 主選單插入按鈕 ============
+    const menuRow = document.querySelector('.menu-row');
+    if (menuRow && !document.getElementById('skinBtn')) {
+        const btn = document.createElement('button');
+        btn.className = 'menu-action';
+        btn.id = 'skinBtn';
+        btn.textContent = '🎨 皮膚';
+        const leaderboardBtn = document.getElementById('viewLeaderboardBtn');
+        if (leaderboardBtn && leaderboardBtn.parentNode === menuRow) {
+            menuRow.insertBefore(btn, leaderboardBtn);
+        } else {
+            menuRow.appendChild(btn);
+        }
+        btn.addEventListener('click', function() {
+            if (typeof initAudio === 'function') initAudio();
+            document.getElementById('skinPanel').classList.add('show');
+            renderSkins();
+        });
+    }
+
+    // ============ 渲染預覽色塊 ============
+    function makePreviewHTML(skin) {
+        const starCount = 6;
+        let stars = '';
+        for (let i = 0; i < starCount; i++) {
+            const sx = (i * 137) % 100;
+            const sy = (i * 79) % 50;
+            stars += '<div class="pv-star" style="left:' + sx + '%;top:' + sy + '%;opacity:' + (0.4 + (i % 3) * 0.2) + ';"></div>';
+        }
+        return '<div class="pv-sky" style="background: linear-gradient(180deg, ' + skin.sky[0] + ' 0%, ' + skin.sky[1] + ' 40%, ' + skin.sky[2] + ' 75%, ' + skin.sky[3] + ' 100%);">' +
+            stars +
+            '<div class="pv-path" style="background: ' + skin.path + '; box-shadow: 0 0 10px ' + skin.pathGlow + ';"></div>' +
+            '<div class="pv-tower" style="background: ' + skin.tower + ';"></div>' +
+        '</div>';
+    }
+
+    // ============ 渲染皮膚卡片 ============
+    function renderSkins() {
+        const grid = document.getElementById('skinGrid');
+        const ticketEl = document.getElementById('ticketCount');
+        if (!grid) return;
+        ticketEl.textContent = tickets;
+
+        let html = '';
+        for (let i = 0; i < SKINS.length; i++) {
+            const skin = SKINS[i];
+            const isEquipped = skin.id === currentSkinId;
+            const isUnlocked = unlockedSkins[skin.id] === true || skin.unlock === 'always';
+
+            let badge = '';
+            let cardClass = 'skin-card';
+            if (isEquipped) {
+                cardClass += ' equipped';
+                badge = '<div class="skin-badge">使用中</div>';
+            } else if (isUnlocked) {
+                badge = '<div class="skin-badge">已解鎖</div>';
+            } else {
+                cardClass += ' locked';
+                badge = '<div class="skin-badge">🔒 鎖定</div>';
+            }
+
+            html += '<div class="' + cardClass + '" data-skin-id="' + skin.id + '">' +
+                badge +
+                '<div class="skin-preview">' + makePreviewHTML(skin) + '</div>' +
+                '<div class="skin-name">' + skin.name + '</div>' +
+                '<div class="skin-desc">' + skin.desc + '</div>' +
+            '</div>';
+        }
+        grid.innerHTML = html;
+
+        // 綁定點擊
+        grid.querySelectorAll('.skin-card').forEach(function(card) {
+            card.addEventListener('click', function() {
+                const id = card.dataset.skinId;
+                showSkinDetail(id);
+            });
+        });
+    }
+
+    // ============ 皮膚詳情 ============
+    let detailSkinId = null;
+
+    function showSkinDetail(id) {
+        const skin = SKINS.find(function(s) { return s.id === id; });
+        if (!skin) return;
+        detailSkinId = id;
+
+        const modal = document.getElementById('skinDetailModal');
+        document.getElementById('sdPreview').innerHTML = makePreviewHTML(skin);
+        document.getElementById('sdName').textContent = skin.name;
+        document.getElementById('sdDesc').textContent = skin.desc;
+
+        const isEquipped = skin.id === currentSkinId;
+        const isUnlocked = unlockedSkins[skin.id] === true || skin.unlock === 'always';
+        const actionBtn = document.getElementById('sdAction');
+
+        let condText = '';
+        if (isEquipped) {
+            condText = '✅ 目前使用中';
+            actionBtn.textContent = '已裝備';
+            actionBtn.disabled = true;
+        } else if (isUnlocked) {
+            condText = '✅ 已解鎖';
+            actionBtn.textContent = '使用';
+            actionBtn.disabled = false;
+        } else if (skin.unlock === 'shop_300' || skin.unlock === 'shop_400') {
+            condText = '🎟️ ' + skin.condition + '｜你有 ' + tickets + ' 券';
+            actionBtn.textContent = (tickets >= skin.price) ? '購買' : '券不足';
+            actionBtn.disabled = tickets < skin.price;
+        } else {
+            condText = '🔒 ' + skin.condition;
+            actionBtn.textContent = '條件未達成';
+            actionBtn.disabled = true;
+        }
+
+        document.getElementById('sdCondition').textContent = condText;
+        modal.classList.add('show');
+    }
+
+    // ============ 按鈕綁定 ============
+    document.getElementById('closeSkin').addEventListener('pointerdown', function(e) {
+        e.preventDefault();
+        document.getElementById('skinPanel').classList.remove('show');
+    }, { passive: false });
+
+    document.getElementById('sdClose').addEventListener('pointerdown', function(e) {
+        e.preventDefault();
+        document.getElementById('skinDetailModal').classList.remove('show');
+    }, { passive: false });
+
+    document.getElementById('sdAction').addEventListener('pointerdown', function(e) {
+        e.preventDefault();
+        if (!detailSkinId) return;
+        const skin = SKINS.find(function(s) { return s.id === detailSkinId; });
+        if (!skin) return;
+
+        const isUnlocked = unlockedSkins[skin.id] === true || skin.unlock === 'always';
+
+        if (isUnlocked) {
+            // 第一批：只切換 currentSkinId，視覺效果留到第二批
+            currentSkinId = skin.id;
+            saveCurrentSkin(skin.id);
+            document.getElementById('skinDetailModal').classList.remove('show');
+            renderSkins();
+            if (typeof log === 'function') log('🎨 已裝備皮膚：' + skin.name, 2000);
+        } else if (skin.price && tickets >= skin.price) {
+            // 第一批：先不實際扣券，避免出問題
+            if (typeof log === 'function') log('🎨 商店功能開發中，敬請期待', 2000);
+        }
+    }, { passive: false });
+
+    // ============ 對外 API（第二批會用到） ============
+    window.__skinAPI = {
+        getCurrent: function() { return currentSkinId; },
+        getTickets: function() { return tickets; },
+        addTickets: function(n) {
+            tickets += n;
+            saveTickets(tickets);
+            const el = document.getElementById('ticketCount');
+            if (el) el.textContent = tickets;
+        },
+        unlock: function(id) {
+            unlockedSkins[id] = true;
+            saveUnlockedSkins(unlockedSkins);
+        },
+        getSkin: function(id) { return SKINS.find(function(s) { return s.id === id; }); },
+    };
+
+    console.log('[皮膚] 皮膚系統載入完成｜券：' + tickets + '｜當前皮膚：' + currentSkinId);
+})();
+</script>
+
+<script>
+// ============================================================
+// 皮膚系統：第二批（購買 + 通關給券 + 視覺套用）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[皮膚2] 購買與視覺系統載入中...');
+
+    // ============ 皮膚定義（與第一批同步） ============
+    const SKINS = {
+        classic: { sky: ['#15062a', '#1a0840', '#0a0418', '#050208'], path: '#a060ff', pathGlow: '#a060ff', accent: '#ffd700' },
+        grass:   { sky: ['#0a2a0a', '#1a4a1a', '#0a1a0a', '#050805'], path: '#4ec472', pathGlow: '#88d888', accent: '#4ec472' },
+        deepsea: { sky: ['#041a2a', '#0a3a5a', '#04141a', '#020508'], path: '#4a90ff', pathGlow: '#00e5ff', accent: '#4a90ff' },
+        inferno: { sky: ['#2a0a05', '#5a1a0a', '#1a0502', '#0a0200'], path: '#ff4500', pathGlow: '#ffd700', accent: '#ff4500' },
+        bio:     { sky: ['#0a1a0a', '#1a3a1a', '#050a05', '#020502'], path: '#66FF66', pathGlow: '#00e5ff', accent: '#66FF66' },
+        gold:    { sky: ['#2a1a05', '#4a3010', '#1a0f02', '#0a0500'], path: '#ffd700', pathGlow: '#ffaa00', accent: '#ffd700' },
+        dark:    { sky: ['#050508', '#0a0518', '#020205', '#000000'], path: '#6040a0', pathGlow: '#a060ff', accent: '#a060ff' },
+        white:   { sky: ['#e0e8ff', '#b8d0ff', '#a0b8e0', '#8098c0'], path: '#ffffff', pathGlow: '#b8d0ff', accent: '#ffffff' },
+    };
+
+    function hexToRgba(hex, a) {
+        const h = hex.replace('#', '');
+        const r = parseInt(h.substring(0, 2), 16);
+        const g = parseInt(h.substring(2, 4), 16);
+        const b = parseInt(h.substring(4, 6), 16);
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+    }
+
+    function getCurrentSkin() {
+        if (!window.__skinAPI) return SKINS.classic;
+        const id = window.__skinAPI.getCurrent();
+        return SKINS[id] || SKINS.classic;
+    }
+
+    // ============ 覆蓋 sdAction 按鈕 ============
+    const oldActionBtn = document.getElementById('sdAction');
+    if (oldActionBtn) {
+        const newActionBtn = oldActionBtn.cloneNode(true);
+        oldActionBtn.parentNode.replaceChild(newActionBtn, oldActionBtn);
+
+        newActionBtn.addEventListener('pointerdown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof initAudio === 'function') initAudio();
+
+            const detailSkinId = getDetailSkinId();
+            if (!detailSkinId) return;
+
+            const skinData = window.__skinAPI ? window.__skinAPI.getSkin(detailSkinId) : null;
+            if (!skinData) return;
+
+            const currentId = window.__skinAPI ? window.__skinAPI.getCurrent() : 'classic';
+            const tickets = window.__skinAPI ? window.__skinAPI.getTickets() : 0;
+            const unlocked = isSkinUnlocked(detailSkinId);
+
+            if (detailSkinId === currentId) return;
+
+            if (unlocked) {
+                // 直接裝備
+                try { localStorage.setItem('towerDefenseCurrentSkin_v1', detailSkinId); } catch (err) {}
+                if (typeof log === 'function') log('🎨 已裝備：' + skinData.name, 2000);
+                refreshAll();
+                closeDetail();
+                return;
+            }
+
+            // 商店購買
+            if (skinData.price) {
+                if (tickets < skinData.price) {
+                    if (typeof log === 'function') log('🎟️ 皮膚券不足（需 ' + skinData.price + '）', 2000);
+                    return;
+                }
+                // 扣券
+                if (window.__skinAPI) {
+                    window.__skinAPI.addTickets(-skinData.price);
+                    window.__skinAPI.unlock(detailSkinId);
+                }
+                // 自動裝備
+                try { localStorage.setItem('towerDefenseCurrentSkin_v1', detailSkinId); } catch (err) {}
+                if (typeof log === 'function') log('🎨 購買並裝備：' + skinData.name, 2500);
+                if (typeof sfxGold === 'function') sfxGold();
+                refreshAll();
+                closeDetail();
+                return;
+            }
+
+            // 未達條件
+            if (typeof log === 'function') log('🔒 ' + skinData.condition, 2500);
+        }, { passive: false });
+    }
+
+    function getDetailSkinId() {
+        // 從彈窗的顯示名稱反查
+        const nameEl = document.getElementById('sdName');
+        if (!nameEl || !window.__skinAPI) return null;
+        const name = nameEl.textContent;
+        const allSkins = ['classic', 'grass', 'deepsea', 'inferno', 'bio', 'gold', 'dark', 'white'];
+        for (let i = 0; i < allSkins.length; i++) {
+            const s = window.__skinAPI.getSkin(allSkins[i]);
+            if (s && s.name === name) return allSkins[i];
+        }
+        return null;
+    }
+
+    function isSkinUnlocked(id) {
+        try {
+            const raw = localStorage.getItem('towerDefenseUnlockedSkins_v1');
+            if (!raw) return id === 'classic';
+            const obj = JSON.parse(raw);
+            return obj[id] === true || id === 'classic';
+        } catch (e) { return id === 'classic'; }
+    }
+
+    function closeDetail() {
+        const modal = document.getElementById('skinDetailModal');
+        if (modal) modal.classList.remove('show');
+    }
+
+    function refreshAll() {
+        // 重新渲染皮膚面板
+        const panel = document.getElementById('skinPanel');
+        if (panel && panel.classList.contains('show')) {
+            // 觸發原本的 renderSkins（透過重新點擊重繪）
+            const evt = new Event('refresh');
+            panel.dispatchEvent(evt);
+        }
+        // 更新券數量
+        if (window.__skinAPI) {
+            const el = document.getElementById('ticketCount');
+            if (el) el.textContent = window.__skinAPI.getTickets();
+        }
+        // 重新整理面板卡片（最簡單的方式：手動呼叫 renderSkins）
+        if (typeof window.__renderSkins === 'function') {
+            window.__renderSkins();
+        } else {
+            // 關掉再開
+            if (panel) {
+                panel.classList.remove('show');
+                setTimeout(function() { panel.classList.add('show'); }, 50);
+            }
+        }
+    }
+
+    // ============ 通關給皮膚券 ============
+    const _prevFinishGame = window.finishGame || finishGame;
+    const originalFinishGame = (typeof finishGame === 'function') ? finishGame : null;
+
+    // 包裝 finishGame
+    const _finishGameWrapper = function(didVictory) {
+        if (originalFinishGame) {
+            originalFinishGame.call(this, didVictory);
+        }
+
+        if (!didVictory) return;
+
+        // 通關獎勵
+        const diff = typeof currentDifficulty !== 'undefined' ? currentDifficulty : null;
+        if (!diff) return;
+
+        let reward = 0;
+        if (diff === 'easy') reward = 30;
+        else if (diff === 'normal') reward = 80;
+        else if (diff === 'hard') reward = 200;
+
+        // 檢查首次通關
+        const firstKey = 'towerDefenseFirstClear_' + diff;
+        let isFirstClear = false;
+        try {
+            if (!localStorage.getItem(firstKey)) {
+                localStorage.setItem(firstKey, '1');
+                isFirstClear = true;
+                reward += 50; // 首通額外 +50
+            }
+        } catch (e) {}
+
+        if (reward > 0 && window.__skinAPI) {
+            window.__skinAPI.addTickets(reward);
+            setTimeout(function() {
+                if (typeof log === 'function') {
+                    const msg = isFirstClear
+                        ? '🎟️ 首次通關！+' + reward + ' 皮膚券'
+                        : '🎟️ 通關獎勵：+' + reward + ' 皮膚券';
+                    log(msg, 4000);
+                }
+            }, 800);
+        }
+    };
+
+    // 覆蓋全域 finishGame
+    try {
+        finishGame = _finishGameWrapper;
+    } catch (e) {
+        window.finishGame = _finishGameWrapper;
+    }
+
+    // ============ 視覺套用：背景 ============
+    const _prevDrawBackground = drawBackground;
+    drawBackground = function() {
+        const skin = getCurrentSkin();
+        const sky = skin.sky;
+
+        // 天空漸層（用皮膚色）
+        const grad = ctx.createLinearGradient(0, 0, 0, BASE_H);
+        grad.addColorStop(0, sky[0]);
+        grad.addColorStop(0.35, sky[1]);
+        grad.addColorStop(0.7, sky[2]);
+        grad.addColorStop(1, sky[3]);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, BASE_W, BASE_H);
+
+        // 星雲光暈（用皮膚的 accent 色調）
+        const nebula1 = ctx.createRadialGradient(240, 90, 20, 240, 90, 260);
+        nebula1.addColorStop(0, hexToRgba(skin.pathGlow, 0.22));
+        nebula1.addColorStop(0.5, hexToRgba(skin.pathGlow, 0.08));
+        nebula1.addColorStop(1, 'transparent');
+        ctx.fillStyle = nebula1;
+        ctx.fillRect(0, 0, 500, 350);
+
+        const nebula2 = ctx.createRadialGradient(720, 180, 20, 720, 180, 280);
+        nebula2.addColorStop(0, hexToRgba(skin.accent, 0.20));
+        nebula2.addColorStop(0.5, hexToRgba(skin.accent, 0.08));
+        nebula2.addColorStop(1, 'transparent');
+        ctx.fillStyle = nebula2;
+        ctx.fillRect(450, 0, 510, 400);
+
+        // 星星（白色系皮膚用深色星星，其他用白色）
+        const isLightSkin = (skin === SKINS.white);
+        const now = performance.now();
+        for (let i = 0; i < 80; i++) {
+            const sx = (i * 137.5) % BASE_W;
+            const sy = (i * 73.3) % BASE_H;
+            const baseSize = 0.4 + ((i * 17) % 10) / 10;
+            const twinkle = 0.5 + 0.5 * Math.sin(now / 1200 + i * 1.7);
+            const sr = baseSize * (0.6 + twinkle * 0.5);
+            const alpha = 0.35 + twinkle * 0.45;
+            if (isLightSkin) {
+                ctx.fillStyle = 'rgba(40, 60, 100, ' + alpha + ')';
+            } else {
+                ctx.fillStyle = 'rgba(255, 245, 220, ' + alpha + ')';
+            }
+            ctx.beginPath();
+            ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // 遠山（用皮膚色）
+        ctx.save();
+        const darken = function(hex, factor) {
+            const h = hex.replace('#', '');
+            const r = Math.max(0, Math.floor(parseInt(h.substring(0, 2), 16) * factor));
+            const g = Math.max(0, Math.floor(parseInt(h.substring(2, 4), 16) * factor));
+            const b = Math.max(0, Math.floor(parseInt(h.substring(4, 6), 16) * factor));
+            return 'rgb(' + r + ',' + g + ',' + b + ')';
+        };
+
+        ctx.fillStyle = hexToRgba(skin.sky[2], 0.9);
+        ctx.beginPath();
+        ctx.moveTo(0, BASE_H);
+        const peaks1 = [[0, 420], [80, 340], [160, 380], [260, 300], [360, 360], [480, 280], [580, 340], [700, 290], [820, 350], [960, 300]];
+        for (let i = 0; i < peaks1.length; i++) ctx.lineTo(peaks1[i][0], peaks1[i][1]);
+        ctx.lineTo(BASE_W, BASE_H);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = hexToRgba(skin.sky[3], 0.95);
+        ctx.beginPath();
+        ctx.moveTo(0, BASE_H);
+        const peaks2 = [[0, 470], [120, 400], [240, 440], [380, 380], [500, 430], [640, 390], [780, 440], [900, 400], [960, 430]];
+        for (let i = 0; i < peaks2.length; i++) ctx.lineTo(peaks2[i][0], peaks2[i][1]);
+        ctx.lineTo(BASE_W, BASE_H);
+        ctx.closePath();
+        ctx.fill();
+
+        const footGlow = ctx.createRadialGradient(BASE_W / 2, BASE_H, 0, BASE_W / 2, BASE_H, 400);
+        footGlow.addColorStop(0, hexToRgba(skin.pathGlow, 0.15));
+        footGlow.addColorStop(1, 'transparent');
+        ctx.fillStyle = footGlow;
+        ctx.fillRect(0, BASE_H - 300, BASE_W, 300);
+        ctx.restore();
+    };
+
+    // ============ 視覺套用：路徑 ============
+    const _prevDrawPath = drawPath;
+    drawPath = function() {
+        const skin = getCurrentSkin();
+
+        ctx.save();
+
+        // 外層光暈
+        ctx.beginPath();
+        ctx.moveTo(PATH[0].x, PATH[0].y);
+        for (let i = 1; i < PATH.length; i++) ctx.lineTo(PATH[i].x, PATH[i].y);
+        ctx.strokeStyle = hexToRgba(skin.pathGlow, 0.18);
+        ctx.lineWidth = 58;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
+        ctx.strokeStyle = hexToRgba(skin.pathGlow, 0.30);
+        ctx.lineWidth = 48;
+        ctx.stroke();
+
+        ctx.strokeStyle = '#2a2438';
+        ctx.lineWidth = 38;
+        ctx.stroke();
+
+        // 石紋
+        ctx.strokeStyle = 'rgba(70, 60, 100, 0.5)';
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < PATH.length - 1; i++) {
+            const a = PATH[i], b = PATH[i + 1];
+            const len = Math.hypot(b.x - a.x, b.y - a.y);
+            const angle = Math.atan2(b.y - a.y, b.x - a.x);
+            const perpX = -Math.sin(angle), perpY = Math.cos(angle);
+            const segLen = 22;
+            const numSegs = Math.floor(len / segLen);
+            for (let j = 0; j < numSegs; j++) {
+                const t = (j + 0.5) / numSegs;
+                const cx = a.x + (b.x - a.x) * t;
+                const cy = a.y + (b.y - a.y) * t;
+                const halfW = 16;
+                ctx.beginPath();
+                ctx.moveTo(cx - perpX * halfW, cy - perpY * halfW);
+                ctx.lineTo(cx + perpX * halfW, cy + perpY * halfW);
+                ctx.stroke();
+            }
+        }
+
+        // 內層發光邊（用皮膚色）
+        ctx.strokeStyle = hexToRgba(skin.path, 0.85);
+        ctx.lineWidth = 3;
+        ctx.shadowColor = skin.path;
+        ctx.shadowBlur = 12;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // 金塔履帶
+        if (hasGoldTower) {
+            ctx.save();
+            ctx.setLineDash([12, 18]);
+            ctx.lineDashOffset = (performance.now() / 25) % 30;
+            ctx.strokeStyle = 'rgba(200, 150, 20, 0.55)';
+            ctx.lineWidth = 38;
+            ctx.stroke();
+            ctx.setLineDash([6, 24]);
+            ctx.lineDashOffset = (performance.now() / 25) % 30;
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.75)';
+            ctx.lineWidth = 10;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        ctx.restore();
+    };
+
+    // ============ 視覺套用：塔底盤（可選，用皮膚的 accent 微調外框） ============
+    const _prevDrawTowerBase = drawTowerBase;
+    drawTowerBase = function(x, y, color, isSpecial) {
+        _prevDrawTowerBase.call(this, x, y, color, isSpecial);
+        // 加一層淡淡的皮膚色外暈
+        const skin = getCurrentSkin();
+        if (skin !== SKINS.classic) {
+            ctx.save();
+            ctx.strokeStyle = hexToRgba(skin.accent, 0.15);
+            ctx.lineWidth = 1.5;
+            const r = 70 * 0.55;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const a = -Math.PI / 2 + i * Math.PI / 3;
+                const px = x + Math.cos(a) * r;
+                const py = y + Math.sin(a) * r;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+
+    // ============ 主選單按鈕高亮當前皮膚 ============
+    function refreshSkinPanel() {
+        // 讓第一批的 renderSkins 重新觸發
+        // 因為第一批的 renderSkins 是封閉的，最簡單方式：模擬點擊面板開關
+        const panel = document.getElementById('skinPanel');
+        if (!panel) return;
+        const isOpen = panel.classList.contains('show');
+        if (isOpen) {
+            // 找到面板內某個 tab 或觸發重繪
+            // 用一個 hack：呼叫皮膚按鈕的 click 事件
+            const btn = document.getElementById('skinBtn');
+            if (btn) btn.click();
+        }
+    }
+
+    // 皮膚變更後自動重繪遊戲
+    const _prevGameLoop = window.gameLoop;
+    // gameLoop 每幀都會呼叫 drawBackground 和 drawPath，所以皮膚會自動生效
+
+    console.log('[皮膚2] 購買與視覺系統載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 皮膚系統：第三批（修正變色 + 面板重建）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[皮膚3] 修正系統載入中...');
+
+    // ============ 核心修正：讓 getCurrent 從 localStorage 讀 ============
+    if (window.__skinAPI) {
+        window.__skinAPI.getCurrent = function() {
+            try {
+                return localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic';
+            } catch (e) {
+                return 'classic';
+            }
+        };
+        console.log('[皮膚3] getCurrent 已修正');
+    }
+
+    // ============ 重建皮膚面板（讓「使用中」顯示正確） ============
+    const SKINS_LIST = [
+        { id: 'classic', name: '經典', desc: '深紫星空，金色光輝。遊戲原本的樣子。', condition: '預設皮膚' },
+        { id: 'grass', name: '草原', desc: '翠綠草原，大地氣息。生命與自然的擁抱。', condition: '首次通關「簡單模式」' },
+        { id: 'deepsea', name: '深海', desc: '深藍大海，青綠極光。靜謐而深邃的力量。', condition: '商店購買（300 皮膚券）', price: 300 },
+        { id: 'inferno', name: '烈焰', desc: '暗紅熔岩，橘金灼熱。毀滅與重生的循環。', condition: '商店購買（400 皮膚券）', price: 400 },
+        { id: 'bio', name: '生物', desc: '螢光綠脈動，漆黑深邃。有機體與機械的融合。', condition: '首次進化一座塔' },
+        { id: 'gold', name: '黃金', desc: '全金閃耀，王者風範。征服普通模式的證明。', condition: '通關「普通模式」' },
+        { id: 'dark', name: '暗黑', desc: '全黑深淵，紫色邪光。征服困難模式的證明。', condition: '通關「困難模式」' },
+        { id: 'white', name: '純白', desc: '純白無瑕，淡藍光輝。無損通關的至高榮耀。', condition: '無損通關任一難度' },
+    ];
+
+    const SKIN_COLORS = {
+        classic: { sky: ['#15062a', '#1a0840', '#0a0418', '#050208'], path: '#a060ff', glow: '#a060ff', tower: 'linear-gradient(180deg,#fff 0%,#c0c0c0 100%)' },
+        grass:   { sky: ['#0a2a0a', '#1a4a1a', '#0a1a0a', '#050805'], path: '#4ec472', glow: '#88d888', tower: 'linear-gradient(180deg,#e0ffd0 0%,#4a8a3a 100%)' },
+        deepsea: { sky: ['#041a2a', '#0a3a5a', '#04141a', '#020508'], path: '#4a90ff', glow: '#00e5ff', tower: 'linear-gradient(180deg,#d0f0ff 0%,#2060a0 100%)' },
+        inferno: { sky: ['#2a0a05', '#5a1a0a', '#1a0502', '#0a0200'], path: '#ff4500', glow: '#ffd700', tower: 'linear-gradient(180deg,#ffd0a0 0%,#a02000 100%)' },
+        bio:     { sky: ['#0a1a0a', '#1a3a1a', '#050a05', '#020502'], path: '#66FF66', glow: '#00e5ff', tower: 'linear-gradient(180deg,#d0ffd0 0%,#2a7a2a 100%)' },
+        gold:    { sky: ['#2a1a05', '#4a3010', '#1a0f02', '#0a0500'], path: '#ffd700', glow: '#ffaa00', tower: 'linear-gradient(180deg,#fff8c0 0%,#b87000 100%)' },
+        dark:    { sky: ['#050508', '#0a0518', '#020205', '#000000'], path: '#6040a0', glow: '#a060ff', tower: 'linear-gradient(180deg,#a080c0 0%,#301050 100%)' },
+        white:   { sky: ['#e0e8ff', '#b8d0ff', '#a0b8e0', '#8098c0'], path: '#ffffff', glow: '#b8d0ff', tower: 'linear-gradient(180deg,#ffffff 0%,#a0c0e0 100%)' },
+    };
+
+    function readCurrentSkin() {
+        try { return localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; } catch (e) { return 'classic'; }
+    }
+    function readTickets() {
+        try { return parseInt(localStorage.getItem('towerDefenseSkinTickets_v1') || '0', 10) || 0; } catch (e) { return 0; }
+    }
+    function readUnlocked() {
+        try {
+            const raw = localStorage.getItem('towerDefenseUnlockedSkins_v1');
+            if (!raw) return { classic: true };
+            const obj = JSON.parse(raw);
+            obj.classic = true;
+            return obj;
+        } catch (e) { return { classic: true }; }
+    }
+    function writeUnlocked(obj) {
+        try { localStorage.setItem('towerDefenseUnlockedSkins_v1', JSON.stringify(obj)); } catch (e) {}
+    }
+    function writeCurrent(id) {
+        try { localStorage.setItem('towerDefenseCurrentSkin_v1', id); } catch (e) {}
+    }
+    function writeTickets(n) {
+        try { localStorage.setItem('towerDefenseSkinTickets_v1', String(Math.max(0, Math.floor(n)))); } catch (e) {}
+    }
+
+    // ============ 移除舊面板，建立新面板 ============
+    const oldPanel = document.getElementById('skinPanel');
+    if (oldPanel && oldPanel.parentNode) oldPanel.parentNode.removeChild(oldPanel);
+    const oldBtn = document.getElementById('skinBtn');
+    if (oldBtn && oldBtn.parentNode) oldBtn.parentNode.removeChild(oldBtn);
+    const oldDetail = document.getElementById('skinDetailModal');
+    if (oldDetail && oldDetail.parentNode) oldDetail.parentNode.removeChild(oldDetail);
+
+    // ============ 建立新面板 ============
+    const panel = document.createElement('div');
+    panel.id = 'skinPanelV3';
+    panel.style.cssText =
+        'position:fixed;inset:0;' +
+        'background:radial-gradient(ellipse at top,#2a1a4a 0%,transparent 60%),#05050f;' +
+        'display:none;flex-direction:column;padding:20px;z-index:75;overflow:hidden;' +
+        'padding-top:max(20px,env(safe-area-inset-top));' +
+        'padding-bottom:max(20px,env(safe-area-inset-bottom));';
+    panel.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;max-width:560px;width:100%;margin-left:auto;margin-right:auto;flex-shrink:0;">' +
+            '<h2 style="font-size:22px;font-weight:900;background:linear-gradient(180deg,#ffd8a0,#c060a0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:4px;margin:0;">🎨 皮膚</h2>' +
+            '<button id="closeSkinV3" style="width:40px;height:40px;border-radius:10px;background:rgba(20,20,40,0.9);border:2px solid #33335a;color:#ccc;font-size:18px;cursor:pointer;font-family:inherit;">✕</button>' +
+        '</div>' +
+        '<div style="max-width:560px;width:100%;margin:0 auto 14px;background:linear-gradient(135deg,rgba(60,30,80,0.6),rgba(30,15,50,0.6));border:2px solid #6a4a8a;border-radius:12px;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">' +
+            '<span style="font-size:13px;color:#c8a8e8;font-weight:700;letter-spacing:2px;">🎟️ 皮膚券</span>' +
+            '<span id="ticketCountV3" style="font-size:22px;color:#ffd700;font-weight:900;font-variant-numeric:tabular-nums;">0</span>' +
+        '</div>' +
+        '<div id="skinGridV3" style="flex:1;overflow-y:auto;max-width:560px;width:100%;margin:0 auto;display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding-right:4px;padding-bottom:8px;-webkit-overflow-scrolling:touch;"></div>';
+    document.body.appendChild(panel);
+
+    // ============ 建立主選單按鈕 ============
+    const menuRow = document.querySelector('.menu-row');
+    if (menuRow) {
+        const btn = document.createElement('button');
+        btn.className = 'menu-action';
+        btn.id = 'skinBtnV3';
+        btn.textContent = '🎨 皮膚';
+        btn.style.cssText = 'border:2px solid #8a4a6a;color:#e8b8d0;box-shadow:0 0 0 1px rgba(255,100,180,0.2),0 4px 20px rgba(255,100,180,0.15),inset 0 0 24px rgba(255,100,180,0.08);';
+        const leaderboardBtn = document.getElementById('viewLeaderboardBtn');
+        if (leaderboardBtn && leaderboardBtn.parentNode === menuRow) {
+            menuRow.insertBefore(btn, leaderboardBtn);
+        } else {
+            menuRow.appendChild(btn);
+        }
+        btn.addEventListener('click', function() {
+            if (typeof initAudio === 'function') initAudio();
+            panel.style.display = 'flex';
+            renderAll();
+        });
+    }
+
+    document.getElementById('closeSkinV3').addEventListener('pointerdown', function(e) {
+        e.preventDefault();
+        panel.style.display = 'none';
+    }, { passive: false });
+
+    // ============ 預覽色塊 ============
+    function makePreviewHTML(skin) {
+        const c = SKIN_COLORS[skin.id];
+        let stars = '';
+        for (let i = 0; i < 6; i++) {
+            const sx = (i * 137) % 100;
+            const sy = (i * 79) % 50;
+            stars += '<div style="position:absolute;left:' + sx + '%;top:' + sy + '%;width:2px;height:2px;background:#fff;border-radius:50%;box-shadow:0 0 3px #fff;opacity:' + (0.4 + (i % 3) * 0.2) + ';"></div>';
+        }
+        const skyGrad = 'linear-gradient(180deg,' + c.sky[0] + ' 0%,' + c.sky[1] + ' 40%,' + c.sky[2] + ' 75%,' + c.sky[3] + ' 100%)';
+        return '<div style="width:100%;aspect-ratio:1.6/1;border-radius:8px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.15);background:' + skyGrad + ';">' +
+            stars +
+            '<div style="position:absolute;left:-5%;right:-5%;top:50%;height:26%;transform:translateY(-50%);border-radius:50px;background:' + c.path + ';box-shadow:0 0 10px ' + c.glow + ';"></div>' +
+            '<div style="position:absolute;bottom:12%;left:50%;width:18%;aspect-ratio:1;transform:translateX(-50%);clip-path:polygon(50% 0%,82% 30%,68% 100%,32% 100%,18% 30%);background:' + c.tower + ';"></div>' +
+        '</div>';
+    }
+
+    // ============ 渲染面板 ============
+    function renderAll() {
+        const grid = document.getElementById('skinGridV3');
+        const ticketEl = document.getElementById('ticketCountV3');
+        if (!grid) return;
+        ticketEl.textContent = readTickets();
+
+        const currentId = readCurrentSkin();
+        const unlocked = readUnlocked();
+
+        let html = '';
+        for (let i = 0; i < SKINS_LIST.length; i++) {
+            const skin = SKINS_LIST[i];
+            const isEquipped = skin.id === currentId;
+            const isUnlocked = unlocked[skin.id] === true || skin.id === 'classic';
+
+            let badge = '';
+            let cardStyle = 'background:linear-gradient(135deg,rgba(30,20,60,0.9),rgba(15,10,35,0.9));border:2px solid #33335a;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;transition:0.2s;cursor:pointer;position:relative;overflow:hidden;';
+
+            if (isEquipped) {
+                cardStyle += 'border-color:#4ec472;box-shadow:0 0 16px rgba(78,196,114,0.4);';
+                badge = '<div style="position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:#4ec472;color:#0a0a14;letter-spacing:1px;z-index:2;">使用中</div>';
+            } else if (isUnlocked) {
+                badge = '<div style="position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(0,0,0,0.75);color:#ccc;letter-spacing:1px;z-index:2;">已解鎖</div>';
+            } else {
+                cardStyle += 'opacity:0.68;';
+                badge = '<div style="position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(60,20,20,0.85);color:#ff8888;letter-spacing:1px;z-index:2;">🔒 鎖定</div>';
+            }
+
+            html += '<div class="skin-card-v3" data-skin-id="' + skin.id + '" style="' + cardStyle + '">' +
+                badge +
+                makePreviewHTML(skin) +
+                '<div style="font-size:14px;font-weight:800;color:#fff;letter-spacing:1px;">' + skin.name + '</div>' +
+                '<div style="font-size:11px;color:#888;line-height:1.4;min-height:30px;">' + skin.desc + '</div>' +
+            '</div>';
+        }
+        grid.innerHTML = html;
+
+        grid.querySelectorAll('.skin-card-v3').forEach(function(card) {
+            card.addEventListener('click', function() {
+                handleSkinClick(card.dataset.skinId);
+            });
+        });
+    }
+
+    // ============ 點擊皮膚卡片 ============
+    function handleSkinClick(id) {
+        const skin = SKINS_LIST.find(function(s) { return s.id === id; });
+        if (!skin) return;
+
+        const currentId = readCurrentSkin();
+        const unlocked = readUnlocked();
+        const isUnlocked = unlocked[id] === true || id === 'classic';
+        const tickets = readTickets();
+
+        // 已裝備
+        if (id === currentId) {
+            if (typeof log === 'function') log('🎨 已經在使用「' + skin.name + '」', 1800);
+            return;
+        }
+
+        // 已解鎖 → 直接換
+        if (isUnlocked) {
+            writeCurrent(id);
+            if (typeof log === 'function') log('🎨 已裝備：' + skin.name, 2000);
+            if (typeof sfxPlace === 'function') sfxPlace();
+            renderAll();
+            return;
+        }
+
+        // 商店購買
+        if (skin.price) {
+            if (tickets < skin.price) {
+                if (typeof log === 'function') log('🎟️ 皮膚券不足（需 ' + skin.price + '，你有 ' + tickets + '）', 2500);
+                return;
+            }
+            if (confirm('確定花 ' + skin.price + ' 皮膚券購買「' + skin.name + '」嗎？')) {
+                writeTickets(tickets - skin.price);
+                const u = readUnlocked();
+                u[id] = true;
+                writeUnlocked(u);
+                writeCurrent(id);
+                if (typeof log === 'function') log('🎨 購買並裝備：' + skin.name, 2500);
+                if (typeof sfxGold === 'function') sfxGold();
+                renderAll();
+            }
+            return;
+        }
+
+        // 條件未達成
+        if (typeof log === 'function') log('🔒 ' + skin.condition, 2500);
+    }
+
+    // ============ 修正 getCurrentSkin（覆寫第二批的依賴） ============
+    // 由於第二批的 getCurrentSkin 呼叫 window.__skinAPI.getCurrent()，
+    // 上面已經把 getCurrent 改成從 localStorage 讀，所以畫面上的 drawBackground/drawPath
+    // 現在會讀到正確的皮膚。
+
+    // 但保險起見，這裡再確認一次
+    if (window.__skinAPI) {
+        const originalGetCurrent = window.__skinAPI.getCurrent;
+        window.__skinAPI.getCurrent = function() {
+            try {
+                const id = localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic';
+                console.log('[皮膚3] getCurrent 回傳:', id);
+                return id;
+            } catch (e) {
+                return 'classic';
+            }
+        };
+    }
+
+    // ============ 監聽皮膚變更（確保畫面立刻更新） ============
+    let lastSeenSkin = readCurrentSkin();
+    setInterval(function() {
+        const current = readCurrentSkin();
+        if (current !== lastSeenSkin) {
+            lastSeenSkin = current;
+            console.log('[皮膚3] 偵測到皮膚變更:', current);
+        }
+    }, 300);
+
+    console.log('[皮膚3] 修正系統載入完成，目前皮膚：' + readCurrentSkin());
+})();
+</script>
+
+<script>
+// ============================================================
+// 皮膚詳情預覽（加回大圖預覽）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[皮膚4] 詳情預覽載入中...');
+
+    const SKIN_COLORS = {
+        classic: { sky: ['#15062a', '#1a0840', '#0a0418', '#050208'], path: '#a060ff', glow: '#a060ff', tower: 'linear-gradient(180deg,#fff 0%,#c0c0c0 100%)' },
+        grass:   { sky: ['#0a2a0a', '#1a4a1a', '#0a1a0a', '#050805'], path: '#4ec472', glow: '#88d888', tower: 'linear-gradient(180deg,#e0ffd0 0%,#4a8a3a 100%)' },
+        deepsea: { sky: ['#041a2a', '#0a3a5a', '#04141a', '#020508'], path: '#4a90ff', glow: '#00e5ff', tower: 'linear-gradient(180deg,#d0f0ff 0%,#2060a0 100%)' },
+        inferno: { sky: ['#2a0a05', '#5a1a0a', '#1a0502', '#0a0200'], path: '#ff4500', glow: '#ffd700', tower: 'linear-gradient(180deg,#ffd0a0 0%,#a02000 100%)' },
+        bio:     { sky: ['#0a1a0a', '#1a3a1a', '#050a05', '#020502'], path: '#66FF66', glow: '#00e5ff', tower: 'linear-gradient(180deg,#d0ffd0 0%,#2a7a2a 100%)' },
+        gold:    { sky: ['#2a1a05', '#4a3010', '#1a0f02', '#0a0500'], path: '#ffd700', glow: '#ffaa00', tower: 'linear-gradient(180deg,#fff8c0 0%,#b87000 100%)' },
+        dark:    { sky: ['#050508', '#0a0518', '#020205', '#000000'], path: '#6040a0', glow: '#a060ff', tower: 'linear-gradient(180deg,#a080c0 0%,#301050 100%)' },
+        white:   { sky: ['#e0e8ff', '#b8d0ff', '#a0b8e0', '#8098c0'], path: '#ffffff', glow: '#b8d0ff', tower: 'linear-gradient(180deg,#ffffff 0%,#a0c0e0 100%)' },
+    };
+
+    const SKIN_META = {
+        classic: { name: '經典', desc: '深紫星空，金色光輝。遊戲原本的樣子。', condition: '預設皮膚' },
+        grass:   { name: '草原', desc: '翠綠草原，大地氣息。生命與自然的擁抱。', condition: '首次通關「簡單模式」' },
+        deepsea: { name: '深海', desc: '深藍大海，青綠極光。靜謐而深邃的力量。', condition: '商店購買（300 皮膚券）', price: 300 },
+        inferno: { name: '烈焰', desc: '暗紅熔岩，橘金灼熱。毀滅與重生的循環。', condition: '商店購買（400 皮膚券）', price: 400 },
+        bio:     { name: '生物', desc: '螢光綠脈動，漆黑深邃。有機體與機械的融合。', condition: '首次進化一座塔' },
+        gold:    { name: '黃金', desc: '全金閃耀，王者風範。征服普通模式的證明。', condition: '通關「普通模式」' },
+        dark:    { name: '暗黑', desc: '全黑深淵，紫色邪光。征服困難模式的證明。', condition: '通關「困難模式」' },
+        white:   { name: '純白', desc: '純白無瑕，淡藍光輝。無損通關的至高榮耀。', condition: '無損通關任一難度' },
+    };
+
+    function readCurrent() { try { return localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; } catch(e) { return 'classic'; } }
+    function readTickets() { try { return parseInt(localStorage.getItem('towerDefenseSkinTickets_v1') || '0', 10) || 0; } catch(e) { return 0; } }
+    function readUnlocked() { try { const r = localStorage.getItem('towerDefenseUnlockedSkins_v1'); if (!r) return { classic: true }; const o = JSON.parse(r); o.classic = true; return o; } catch(e) { return { classic: true }; } }
+    function writeCurrent(id) { try { localStorage.setItem('towerDefenseCurrentSkin_v1', id); } catch(e) {} }
+    function writeTickets(n) { try { localStorage.setItem('towerDefenseSkinTickets_v1', String(Math.max(0, n))); } catch(e) {} }
+    function writeUnlocked(o) { try { localStorage.setItem('towerDefenseUnlockedSkins_v1', JSON.stringify(o)); } catch(e) {} }
+
+    // ============ 詳情彈窗 ============
+    const modal = document.createElement('div');
+    modal.id = 'skinDetailV3';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);display:none;align-items:center;justify-content:center;z-index:355;padding:20px;';
+    modal.innerHTML =
+        '<div style="background:linear-gradient(180deg,rgba(30,20,50,0.98),rgba(15,10,30,0.98));border:2px solid #8a4a6a;border-radius:16px;padding:22px 24px;max-width:340px;width:100%;box-shadow:0 0 40px rgba(255,100,180,0.4);text-align:center;">' +
+            '<div id="sdV3Preview" style="width:100%;aspect-ratio:1.6/1;border-radius:10px;margin-bottom:14px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.15);"></div>' +
+            '<div id="sdV3Name" style="font-size:20px;font-weight:900;color:#fff;letter-spacing:3px;margin-bottom:8px;"></div>' +
+            '<div id="sdV3Desc" style="font-size:13px;color:#aaa;line-height:1.6;margin-bottom:12px;min-height:42px;"></div>' +
+            '<div id="sdV3Condition" style="font-size:12px;color:#ffd700;padding:8px 12px;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.3);border-radius:8px;margin-bottom:16px;line-height:1.5;"></div>' +
+            '<div style="display:flex;gap:8px;">' +
+                '<button id="sdV3Close" style="flex:1;padding:12px;border-radius:8px;border:none;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;letter-spacing:1px;background:#333;color:#ccc;">關閉</button>' +
+                '<button id="sdV3Action" style="flex:1;padding:12px;border-radius:8px;border:none;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;letter-spacing:1px;background:linear-gradient(135deg,#ffd700,#ff8800);color:#0a0a14;">使用</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(modal);
+
+    let detailId = null;
+
+    function makeBigPreview(id) {
+        const c = SKIN_COLORS[id];
+        if (!c) return '';
+        let stars = '';
+        for (let i = 0; i < 10; i++) {
+            const sx = (i * 137) % 100;
+            const sy = (i * 79) % 50;
+            stars += '<div style="position:absolute;left:' + sx + '%;top:' + sy + '%;width:2px;height:2px;background:#fff;border-radius:50%;box-shadow:0 0 3px #fff;opacity:' + (0.4 + (i % 3) * 0.2) + ';"></div>';
+        }
+        const skyGrad = 'linear-gradient(180deg,' + c.sky[0] + ' 0%,' + c.sky[1] + ' 40%,' + c.sky[2] + ' 75%,' + c.sky[3] + ' 100%)';
+        const mountains = '<div style="position:absolute;left:0;right:0;bottom:0;height:35%;background:linear-gradient(180deg,transparent 0%,' + c.sky[2] + ' 50%,' + c.sky[3] + ' 100%);clip-path:polygon(0% 100%,0% 65%,12% 40%,25% 55%,40% 25%,55% 50%,70% 30%,85% 55%,100% 35%,100% 100%);"></div>';
+        const path = '<div style="position:absolute;left:-5%;right:-5%;top:52%;height:24%;transform:translateY(-50%);border-radius:50px;background:' + c.path + ';box-shadow:0 0 20px ' + c.glow + ',0 0 40px ' + c.glow + ';opacity:0.85;"></div>';
+        const tower = '<div style="position:absolute;bottom:18%;left:50%;width:14%;aspect-ratio:1;transform:translateX(-50%);clip-path:polygon(50% 0%,82% 30%,68% 100%,32% 100%,18% 30%);background:' + c.tower + ';box-shadow:0 0 15px ' + c.glow + ';"></div>';
+        return '<div style="position:absolute;inset:0;background:' + skyGrad + ';overflow:hidden;">' + stars + path + tower + mountains + '</div>';
+    }
+
+    function openDetail(id) {
+        const meta = SKIN_META[id];
+        const colors = SKIN_COLORS[id];
+        if (!meta || !colors) return;
+        detailId = id;
+
+        document.getElementById('sdV3Preview').innerHTML = makeBigPreview(id);
+        document.getElementById('sdV3Name').textContent = meta.name;
+        document.getElementById('sdV3Desc').textContent = meta.desc;
+
+        const current = readCurrent();
+        const unlocked = readUnlocked();
+        const isUnlocked = unlocked[id] === true || id === 'classic';
+        const isEquipped = current === id;
+        const tickets = readTickets();
+        const actionBtn = document.getElementById('sdV3Action');
+        const condEl = document.getElementById('sdV3Condition');
+
+        if (isEquipped) {
+            condEl.textContent = '✅ 目前使用中';
+            condEl.style.color = '#4ec472';
+            condEl.style.borderColor = 'rgba(78,196,114,0.4)';
+            condEl.style.background = 'rgba(78,196,114,0.08)';
+            actionBtn.textContent = '已裝備';
+            actionBtn.disabled = true;
+            actionBtn.style.background = '#444';
+            actionBtn.style.color = '#888';
+        } else if (isUnlocked) {
+            condEl.textContent = '✅ 已解鎖';
+            condEl.style.color = '#4ec472';
+            condEl.style.borderColor = 'rgba(78,196,114,0.4)';
+            condEl.style.background = 'rgba(78,196,114,0.08)';
+            actionBtn.textContent = '使用';
+            actionBtn.disabled = false;
+            actionBtn.style.background = 'linear-gradient(135deg,#ffd700,#ff8800)';
+            actionBtn.style.color = '#0a0a14';
+        } else if (meta.price) {
+            condEl.textContent = '🎟️ ' + meta.condition + '｜你有 ' + tickets + ' 券';
+            condEl.style.color = '#ffd700';
+            condEl.style.borderColor = 'rgba(255,215,0,0.3)';
+            condEl.style.background = 'rgba(255,215,0,0.08)';
+            if (tickets >= meta.price) {
+                actionBtn.textContent = '購買 (' + meta.price + '🎟️)';
+                actionBtn.disabled = false;
+                actionBtn.style.background = 'linear-gradient(135deg,#ffd700,#ff8800)';
+                actionBtn.style.color = '#0a0a14';
+            } else {
+                actionBtn.textContent = '券不足';
+                actionBtn.disabled = true;
+                actionBtn.style.background = '#444';
+                actionBtn.style.color = '#888';
+            }
+        } else {
+            condEl.textContent = '🔒 ' + meta.condition;
+            condEl.style.color = '#ff8888';
+            condEl.style.borderColor = 'rgba(255,136,136,0.3)';
+            condEl.style.background = 'rgba(255,136,136,0.08)';
+            actionBtn.textContent = '條件未達成';
+            actionBtn.disabled = true;
+            actionBtn.style.background = '#444';
+            actionBtn.style.color = '#888';
+        }
+
+        modal.style.display = 'flex';
+    }
+
+    function closeDetail() {
+        modal.style.display = 'none';
+        detailId = null;
+    }
+
+    function refreshPanel() {
+        const panel = document.getElementById('skinPanelV3');
+        if (panel && panel.style.display !== 'none') {
+            const btn = document.getElementById('skinBtnV3');
+            if (btn) {
+                panel.style.display = 'none';
+                setTimeout(function() { btn.click(); }, 30);
+            }
+        }
+    }
+
+    document.getElementById('sdV3Close').addEventListener('pointerdown', function(e) {
+        e.preventDefault(); e.stopPropagation(); closeDetail();
+    }, { passive: false });
+
+    document.getElementById('sdV3Action').addEventListener('pointerdown', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        if (!detailId) return;
+        const id = detailId;
+        const meta = SKIN_META[id];
+        if (!meta) return;
+
+        const current = readCurrent();
+        const unlocked = readUnlocked();
+        const isUnlocked = unlocked[id] === true || id === 'classic';
+
+        if (id === current) return;
+
+        if (isUnlocked) {
+            writeCurrent(id);
+            if (typeof log === 'function') log('🎨 已裝備：' + meta.name, 2000);
+            if (typeof sfxPlace === 'function') sfxPlace();
+            closeDetail();
+            refreshPanel();
+            return;
+        }
+
+        if (meta.price) {
+            const tickets = readTickets();
+            if (tickets < meta.price) return;
+            if (confirm('確定花 ' + meta.price + ' 皮膚券購買「' + meta.name + '」嗎？')) {
+                writeTickets(tickets - meta.price);
+                const u = readUnlocked();
+                u[id] = true;
+                writeUnlocked(u);
+                writeCurrent(id);
+                if (typeof log === 'function') log('🎨 購買並裝備：' + meta.name, 2500);
+                if (typeof sfxGold === 'function') sfxGold();
+                closeDetail();
+                refreshPanel();
+            }
+        }
+    }, { passive: false });
+
+    // ============ 攔截卡片點擊（捕獲階段，比原本的 handler 早執行） ============
+    const grid = document.getElementById('skinGridV3');
+    if (grid) {
+        grid.addEventListener('click', function(e) {
+            const card = e.target.closest('.skin-card-v3');
+            if (!card) return;
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            openDetail(card.dataset.skinId);
+        }, true);
+        console.log('[皮膚4] 卡片點擊攔截已綁定');
+    } else {
+        console.warn('[皮膚4] 找不到 skinGridV3，可能第三批載入失敗');
+    }
+
+    console.log('[皮膚4] 詳情預覽載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 大廳背景切換系統（改良版：圖片載入失敗會 fallback）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[大廳] 背景切換系統載入中...');
+
+    // ============ 圖片對應表 ============
+    const SKIN_BG = {
+        classic: 'bg-classic.jpg',
+        deepsea: 'bg-deepsea.jpg',
+        inferno: 'bg-inferno.jpg',
+        dark:    'bg-dark.jpg',
+        gold:    'bg-gold.jpg',
+        // 沒有圖的皮膚：草原、生物、純白 → 沿用 bg.jpg
+    };
+
+    const DEFAULT_BG = 'bg.jpg';
+
+    function getCurrentSkin() {
+        try {
+            return localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic';
+        } catch (e) {
+            return 'classic';
+        }
+    }
+
+    // 檢查圖片是否存在（避免 404 造成空白背景）
+    const _bgCache = {};
+    function checkImageExists(src, callback) {
+        if (_bgCache[src] !== undefined) {
+            callback(_bgCache[src]);
+            return;
+        }
+        const img = new Image();
+        img.onload = function() {
+            _bgCache[src] = true;
+            callback(true);
+        };
+        img.onerror = function() {
+            _bgCache[src] = false;
+            callback(false);
+        };
+        img.src = src;
+    }
+
+    function applyMenuBg(skinId) {
+        const menu = document.getElementById('mainMenu');
+        if (!menu) return;
+
+        const bgFile = SKIN_BG[skinId];
+
+        const overlay = 'linear-gradient(180deg, rgba(10,5,25,0.15) 0%, rgba(5,2,15,0.4) 50%, rgba(5,2,15,0.75) 100%)';
+
+        if (!bgFile) {
+            menu.style.background = overlay + ', url("' + DEFAULT_BG + '") center center / cover no-repeat';
+            return;
+        }
+
+        checkImageExists(bgFile, function(exists) {
+            if (exists) {
+                menu.style.background = overlay + ', url("' + bgFile + '") center center / cover no-repeat';
+                console.log('[大廳] 套用背景：' + bgFile);
+            } else {
+                menu.style.background = overlay + ', url("' + DEFAULT_BG + '") center center / cover no-repeat';
+                console.log('[大廳] 找不到 ' + bgFile + '，使用預設背景');
+            }
+        });
+    }
+
+    // ============ 監聽皮膚變更 ============
+    let lastSkin = getCurrentSkin();
+    applyMenuBg(lastSkin);
+
+    setInterval(function() {
+        const current = getCurrentSkin();
+        if (current !== lastSkin) {
+            lastSkin = current;
+            console.log('[大廳] 偵測到皮膚變更：' + current);
+            applyMenuBg(current);
+        }
+    }, 300);
+
+    // ============ 皮膚面板開啟時也重新套用（保險） ============
+    const skinBtn = document.getElementById('skinBtnV3') || document.getElementById('skinBtn');
+    if (skinBtn) {
+        skinBtn.addEventListener('click', function() {
+            setTimeout(function() {
+                applyMenuBg(getCurrentSkin());
+            }, 200);
+        });
+    }
+
+    console.log('[大廳] 背景切換系統載入完成，目前皮膚：' + lastSkin);
+})();
+</script>
+
 </body>
 </html>
