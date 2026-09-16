@@ -13189,6 +13189,322 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     console.log('[皮膚5] 事件穿透修正載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 皮膚詳情彈窗改造：右上角叉叉 + 全寬使用按鈕
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[皮膚6] 彈窗改造載入中...');
+
+    const modal = document.getElementById('skinDetailV3');
+    if (!modal) {
+        console.error('[皮膚6] 找不到 skinDetailV3');
+        return;
+    }
+
+    // ============ 重新建構內部結構 ============
+    const box = modal.querySelector('div');
+    if (!box) return;
+
+    // 改造外框樣式（加上相對定位，讓叉叉能絕對定位）
+    box.style.position = 'relative';
+    box.style.paddingTop = '40px'; // 給叉叉留空間
+
+    // 重建 HTML（保留預覽圖、名稱、描述、條件，移除底部按鈕列）
+    box.innerHTML =
+        '<button id="sdV3Close2" style="' +
+            'position:absolute;top:12px;right:12px;' +
+            'width:36px;height:36px;' +
+            'border-radius:50%;' +
+            'background:rgba(60,30,50,0.9);' +
+            'border:2px solid #8a4a6a;' +
+            'color:#e8b8d0;' +
+            'font-size:16px;' +
+            'font-weight:700;' +
+            'cursor:pointer;' +
+            'font-family:inherit;' +
+            'display:flex;align-items:center;justify-content:center;' +
+            'transition:0.15s;' +
+            'padding:0;' +
+            'z-index:10;' +
+        '" onpointerover="this.style.background=\'rgba(120,60,90,0.95)\'" onpointerout="this.style.background=\'rgba(60,30,50,0.9)\'">✕</button>' +
+        '<div id="sdV3Preview" style="width:100%;aspect-ratio:1.6/1;border-radius:10px;margin-bottom:14px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.15);"></div>' +
+        '<div id="sdV3Name" style="font-size:20px;font-weight:900;color:#fff;letter-spacing:3px;margin-bottom:8px;"></div>' +
+        '<div id="sdV3Desc" style="font-size:13px;color:#aaa;line-height:1.6;margin-bottom:12px;min-height:42px;"></div>' +
+        '<div id="sdV3Condition" style="font-size:12px;color:#ffd700;padding:8px 12px;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.3);border-radius:8px;margin-bottom:16px;line-height:1.5;"></div>' +
+        '<button id="sdV3Action2" style="' +
+            'width:100%;' +
+            'padding:14px;' +
+            'border-radius:10px;' +
+            'border:none;' +
+            'font-weight:900;' +
+            'font-size:15px;' +
+            'cursor:pointer;' +
+            'font-family:inherit;' +
+            'letter-spacing:3px;' +
+            'transition:0.15s;' +
+            'background:linear-gradient(135deg,#ffd700,#ff8800);' +
+            'color:#0a0a14;' +
+            'box-shadow:0 4px 16px rgba(255,215,0,0.35);' +
+        '">使用</button>';
+
+    console.log('[皮膚6] 彈窗結構已重建');
+
+    // ============ 重新綁定：叉叉關閉 ============
+    const closeBtn = document.getElementById('sdV3Close2');
+    if (closeBtn) {
+        closeBtn.addEventListener('pointerdown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            modal.style.display = 'none';
+            // 恢復皮膚面板可點
+            const panel = document.getElementById('skinPanelV3');
+            if (panel) {
+                panel.style.pointerEvents = 'auto';
+                panel.style.opacity = '1';
+            }
+        }, { passive: false });
+    }
+
+    // ============ 重新綁定：全寬使用按鈕 ============
+    const actionBtn = document.getElementById('sdV3Action2');
+    if (actionBtn) {
+        actionBtn.addEventListener('pointerdown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleAction();
+        }, { passive: false });
+    }
+
+    // ============ 點彈窗背景關閉 ============
+    modal.addEventListener('pointerdown', function(e) {
+        if (e.target === modal) {
+            e.preventDefault();
+            modal.style.display = 'none';
+            const panel = document.getElementById('skinPanelV3');
+            if (panel) {
+                panel.style.pointerEvents = 'auto';
+                panel.style.opacity = '1';
+            }
+        }
+    }, true);
+
+    // ============ 處理使用 / 購買 ============
+    function handleAction() {
+        const nameEl = document.getElementById('sdV3Name');
+        const actionEl = document.getElementById('sdV3Action2');
+        if (!nameEl || !actionEl) return;
+
+        const name = nameEl.textContent;
+        const skinId = findSkinIdByName(name);
+        if (!skinId) return;
+
+        // 已裝備
+        if (actionEl.textContent === '已裝備') return;
+
+        // 未解鎖 → 條件未達成
+        if (actionEl.textContent === '條件未達成') {
+            if (typeof log === 'function') log('🔒 ' + name + '：條件尚未達成', 2000);
+            return;
+        }
+
+        // 未解鎖 → 券不足
+        if (actionEl.textContent === '券不足') {
+            if (typeof log === 'function') log('🎟️ 皮膚券不足', 2000);
+            return;
+        }
+
+        const meta = getSkinMeta(skinId);
+        if (!meta) return;
+
+        const current = readCurrent();
+        const unlocked = readUnlocked();
+        const isUnlocked = unlocked[skinId] === true || skinId === 'classic';
+
+        if (isUnlocked) {
+            // 直接使用
+            writeCurrent(skinId);
+            if (typeof log === 'function') log('🎨 已裝備：' + name, 2000);
+            if (typeof sfxPlace === 'function') sfxPlace();
+            modal.style.display = 'none';
+            const panel = document.getElementById('skinPanelV3');
+            if (panel) {
+                panel.style.pointerEvents = 'auto';
+                panel.style.opacity = '1';
+            }
+            refreshPanel();
+            return;
+        }
+
+        // 商店購買
+        if (meta.price) {
+            const tickets = readTickets();
+            if (tickets < meta.price) {
+                if (typeof log === 'function') log('🎟️ 券不足（需 ' + meta.price + '）', 2000);
+                return;
+            }
+            if (confirm('確定花 ' + meta.price + ' 皮膚券購買「' + name + '」嗎？')) {
+                writeTickets(tickets - meta.price);
+                const u = readUnlocked();
+                u[skinId] = true;
+                writeUnlocked(u);
+                writeCurrent(skinId);
+                if (typeof log === 'function') log('🎨 購買並裝備：' + name, 2500);
+                if (typeof sfxGold === 'function') sfxGold();
+                modal.style.display = 'none';
+                const panel = document.getElementById('skinPanelV3');
+                if (panel) {
+                    panel.style.pointerEvents = 'auto';
+                    panel.style.opacity = '1';
+                }
+                refreshPanel();
+            }
+        }
+    }
+
+    // ============ 工具函式 ============
+    const SKIN_LIST = [
+        { id: 'classic', name: '經典' },
+        { id: 'grass', name: '草原' },
+        { id: 'deepsea', name: '深海' },
+        { id: 'inferno', name: '烈焰' },
+        { id: 'bio', name: '生物' },
+        { id: 'gold', name: '黃金' },
+        { id: 'dark', name: '暗黑' },
+        { id: 'white', name: '純白' },
+    ];
+
+    const SKIN_META = {
+        classic: { price: 0 },
+        grass: { price: 0 },
+        deepsea: { price: 300 },
+        inferno: { price: 400 },
+        bio: { price: 0 },
+        gold: { price: 0 },
+        dark: { price: 0 },
+        white: { price: 0 },
+    };
+
+    function findSkinIdByName(name) {
+        for (let i = 0; i < SKIN_LIST.length; i++) {
+            if (SKIN_LIST[i].name === name) return SKIN_LIST[i].id;
+        }
+        return null;
+    }
+
+    function getSkinMeta(id) {
+        return SKIN_META[id] || {};
+    }
+
+    function readCurrent() {
+        try { return localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; }
+        catch (e) { return 'classic'; }
+    }
+    function readTickets() {
+        try { return parseInt(localStorage.getItem('towerDefenseSkinTickets_v1') || '0', 10) || 0; }
+        catch (e) { return 0; }
+    }
+    function readUnlocked() {
+        try {
+            const r = localStorage.getItem('towerDefenseUnlockedSkins_v1');
+            if (!r) return { classic: true };
+            const o = JSON.parse(r);
+            o.classic = true;
+            return o;
+        } catch (e) { return { classic: true }; }
+    }
+    function writeCurrent(id) {
+        try { localStorage.setItem('towerDefenseCurrentSkin_v1', id); } catch (e) {}
+    }
+    function writeTickets(n) {
+        try { localStorage.setItem('towerDefenseSkinTickets_v1', String(Math.max(0, n))); } catch (e) {}
+    }
+    function writeUnlocked(o) {
+        try { localStorage.setItem('towerDefenseUnlockedSkins_v1', JSON.stringify(o)); } catch (e) {}
+    }
+
+    function refreshPanel() {
+        const panel = document.getElementById('skinPanelV3');
+        if (panel && panel.style.display !== 'none') {
+            const btn = document.getElementById('skinBtnV3');
+            if (btn) {
+                panel.style.display = 'none';
+                setTimeout(function() { btn.click(); }, 30);
+            }
+        }
+    }
+
+    // ============ 每次彈窗顯示時，重新計算按鈕狀態 ============
+    // 因為原本第四批的 openDetail 會設定按鈕文字，我們需要攔截這個行為
+    // 用 MutationObserver 監聽 sdV3Name 的文字變化
+    const nameEl = document.getElementById('sdV3Name');
+    if (nameEl) {
+        const nameObserver = new MutationObserver(function() {
+            // 名稱變了 → 重算按鈕狀態
+            const name = nameEl.textContent;
+            const skinId = findSkinIdByName(name);
+            if (!skinId) return;
+            updateActionButton(skinId);
+        });
+        nameObserver.observe(nameEl, { childList: true, characterData: true, subtree: true });
+    }
+
+    function updateActionButton(skinId) {
+        const actionEl = document.getElementById('sdV3Action2');
+        if (!actionEl) return;
+
+        const meta = getSkinMeta(skinId);
+        const current = readCurrent();
+        const unlocked = readUnlocked();
+        const isUnlocked = unlocked[skinId] === true || skinId === 'classic';
+        const isEquipped = current === skinId;
+        const tickets = readTickets();
+
+        if (isEquipped) {
+            actionEl.textContent = '已裝備';
+            actionEl.disabled = true;
+            actionEl.style.background = '#444';
+            actionEl.style.color = '#888';
+            actionEl.style.cursor = 'not-allowed';
+            actionEl.style.boxShadow = 'none';
+        } else if (isUnlocked) {
+            actionEl.textContent = '使用';
+            actionEl.disabled = false;
+            actionEl.style.background = 'linear-gradient(135deg,#ffd700,#ff8800)';
+            actionEl.style.color = '#0a0a14';
+            actionEl.style.cursor = 'pointer';
+            actionEl.style.boxShadow = '0 4px 16px rgba(255,215,0,0.35)';
+        } else if (meta.price > 0) {
+            if (tickets >= meta.price) {
+                actionEl.textContent = '購買（' + meta.price + ' 🎟️）';
+                actionEl.disabled = false;
+                actionEl.style.background = 'linear-gradient(135deg,#ffd700,#ff8800)';
+                actionEl.style.color = '#0a0a14';
+                actionEl.style.cursor = 'pointer';
+                actionEl.style.boxShadow = '0 4px 16px rgba(255,215,0,0.35)';
+            } else {
+                actionEl.textContent = '券不足（需 ' + meta.price + ' 🎟️）';
+                actionEl.disabled = true;
+                actionEl.style.background = '#444';
+                actionEl.style.color = '#888';
+                actionEl.style.cursor = 'not-allowed';
+                actionEl.style.boxShadow = 'none';
+            }
+        } else {
+            actionEl.textContent = '條件未達成';
+            actionEl.disabled = true;
+            actionEl.style.background = '#444';
+            actionEl.style.color = '#888';
+            actionEl.style.cursor = 'not-allowed';
+            actionEl.style.boxShadow = 'none';
+        }
+    }
+
+    console.log('[皮膚6] 彈窗改造載入完成');
+})();
+</script>
   
 </body>
 </html>
