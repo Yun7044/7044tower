@@ -13552,6 +13552,74 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     console.log('[皮膚7] 佔位元素修復載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 皮膚8：強制建立佔位元素（用 MutationObserver 監控）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[皮膚8] ★ 載入中...');
+
+    function ensurePlaceholders() {
+        const modal = document.getElementById('skinDetailV3');
+        if (!modal) return false;
+
+        const box = modal.firstElementChild;
+        if (!box) return false;
+
+        let fixed = 0;
+
+        // sdV3Action 佔位（皮膚4 的 openDetail 需要它）
+        if (!document.getElementById('sdV3Action')) {
+            const p = document.createElement('button');
+            p.id = 'sdV3Action';
+            p.type = 'button';
+            p.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;visibility:hidden;left:-9999px;';
+            p.textContent = '';
+            box.appendChild(p);
+            fixed++;
+        }
+
+        // sdV3Close 佔位
+        if (!document.getElementById('sdV3Close')) {
+            const p = document.createElement('button');
+            p.id = 'sdV3Close';
+            p.type = 'button';
+            p.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;visibility:hidden;left:-9999px;';
+            box.appendChild(p);
+            fixed++;
+        }
+
+        if (fixed > 0) {
+            console.log('[皮膚8] ★ 補上 ' + fixed + ' 個佔位元素');
+        }
+        return true;
+    }
+
+    const ok = ensurePlaceholders();
+    if (ok) {
+        console.log('[皮膚8] ★ 初始檢查通過');
+    } else {
+        console.warn('[皮膚8] ★ 找不到 skinDetailV3');
+    }
+
+    // 用 MutationObserver 監控 modal 內部變化，一有變動就補元素
+    const modal = document.getElementById('skinDetailV3');
+    if (modal) {
+        const observer = new MutationObserver(function() {
+            ensurePlaceholders();
+        });
+        observer.observe(modal, { childList: true, subtree: true });
+        console.log('[皮膚8] ★ 監聽器已綁定');
+    }
+
+    // 額外保險：每 500ms 檢查一次
+    setInterval(ensurePlaceholders, 500);
+
+    console.log('[皮膚8] ★ 載入完成');
+})();
+</script>
   
 </body>
 </html>
