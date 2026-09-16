@@ -13505,6 +13505,53 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     console.log('[皮膚6] 彈窗改造載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 皮膚系統：修復 openDetail 找不到 sdV3Action
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[皮膚7] 佔位元素修復載入中...');
+
+    const modal = document.getElementById('skinDetailV3');
+    if (!modal) return;
+
+    const box = modal.querySelector('div');
+    if (!box) return;
+
+    // 檢查是否已經有 sdV3Action（皮膚 4 的 openDetail 需要它）
+    if (!document.getElementById('sdV3Action')) {
+        const placeholder = document.createElement('button');
+        placeholder.id = 'sdV3Action';
+        placeholder.style.position = 'absolute';
+        placeholder.style.width = '1px';
+        placeholder.style.height = '1px';
+        placeholder.style.opacity = '0';
+        placeholder.style.pointerEvents = 'none';
+        placeholder.style.visibility = 'hidden';
+        placeholder.textContent = '';
+        box.appendChild(placeholder);
+        console.log('[皮膚7] 已加入 sdV3Action 佔位元素');
+    }
+
+    // 保險：也檢查 sdV3Close
+    if (!document.getElementById('sdV3Close')) {
+        const placeholder2 = document.createElement('button');
+        placeholder2.id = 'sdV3Close';
+        placeholder2.style.position = 'absolute';
+        placeholder2.style.width = '1px';
+        placeholder2.style.height = '1px';
+        placeholder2.style.opacity = '0';
+        placeholder2.style.pointerEvents = 'none';
+        placeholder2.style.visibility = 'hidden';
+        box.appendChild(placeholder2);
+        console.log('[皮膚7] 已加入 sdV3Close 佔位元素');
+    }
+
+    console.log('[皮膚7] 佔位元素修復載入完成');
+})();
+</script>
   
 </body>
 </html>
