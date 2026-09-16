@@ -10162,15 +10162,20 @@ body:not(.in-menu) #globalSkillsBar { display: flex; }
                 sfxPlace();
             },
         },
-        hpGamble: {
-            color: 'yellow', icon: '🩸', name: '血量賭博',
-            desc: '扣除基地 5 點生命\n換取所有塔永久傷害 +5%',
-            apply: function() {
-                if (lives <= 5) {
-                    log('🩸 血量不足，跳過此事件', 2500);
-                    return;
-                }
-                lives -= 5;
+hpGamble: {
+    color: 'yellow', icon: '🩸', name: '血量賭博',
+    desc: '扣除當前生命的 15%（最多 5 點）\n換取所有塔永久傷害 +5%',
+    apply: function() {
+        let deduction = Math.round(lives * 0.15);
+        deduction = Math.max(2, Math.min(5, deduction));
+        if (lives - deduction < 1) {
+            deduction = Math.max(0, lives - 1);
+        }
+        if (deduction <= 0) {
+            log('🩸 血量不足，跳過此事件', 2500);
+            return;
+        }
+        lives -= deduction;
                 for (let i = 0; i < SPOTS.length; i++) {
                     const t = SPOTS[i].tower;
                     if (!t) continue;
@@ -11186,6 +11191,14 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     font-size: 14px;
     letter-spacing: 2px;
 }
+
+#globalSkillsBar {
+    left: 10px !important;
+    right: auto !important;
+    bottom: 68px !important;
+    transform: none !important;
+}
+  
 </style>
 
 <div id="codexPanel">
