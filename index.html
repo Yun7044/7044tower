@@ -16917,6 +16917,206 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     }, true);
 })();
 </script>
+
+<script>
+// ============================================================
+// 大太刀最終修復：移除擊退 + 縮小視覺
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[大太刀最終] 載入中...');
+
+    // ============ 保險 1：Enemy.update 攔截倒退 ============
+    if (typeof Enemy !== 'undefined' && !Enemy.prototype._knockbackBlocked) {
+        Enemy.prototype._knockbackBlocked = true;
+        const _prevUpdate = Enemy.prototype.update;
+        Enemy.prototype.update = function(dt) {
+            const prevDistance = this.distance;
+            _prevUpdate.call(this, dt);
+            // 如果倒退超過 5 像素（擊退級別），撤銷
+            if (this.alive && (prevDistance - this.distance) > 5) {
+                this.distance = prevDistance;
+            }
+        };
+        console.log('[大太刀最終] Enemy.update 倒退攔截已安裝');
+    }
+
+    // ============ 保險 2：完全重寫 fireOdachi ============
+    let patched = false;
+
+    function tryPatch() {
+        if (patched) return;
+        if (typeof SPOTS === 'undefined') return;
+
+        // 從場上找一座大太刀
+        let sample = null;
+        for (let i = 0; i < SPOTS.length; i++) {
+            const t = SPOTS[i].tower;
+            if (t && t.config && t.config.name === '大太刀·塔') {
+                sample = t;
+                break;
+            }
+        }
+        if (!sample) return;
+
+        const proto = Object.getPrototypeOf(sample);
+        if (proto === Tower.prototype) return;
+        if (typeof proto.fireOdachi !== 'function') return;
+        if (proto._odachiRebuilt) return;
+        proto._odachiRebuilt = true;
+
+        // 完全重寫：不含擊退
+        proto.fireOdachi = function(target) {
+            const tp = target.getPos();
+            const baseAngle = Math.atan2(tp.y - this.y, tp.x - this.x);
+            const range = this.range;
+            const isCharged = this.chargeTimer > 0;
+            const dmg = this.damage * (isCharged ? 2.0 : 1.0);
+
+            for (let i = 0; i < enemies.length; i++) {
+                const e = enemies[i];
+                if (!e.alive) continue;
+                const p = e.getPos();
+                const dx = p.x - this.x;
+                const dy = p.y - this.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist > range) continue;
+                const angle = Math.atan2(dy, dx);
+                let diff = angle - baseAngle;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                if (Math.abs(diff) <= Math.PI / 2) {
+                    let actual = e.takeDamage(dmg);
+                    if (actual > 0 && typeof addDamage === 'function') addDamage('tachi', actual);
+                    // 保留眩暈 0.5 秒，移除擊退
+                    e._stunTimer = Math.max(e._stunTimer || 0, 0.5);
+                    // ❌ 沒有 e.distance -= 30 了
+                }
+            }
+
+            if (isCharged) this.chargeTimer = 0;
+
+            // 刀光：縮短時間、縮小範圍
+            this.lastSlash = {
+                angle: baseAngle,
+                timer: 0.12,
+                maxTimer: 0.12,
+                range: Math.min(range, 220),
+                charged: isCharged,
+            };
+
+            if (typeof sfxShoot === 'function') sfxShoot();
+            if (isCharged && typeof sfxBoss === 'function') sfxBoss();
+        };
+
+        patched = true;
+        console.log('[大太刀最終] fireOdachi 已重寫（無擊退）');
+    }
+
+    tryPatch();
+    const iv = setInterval(function() {
+        tryPatch();
+        if (patched) clearInterval(iv);
+    }, 500);
+
+    // 遊戲開始時重新偵測
+    document.addEventListener('pointerdown', function(e) {
+        if (!e.target || !e.target.closest) return;
+        const btn = e.target.closest('[data-difficulty], #startWave');
+        if (!btn) return;
+        setTimeout(function() {
+            patched = false;
+            tryPatch();
+        }, 500);
+    }, true);
+
+    // ============ 保險 3：覆寫 draw 讓刀光更淡 ============
+    let drawPatched = false;
+
+    function tryPatchDraw() {
+        if (drawPatched) return;
+        if (typeof SPOTS === 'undefined') return;
+
+        let sample = null;
+        for (let i = 0; i < SPOTS.length; i++) {
+            const t = SPOTS[i].tower;
+            if (t && t.config && t.config.name === '大太刀·塔') {
+                sample = t;
+                break;
+            }
+        }
+        if (!sample) return;
+
+        const proto = Object.getPrototypeOf(sample);
+        if (proto === Tower.prototype) return;
+        if (proto._drawPatched) return;
+        proto._drawPatched = true;
+
+        const _prevDraw = proto.draw;
+        proto.draw = function() {
+            // 暫時移除 lastSlash，讓原 draw 不畫舊版刀光
+            const savedSlash = this.lastSlash;
+            this.lastSlash = null;
+            _prevDraw.call(this);
+            this.lastSlash = savedSlash;
+
+            // 自己畫新刀光：只畫外緣弧線
+            if (savedSlash) {
+                const s = savedSlash;
+                const alpha = Math.max(0, s.timer / s.maxTimer);
+                const range = s.range;
+
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(s.angle);
+                ctx.globalAlpha = alpha * 0.35;
+
+                // 主弧線（粉色）
+                ctx.strokeStyle = s.charged ? '#ffb8e0' : '#FF66B2';
+                ctx.lineWidth = s.charged ? 4 : 2.5;
+                ctx.shadowColor = '#FF66B2';
+                ctx.shadowBlur = s.charged ? 14 : 8;
+                ctx.beginPath();
+                ctx.arc(0, 0, range * 0.92, -Math.PI / 2, Math.PI / 2);
+                ctx.stroke();
+
+                // 內緣白線
+                ctx.globalAlpha = alpha * 0.6;
+                ctx.shadowColor = '#FFFFFF';
+                ctx.shadowBlur = 4;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(0, 0, range * 0.92, -Math.PI / 2, Math.PI / 2);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        };
+
+        drawPatched = true;
+        console.log('[大太刀最終] draw 已重寫（細線刀光）');
+    }
+
+    tryPatchDraw();
+    const iv2 = setInterval(function() {
+        tryPatchDraw();
+        if (drawPatched) clearInterval(iv2);
+    }, 500);
+
+    document.addEventListener('pointerdown', function(e) {
+        if (!e.target || !e.target.closest) return;
+        const btn = e.target.closest('[data-difficulty], #startWave');
+        if (!btn) return;
+        setTimeout(function() {
+            drawPatched = false;
+            tryPatchDraw();
+        }, 500);
+    }, true);
+
+    console.log('[大太刀最終] 載入完成');
+})();
+</script>
   
 </body>
 </html>
