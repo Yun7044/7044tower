@@ -17407,6 +17407,143 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     console.log('[削弱] 系統載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 雙刀流·塔專屬：連斬
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[雙刀流] 連斬系統載入中...');
+
+    let patched = false;
+
+    function tryPatch() {
+        if (patched) return;
+        if (typeof SPOTS === 'undefined') return;
+
+        // 從場上找一座雙刀流
+        let sample = null;
+        for (let i = 0; i < SPOTS.length; i++) {
+            const t = SPOTS[i].tower;
+            if (t && t.config && t.config.name === '雙刀流·塔') {
+                sample = t;
+                break;
+            }
+        }
+        if (!sample) return;
+
+        const proto = Object.getPrototypeOf(sample);
+        if (proto === Tower.prototype) return;
+        if (proto._comboPatched) return;
+        proto._comboPatched = true;
+
+        // ============ 1. 覆寫 fire：連斬層數乘傷害 ============
+        const _prevFire = proto.fire;
+        proto.fire = function(target) {
+            const stacks = this._comboStacks || 0;
+            if (stacks > 0) {
+                // 臨時提高傷害，射完還原
+                const origDmg = this.damage;
+                this.damage = origDmg * (1 + stacks * 0.08);
+                try {
+                    _prevFire.call(this, target);
+                } finally {
+                    this.damage = origDmg;
+                }
+            } else {
+                _prevFire.call(this, target);
+            }
+        };
+
+        // ============ 2. 覆寫 onSlashHit：命中時疊層 ============
+        const _prevHit = proto.onSlashHit;
+        proto.onSlashHit = function(enemy, bullet) {
+            if (typeof _prevHit === 'function') {
+                _prevHit.call(this, enemy, bullet);
+            }
+            // 只有雙刀流才會疊連斬
+            if (this.evolution === 'A') {
+                this._comboStacks = Math.min(5, (this._comboStacks || 0) + 1);
+                this._comboTimer = 3.0;
+            }
+        };
+
+        // ============ 3. 覆寫 update：層數衰減 ============
+        const _prevUpdate = proto.update;
+        proto.update = function(dt) {
+            // 確保變數存在
+            if (this._comboStacks === undefined) this._comboStacks = 0;
+            if (this._comboTimer === undefined) this._comboTimer = 0;
+
+            if (this._comboTimer > 0) {
+                this._comboTimer -= dt;
+                if (this._comboTimer <= 0) {
+                    this._comboStacks = 0;
+                }
+            }
+            _prevUpdate.call(this, dt);
+        };
+
+        // ============ 4. 覆寫 draw：顯示層數 ============
+        const _prevDraw = proto.draw;
+        proto.draw = function() {
+            _prevDraw.call(this);
+
+            const stacks = this._comboStacks || 0;
+            if (stacks <= 0) return;
+
+            const x = this.x;
+            const y = this.y - 52;
+
+            ctx.save();
+            ctx.shadowColor = '#FF66B2';
+            ctx.shadowBlur = 10;
+            ctx.strokeStyle = '#FF66B2';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(x, y, 12, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // 層數越高，光環越亮
+            const intensity = stacks / 5;
+            ctx.fillStyle = 'rgba(255, 102, 178, ' + (0.3 + intensity * 0.5) + ')';
+            ctx.beginPath();
+            ctx.arc(x, y, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 13px system-ui';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('×' + stacks, x, y + 1);
+
+            ctx.restore();
+        };
+
+        patched = true;
+        console.log('[雙刀流] 連斬已安裝：每次命中 +8% 傷害，最多 5 層（+40%）');
+    }
+
+    tryPatch();
+    const iv = setInterval(function() {
+        tryPatch();
+        if (patched) clearInterval(iv);
+    }, 500);
+
+    document.addEventListener('pointerdown', function(e) {
+        if (!e.target || !e.target.closest) return;
+        const btn = e.target.closest('[data-difficulty], #startWave');
+        if (!btn) return;
+        setTimeout(function() {
+            patched = false;
+            tryPatch();
+        }, 500);
+    }, true);
+
+    console.log('[雙刀流] 連斬系統載入完成');
+})();
+</script>
   
 </body>
 </html>
