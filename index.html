@@ -18876,6 +18876,176 @@ body.in-menu #chronoSkillBtn { display: none !important; }
     console.log('[時幻塔] 系統載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 圖鑑更新：時幻塔 + 兩條進化分支
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[圖鑑時幻] 載入中...');
+
+    const CHRONO_CARD = {
+        icon: '⏳',
+        name: '時幻塔',
+        desc: '藍色六邊形，中央是時鐘。命中時 15% 機率將敵人傳送回 1.5 秒前的位置，並附加【時滯】減速 15%。',
+        meta: '費用 80｜射程 240｜間隔 1.8s｜傷害 12',
+    };
+
+    const CHRONO_EVOLVE_CARDS = [
+        {
+            icon: '⏸',
+            name: '時幻塔 → 時光停滯塔',
+            desc: '取消普通攻擊。每 4 秒發射 150 像素的時空停滯波，範圍內小怪完全靜止 1.2 秒（Boss 0.6 秒）。處於靜止狀態的敵人，被秒殺率提升 ×1.5（Boss 免疫）。',
+        },
+        {
+            icon: '💥',
+            name: '時幻塔 → 坍縮迴圈塔',
+            desc: '攻速縮短至 1.2 秒。命中時施加【時間印記】（最多疊 3 層，持續 5 秒）。帶印記的敵人死亡時引發時空坍縮，對 100 像素內敵人造成「死者最大生命 ×5% ×層數」傷害。坍縮擊殺的敵人金幣 +20%。',
+        },
+    ];
+
+    function makeCardHTML(data, color) {
+        const c = color || '#6a9aff';
+        return '<div class="codex-card" style="border-left:4px solid ' + c + ';">' +
+            '<div class="cc-icon">' + (data.icon || '') + '</div>' +
+            '<div class="cc-body">' +
+                '<div class="cc-name">' + (data.name || '') + '</div>' +
+                '<div class="cc-desc">' + (data.desc || '') + '</div>' +
+                (data.meta ? '<div class="cc-meta">' + data.meta + '</div>' : '') +
+            '</div>' +
+        '</div>';
+    }
+
+    // ============ 注入塔圖鑑 ============
+    function injectTowerCard() {
+        const content = document.getElementById('codexContent');
+        if (!content) return;
+        if (content.querySelector('.codex-card[data-chrono-tower]')) return;
+
+        // 找「特殊商店塔」區塊
+        const titles = content.querySelectorAll('.codex-section-title');
+        let targetSection = null;
+        for (let i = 0; i < titles.length; i++) {
+            if (titles[i].textContent.indexOf('特殊商店塔') >= 0) {
+                targetSection = titles[i];
+                break;
+            }
+        }
+        if (!targetSection) return;
+
+        // 找「特殊商店塔」下面所有卡片的最後一張
+        let lastCard = null;
+        let node = targetSection.nextElementSibling;
+        while (node && !node.classList.contains('codex-section-title')) {
+            if (node.classList.contains('codex-card')) lastCard = node;
+            node = node.nextElementSibling;
+        }
+        if (!lastCard) return;
+
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = makeCardHTML(CHRONO_CARD, '#6a9aff');
+        const newCard = wrapper.firstElementChild;
+        newCard.setAttribute('data-chrono-tower', '1');
+
+        lastCard.parentNode.insertBefore(newCard, lastCard.nextSibling);
+        console.log('[圖鑑時幻] 時幻塔卡片已注入');
+    }
+
+    // ============ 注入進化圖鑑 ============
+    function injectEvolveCards() {
+        const content = document.getElementById('codexContent');
+        if (!content) return;
+        if (content.querySelector('.codex-card[data-chrono-evolve]')) return;
+
+        // 檢查是不是進化分頁
+        const titles = content.querySelectorAll('.codex-section-title');
+        let isEvolveTab = false;
+        for (let i = 0; i < titles.length; i++) {
+            if (titles[i].textContent.indexOf('進化分支') >= 0) {
+                isEvolveTab = true;
+                break;
+            }
+        }
+        if (!isEvolveTab) return;
+
+        // 找所有卡片的最後一張
+        const cards = content.querySelectorAll('.codex-card');
+        if (cards.length === 0) return;
+        const lastCard = cards[cards.length - 1];
+
+        let refNode = lastCard.nextSibling;
+        for (let i = 0; i < CHRONO_EVOLVE_CARDS.length; i++) {
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = makeCardHTML(CHRONO_EVOLVE_CARDS[i], '#6a9aff');
+            const newCard = wrapper.firstElementChild;
+            newCard.setAttribute('data-chrono-evolve', '1');
+            lastCard.parentNode.insertBefore(newCard, refNode);
+            refNode = newCard.nextSibling;
+        }
+        console.log('[圖鑑時幻] 時幻塔進化卡片已注入');
+    }
+
+    // ============ 綜合更新（用 flag 防遞迴） ============
+    let _updating = false;
+    function updateCodex() {
+        if (_updating) return;
+        _updating = true;
+        try {
+            injectTowerCard();
+            injectEvolveCards();
+        } finally {
+            setTimeout(function() { _updating = false; }, 50);
+        }
+    }
+
+    // ============ 監聽圖鑑內容變化 ============
+    const content = document.getElementById('codexContent');
+    if (content) {
+        const observer = new MutationObserver(function(mutations) {
+            let shouldUpdate = false;
+            for (let i = 0; i < mutations.length; i++) {
+                const m = mutations[i];
+                if (m.addedNodes && m.addedNodes.length > 0) {
+                    let isOurs = false;
+                    for (let j = 0; j < m.addedNodes.length; j++) {
+                        const n = m.addedNodes[j];
+                        if (n.nodeType === 1 && n.hasAttribute && (
+                            n.hasAttribute('data-chrono-tower') || n.hasAttribute('data-chrono-evolve')
+                        )) {
+                            isOurs = true;
+                            break;
+                        }
+                    }
+                    if (!isOurs) shouldUpdate = true;
+                } else {
+                    shouldUpdate = true;
+                }
+            }
+            if (shouldUpdate) setTimeout(updateCodex, 30);
+        });
+        observer.observe(content, { childList: true, subtree: true });
+        console.log('[圖鑑時幻] 監聽器已綁定');
+    }
+
+    // ============ 點 tab 時觸發 ============
+    document.addEventListener('click', function(e) {
+        if (!e.target || !e.target.closest) return;
+        const tab = e.target.closest('.codex-tab');
+        if (!tab) return;
+        setTimeout(updateCodex, 80);
+    }, true);
+
+    // ============ 保險：圖鑑開啟時每 500ms 檢查一次 ============
+    setInterval(function() {
+        const panel = document.getElementById('codexPanel');
+        if (!panel || !panel.classList.contains('show')) return;
+        updateCodex();
+    }, 500);
+
+    console.log('[圖鑑時幻] 載入完成');
+})();
+</script>
   
 </body>
 </html>
