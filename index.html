@@ -19399,6 +19399,635 @@ body.in-menu #chronoSkillBtn { display: none !important; }
     console.log('[禮包] 系統載入完成｜已領取：' + hasClaimed());
 })();
 </script>
+
+<style>
+.shop-btn[data-type="deathNote"] .dot {
+    background: linear-gradient(180deg, #666 0%, #222 50%, #000 100%);
+    filter: drop-shadow(0 0 6px rgba(200, 0, 0, 0.9));
+    position: relative;
+}
+.shop-btn[data-type="deathNote"] .dot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 40%, rgba(200, 0, 0, 0.9), transparent 60%);
+    border-radius: inherit;
+}
+.shop-btn[data-type="deathNote"] {
+    border-color: #4a0000;
+    box-shadow:
+        0 0 0 1px rgba(200, 0, 0, 0.3),
+        0 0 12px rgba(200, 0, 0, 0.4),
+        inset 0 0 12px rgba(200, 0, 0, 0.15);
+}
+
+#deathNoteActionBtn {
+    background: linear-gradient(135deg, #4a0000, #200000);
+    border: 2px solid #c00000;
+    color: #ffb0b0;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 1px;
+    transition: 0.15s;
+    display: none;
+    flex: 0 0 auto;
+    box-shadow: 0 0 12px rgba(200, 0, 0, 0.5);
+}
+#deathNoteActionBtn:hover {
+    border-color: #ff4444;
+    color: #fff;
+    box-shadow: 0 0 18px rgba(255, 68, 68, 0.7);
+}
+#deathNoteActionBtn.show { display: block; }
+
+#deathNoteOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 0, 0, 0.55);
+    display: none;
+    z-index: 100;
+    cursor: crosshair;
+    align-items: flex-start;
+    justify-content: center;
+    flex-direction: column;
+}
+#deathNoteOverlay.show { display: flex; }
+
+#deathNoteOverlay .dn-hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -200px);
+    background: linear-gradient(135deg, #1a0000, #000);
+    border: 2px solid #c00000;
+    border-radius: 12px;
+    padding: 14px 24px;
+    color: #ffb0b0;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(200, 0, 0, 0.8);
+    pointer-events: none;
+    animation: dnPulse 1.5s ease-in-out infinite;
+    white-space: nowrap;
+}
+#deathNoteOverlay .dn-hint small {
+    display: block;
+    font-size: 11px;
+    color: #ff8080;
+    letter-spacing: 1px;
+    margin-top: 6px;
+    font-weight: 400;
+}
+@keyframes dnPulse {
+    0%, 100% { box-shadow: 0 0 40px rgba(200, 0, 0, 0.8); }
+    50% { box-shadow: 0 0 60px rgba(255, 50, 50, 1); }
+}
+
+#deathNoteOverlay .dn-cancel {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(60, 60, 60, 0.95);
+    border: 2px solid #888;
+    color: #ddd;
+    border-radius: 10px;
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 2px;
+    pointer-events: auto;
+}
+#deathNoteOverlay .dn-cancel:hover {
+    border-color: #fff;
+    color: #fff;
+}
+
+#deathNoteOverlay .dn-target-frame {
+    position: absolute;
+    border: 3px solid #ff2222;
+    border-radius: 8px;
+    pointer-events: none;
+    box-shadow: 0 0 20px rgba(255, 34, 34, 0.9), inset 0 0 20px rgba(255, 34, 34, 0.3);
+    display: none;
+    animation: dnFrame 0.5s ease-in-out infinite alternate;
+}
+@keyframes dnFrame {
+    from { opacity: 0.7; }
+    to { opacity: 1; }
+}
+
+#deathNoteOverlay .dn-target-info {
+    position: absolute;
+    background: rgba(20, 0, 0, 0.95);
+    border: 2px solid #c00000;
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: #ffb0b0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    pointer-events: none;
+    display: none;
+    white-space: nowrap;
+    box-shadow: 0 0 12px rgba(200, 0, 0, 0.8);
+}
+#deathNoteOverlay .dn-target-info .reward {
+    color: #ffd700;
+}
+</style>
+
+<div id="deathNoteOverlay">
+    <div class="dn-hint">
+        📓 死亡筆記
+        <small>點擊要消滅的塔，返還 100% 金幣</small>
+    </div>
+    <div class="dn-target-frame" id="dnTargetFrame"></div>
+    <div class="dn-target-info" id="dnTargetInfo"></div>
+    <button class="dn-cancel" id="dnCancelBtn">取消</button>
+</div>
+
+<script>
+// ============================================================
+// 死亡筆記塔
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[死亡筆記] 系統載入中...');
+
+    // ============ 塔定義 ============
+    TOWER_TYPES.deathNote = {
+        name: '死亡筆記', cost: 200, baseCost: 200, color: '#1a1a1a',
+        fireInterval: 999, damage: 0, hitChance: 0, killChance: 0, range: 0,
+        isDeathNote: true,
+    };
+
+    // ============ 商店按鈕 ============
+    const bottomBar = document.getElementById('bottomBar');
+    if (bottomBar && !document.querySelector('.shop-btn[data-type="deathNote"]')) {
+        const btn = document.createElement('button');
+        btn.className = 'shop-btn';
+        btn.dataset.type = 'deathNote';
+        btn.innerHTML = '<div class="dot"></div><div class="price">200</div>';
+        // 插在火矢塔後面
+        const fireBtn = bottomBar.querySelector('[data-type="fireArrow"]');
+        if (fireBtn) {
+            fireBtn.parentNode.insertBefore(btn, fireBtn.nextSibling);
+        } else {
+            bottomBar.insertBefore(btn, document.getElementById('startWave'));
+        }
+
+        btn.addEventListener('pointerdown', function(e) {
+            e.preventDefault();
+            if (gameState !== 'playing') return;
+            initAudio();
+            if (shopSelected === 'deathNote') {
+                shopSelected = null;
+                btn.classList.remove('selected');
+            } else {
+                shopSelected = 'deathNote';
+                selectedTower = null;
+                comboSequence = [];
+                removeMode = false;
+                removeBtn.classList.remove('active');
+                document.querySelectorAll('.shop-btn').forEach(function(b) { b.classList.remove('selected'); });
+                btn.classList.add('selected');
+                updateTowerPanel();
+            }
+        }, { passive: false });
+    }
+
+    // ============ DeathNoteTower 類別 ============
+    function DeathNoteTower(spot) {
+        Tower.call(this, spot, 'deathNote');
+        this._noAttack = true;
+        this._pulse = 0;
+    }
+    DeathNoteTower.prototype = Object.create(Tower.prototype);
+    DeathNoteTower.prototype.constructor = DeathNoteTower;
+
+    // 完全不攻擊
+    DeathNoteTower.prototype.update = function(dt) {
+        this._pulse += dt;
+        this.fireFlash = Math.max(0, this.fireFlash - dt * 6);
+        // 不找目標、不開火
+    };
+
+    // 不顯示攻擊範圍
+    DeathNoteTower.prototype.draw = function() {
+        const x = this.x, y = this.y, size = 70, half = size / 2;
+
+        if (selectedTower === this) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(200, 0, 0, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 6]);
+            ctx.lineDashOffset = -performance.now() / 80;
+            ctx.beginPath();
+            ctx.arc(x, y, half + 10, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
+
+        const isDragging = drag && drag.tower === this && drag.isDragging;
+        if (!isDragging) this.drawBody(x, y, 1);
+
+        // 黑色光暈（死亡的氣息）
+        ctx.save();
+        const pulse = 0.4 + 0.3 * Math.sin(this._pulse * 3);
+        ctx.strokeStyle = 'rgba(200, 0, 0, ' + pulse + ')';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#c00000';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(x, y, half + 4, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        drawLevelStars(this.level, x, y - half - 12, size);
+    };
+
+    DeathNoteTower.prototype.drawBody = function(x, y, alpha) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        drawTowerBase(x, y, '#1a1a1a', true);
+        ctx.restore();
+        drawDeathNoteIcon(x, y, 70);
+    };
+
+    function drawDeathNoteIcon(x, y, size) {
+        const s = size;
+        ctx.save();
+
+        // 深色書本外框
+        ctx.fillStyle = '#0a0a0a';
+        ctx.strokeStyle = '#4a0000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const bw = s * 0.32, bh = s * 0.40;
+        ctx.rect(x - bw / 2, y - bh / 2, bw, bh);
+        ctx.fill();
+        ctx.stroke();
+
+        // 書脊
+        ctx.fillStyle = '#3a0000';
+        ctx.fillRect(x - bw / 2, y - bh / 2, s * 0.05, bh);
+
+        // 封面的紅字
+        ctx.save();
+        ctx.fillStyle = 'rgba(200, 0, 0, 0.9)';
+        ctx.shadowColor = '#ff2020';
+        ctx.shadowBlur = 8;
+        ctx.font = 'bold ' + (s * 0.32) + 'px "Noto Sans CJK TC", "Microsoft JhengHei", system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('✒', x + s * 0.03, y + 2);
+        ctx.restore();
+
+        // 血色光暈
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 400);
+        ctx.strokeStyle = 'rgba(200, 0, 0, ' + (0.3 + pulse * 0.4) + ')';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#c00000';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(x, y, s * 0.32, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    // ============ 覆寫 createTower ============
+    const _prevCreateTower = createTower;
+    createTower = function(spot, type) {
+        if (type === 'deathNote') return new DeathNoteTower(spot);
+        return _prevCreateTower.call(this, spot, type);
+    };
+
+    // ============ 覆寫 drawTowerIcon ============
+    const _prevDrawTowerIcon = drawTowerIcon;
+    drawTowerIcon = function(type, x, y, size) {
+        if (type === 'deathNote') {
+            drawDeathNoteIcon(x, y, size);
+            return;
+        }
+        _prevDrawTowerIcon.call(this, type, x, y, size);
+    };
+
+    // ============ 返還金額計算 ============
+    function calcTowerValue(tower) {
+        if (!tower) return 0;
+        const baseCost = (TOWER_TYPES[tower.type] && TOWER_TYPES[tower.type].baseCost) || 0;
+        let total = baseCost;
+        // 累加所有升級費用
+        for (let i = 1; i < tower.level; i++) {
+            total += Math.floor(baseCost * i * 1.5);
+        }
+        return total;
+    }
+
+    // ============ 塔面板「使用」按鈕 ============
+    function ensureActionButton() {
+        const panel = document.getElementById('towerPanel');
+        if (!panel) return null;
+        let btn = document.getElementById('deathNoteActionBtn');
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.id = 'deathNoteActionBtn';
+            btn.textContent = '📓 使用死亡筆記';
+            panel.appendChild(btn);
+
+            btn.addEventListener('pointerdown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!selectedTower || !(selectedTower instanceof DeathNoteTower)) return;
+                startSelecting(selectedTower);
+            }, { passive: false });
+        }
+        return btn;
+    }
+
+    // 用 setInterval 監控塔面板顯示狀態
+    setInterval(function() {
+        const btn = ensureActionButton();
+        if (!btn) return;
+
+        if (gameState !== 'playing') {
+            btn.classList.remove('show');
+            return;
+        }
+        if (selectedTower && selectedTower instanceof DeathNoteTower) {
+            btn.classList.add('show');
+        } else {
+            btn.classList.remove('show');
+        }
+    }, 100);
+
+    // ============ 選擇目標模式 ============
+    const overlay = document.getElementById('deathNoteOverlay');
+    const targetFrame = document.getElementById('dnTargetFrame');
+    const targetInfo = document.getElementById('dnTargetInfo');
+    let _activeNote = null;
+
+    function startSelecting(notebook) {
+        if (!notebook || !(notebook instanceof DeathNoteTower)) return;
+        if (!notebook.spot.tower) return;
+        _activeNote = notebook;
+        overlay.classList.add('show');
+        if (typeof log === 'function') log('📓 選擇要消滅的塔', 2000);
+        if (typeof sfxBoss === 'function') sfxBoss();
+    }
+
+    function cancelSelecting() {
+        _activeNote = null;
+        overlay.classList.remove('show');
+        targetFrame.style.display = 'none';
+        targetInfo.style.display = 'none';
+    }
+
+    // 滑鼠移動：顯示目標框
+    overlay.addEventListener('pointermove', function(e) {
+        if (!_activeNote) return;
+        updateTargetFrame(e.clientX, e.clientY);
+    }, { passive: false });
+
+    function updateTargetFrame(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        const bwx = x * (BASE_W / rect.width);
+        const bwy = y * (BASE_H / rect.height);
+        const spot = findSpotAt(bwx, bwy);
+
+        if (!spot || !spot.tower || spot.tower === _activeNote || spot.tower.type === 'deathNote') {
+            targetFrame.style.display = 'none';
+            targetInfo.style.display = 'none';
+            return;
+        }
+
+        // 顯示目標框
+        const screenX = rect.left + (spot.x / BASE_W) * rect.width;
+        const screenY = rect.top + (spot.y / BASE_H) * rect.height;
+        const frameSize = (SPOT_SIZE / BASE_W) * rect.width;
+
+        targetFrame.style.display = 'block';
+        targetFrame.style.left = (screenX - frameSize / 2) + 'px';
+        targetFrame.style.top = (screenY - frameSize / 2) + 'px';
+        targetFrame.style.width = frameSize + 'px';
+        targetFrame.style.height = frameSize + 'px';
+
+        // 顯示獎勵資訊
+        const value = calcTowerValue(spot.tower);
+        targetInfo.style.display = 'block';
+        targetInfo.style.left = (screenX + frameSize / 2 + 10) + 'px';
+        targetInfo.style.top = (screenY - 10) + 'px';
+        targetInfo.innerHTML = (TOWER_TYPES[spot.tower.type].name || '塔') + ' Lv.' + spot.tower.level +
+            ' <span class="reward">返還 ' + value + ' 💰</span>';
+    }
+
+    // 點擊：執行殺死
+    overlay.addEventListener('pointerdown', function(e) {
+        if (!_activeNote) return;
+        if (e.target.id === 'dnCancelBtn') return;
+
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const bwx = x * (BASE_W / rect.width);
+        const bwy = y * (BASE_H / rect.height);
+        const spot = findSpotAt(bwx, bwy);
+
+        if (!spot || !spot.tower || spot.tower === _activeNote) {
+            cancelSelecting();
+            return;
+        }
+        if (spot.tower.type === 'deathNote') {
+            if (typeof log === 'function') log('不能對另一座死亡筆記使用', 2000);
+            return;
+        }
+
+        executeKill(_activeNote, spot.tower);
+    }, { passive: false });
+
+    document.getElementById('dnCancelBtn').addEventListener('pointerdown', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        cancelSelecting();
+    }, { passive: false });
+
+    // ============ 執行殺死 ============
+    function executeKill(notebook, victim) {
+        const value = calcTowerValue(victim);
+        const victimName = TOWER_TYPES[victim.type].name || '塔';
+        const victimLevel = victim.level;
+        const victimSpot = victim.spot;
+
+        // 移除被害者
+        victimSpot.tower = null;
+
+        // 移除死亡筆記本身
+        if (notebook.spot) notebook.spot.tower = null;
+
+        // 返還金幣
+        money += value;
+
+        // 更新 UI
+        if (typeof updateUI === 'function') updateUI();
+        if (typeof updateTowerPanel === 'function') updateTowerPanel();
+        if (typeof saveGame === 'function') saveGame();
+        if (typeof sfxGold === 'function') sfxGold();
+        if (typeof sfxBoss === 'function') sfxBoss();
+
+        if (typeof log === 'function') {
+            log('📓 ' + victimName + ' Lv.' + victimLevel + ' 被消滅，返還 ' + value + ' 💰', 3500);
+        }
+
+        // 視覺效果
+        spawnDeathFx(victimSpot.x, victimSpot.y);
+
+        cancelSelecting();
+        selectedTower = null;
+    }
+
+    // ============ 死亡特效 ============
+    const _deathFx = [];
+    function spawnDeathFx(x, y) {
+        for (let i = 0; i < 20; i++) {
+            _deathFx.push({
+                x: x + (Math.random() - 0.5) * 30,
+                y: y + (Math.random() - 0.5) * 30,
+                vx: (Math.random() - 0.5) * 120,
+                vy: -80 - Math.random() * 100,
+                timer: 1.0 + Math.random() * 0.5,
+                maxTimer: 1.5,
+                size: 2 + Math.random() * 4,
+            });
+        }
+    }
+
+    // 包裝 drawBackground 繪製特效
+    const _prevDrawBg = drawBackground;
+    drawBackground = function() {
+        _prevDrawBg.call(this);
+
+        if (_deathFx.length === 0) return;
+        const dt = 1 / 60;
+        for (let i = _deathFx.length - 1; i >= 0; i--) {
+            const p = _deathFx[i];
+            p.timer -= dt;
+            if (p.timer <= 0) { _deathFx.splice(i, 1); continue; }
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.vy += 200 * dt;
+
+            const alpha = p.timer / p.maxTimer;
+            ctx.fillStyle = 'rgba(200, 0, 0, ' + alpha + ')';
+            ctx.shadowColor = '#ff0000';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.shadowBlur = 0;
+    };
+
+    // ============ 死亡筆記不能升級 ============
+    const _prevUpgradeTower = upgradeTower;
+    upgradeTower = function(tower) {
+        if (tower && tower.type === 'deathNote') {
+            if (typeof log === 'function') log('死亡筆記無法升級', 2000);
+            return;
+        }
+        return _prevUpgradeTower.call(this, tower);
+    };
+
+    // ============ 死亡筆記不能合成 ============
+    const _prevCanCombine = canCombine;
+    canCombine = function(a, b) {
+        if ((a && a.type === 'deathNote') || (b && b.type === 'deathNote')) return false;
+        return _prevCanCombine.call(this, a, b);
+    };
+
+    // ============ 存檔整合 ============
+    const _prevSave = saveGame;
+    saveGame = function() {
+        if (!currentDifficulty || gameState !== 'playing') return;
+        try {
+            const towerData = [];
+            for (let i = 0; i < SPOTS.length; i++) {
+                const s = SPOTS[i];
+                if (s.tower) {
+                    towerData.push({
+                        idx: i,
+                        type: s.tower.type,
+                        level: s.tower.level,
+                    });
+                }
+            }
+            const data = {
+                version: 1, difficulty: currentDifficulty,
+                money: money, lives: lives, wave: wave,
+                damageStats: damageStats,
+                unlocked: Object.assign({}, unlocked),
+                towers: towerData,
+                timestamp: Date.now(),
+            };
+            localStorage.setItem(getSaveKey(), JSON.stringify(data));
+        } catch (e) {}
+    };
+
+    const _prevLoad = loadGame;
+    loadGame = function() {
+        if (!currentDifficulty) return false;
+        try {
+            const raw = localStorage.getItem(getSaveKey());
+            if (!raw) return false;
+            const data = JSON.parse(raw);
+            if (!data || data.version !== 1 || data.difficulty !== currentDifficulty || data.wave === 0) return false;
+            money = data.money || DIFFICULTIES[currentDifficulty].startMoney;
+            lives = data.lives || DIFFICULTIES[currentDifficulty].startLives;
+            wave = data.wave || 0;
+            damageStats = data.damageStats || {};
+            if (data.unlocked) {
+                for (const k in data.unlocked) {
+                    if (unlocked.hasOwnProperty(k)) unlocked[k] = data.unlocked[k];
+                }
+            }
+            for (let i = 0; i < SPOTS.length; i++) SPOTS[i].tower = null;
+            const towers = data.towers || [];
+            for (let i = 0; i < towers.length; i++) {
+                const t = towers[i];
+                const spot = SPOTS[t.idx];
+                if (!spot) continue;
+                const tower = createTower(spot, t.type);
+                if (!tower) continue;
+                tower.level = Math.min(t.level || 1, MAX_TOWER_LEVEL);
+                if (tower.applyLevel) tower.applyLevel();
+                spot.tower = tower;
+            }
+            for (const type in unlocked) {
+                const btn = document.querySelector('.shop-btn[data-type="' + type + '"]');
+                if (!btn) continue;
+                if (unlocked[type]) btn.classList.remove('locked');
+                else btn.classList.add('locked');
+            }
+            if (typeof updateUI === 'function') updateUI();
+            return true;
+        } catch (e) { return false; }
+    };
+
+    console.log('[死亡筆記] 系統載入完成');
+})();
+</script>
   
 </body>
 </html>
