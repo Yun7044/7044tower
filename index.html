@@ -17544,6 +17544,345 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     console.log('[雙刀流] 連斬系統載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 星海皮膚
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[星海] 載入中...');
+
+        // 自動解鎖星海皮膚（免費）
+    (function autoUnlock() {
+        try {
+            const o = JSON.parse(localStorage.getItem('towerDefenseUnlockedSkins_v1') || '{}');
+            if (o[SKIN_ID] !== true) {
+                o[SKIN_ID] = true;
+                localStorage.setItem('towerDefenseUnlockedSkins_v1', JSON.stringify(o));
+                console.log('[星海] 已自動解鎖');
+            }
+        } catch (e) {}
+    })();
+    
+    const SKIN_ID = 'starsea';
+    const SKIN_NAME = '星海';
+    const SKIN_PRICE = 0;
+    const GAME_BG = 'bg-game-starsea.jpg';
+    const HALL_BG = 'bg-hall-starsea.jpg';
+
+    // 預載圖片
+    const gameBgImg = new Image();
+    gameBgImg.src = GAME_BG;
+    gameBgImg.onload = function() {
+        console.log('[星海] 遊戲內背景載入成功：' + gameBgImg.naturalWidth + 'x' + gameBgImg.naturalHeight);
+    };
+    gameBgImg.onerror = function() {
+        console.error('[星海] ❌ 找不到 ' + GAME_BG);
+    };
+
+    // ============ 讀寫工具 ============
+    function readCurrent() {
+        try { return localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; }
+        catch (e) { return 'classic'; }
+    }
+    function readTickets() {
+        try { return parseInt(localStorage.getItem('towerDefenseSkinTickets_v1') || '0', 10) || 0; }
+        catch (e) { return 0; }
+    }
+    function readUnlocked(id) {
+        try {
+            const o = JSON.parse(localStorage.getItem('towerDefenseUnlockedSkins_v1') || '{}');
+            return o[id] === true || id === 'classic';
+        } catch (e) { return id === 'classic'; }
+    }
+    function writeCurrent(id) {
+        try { localStorage.setItem('towerDefenseCurrentSkin_v1', id); } catch (e) {}
+    }
+    function writeTickets(n) {
+        try { localStorage.setItem('towerDefenseSkinTickets_v1', String(Math.max(0, Math.floor(n)))); } catch (e) {}
+    }
+    function writeUnlocked(id, val) {
+        try {
+            const o = JSON.parse(localStorage.getItem('towerDefenseUnlockedSkins_v1') || '{}');
+            o[id] = val;
+            localStorage.setItem('towerDefenseUnlockedSkins_v1', JSON.stringify(o));
+        } catch (e) {}
+    }
+
+    // ============ 1. 覆寫遊戲內背景 ============
+    const _prevDrawBg = drawBackground;
+    drawBackground = function() {
+        if (readCurrent() === SKIN_ID && gameBgImg.complete && gameBgImg.naturalWidth > 0) {
+            ctx.drawImage(gameBgImg, 0, 0, BASE_W, BASE_H);
+            const overlay = ctx.createLinearGradient(0, 0, 0, BASE_H);
+            overlay.addColorStop(0, 'rgba(5, 10, 30, 0.15)');
+            overlay.addColorStop(0.5, 'rgba(5, 5, 25, 0.25)');
+            overlay.addColorStop(1, 'rgba(2, 2, 15, 0.45)');
+            ctx.fillStyle = overlay;
+            ctx.fillRect(0, 0, BASE_W, BASE_H);
+            return;
+        }
+        _prevDrawBg.call(this);
+    };
+
+    // 路徑降透明度
+    const _prevDrawPath = drawPath;
+    drawPath = function() {
+        if (readCurrent() === SKIN_ID) {
+            ctx.save();
+            ctx.globalAlpha = 0.35;
+            _prevDrawPath.call(this);
+            ctx.restore();
+            return;
+        }
+        _prevDrawPath.call(this);
+    };
+
+    // 塔位只畫邊框
+    const _prevDrawHex = drawHexSpot;
+    drawHexSpot = function(cx, cy, half, opts) {
+        if (readCurrent() === SKIN_ID) {
+            const r = half * 0.98;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(180, 220, 255, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#80c0ff';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const a = -Math.PI / 2 + i * Math.PI / 3;
+                const px = cx + Math.cos(a) * r;
+                const py = cy + Math.sin(a) * r;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+            return;
+        }
+        _prevDrawHex.call(this, cx, cy, half, opts);
+    };
+
+    // ============ 2. 大廳背景 ============
+    function applyHallBg() {
+        if (readCurrent() !== SKIN_ID) return;
+        const menu = document.getElementById('mainMenu');
+        if (!menu) return;
+        const overlay = 'linear-gradient(180deg, rgba(5,10,30,0.15) 0%, rgba(5,5,25,0.4) 50%, rgba(2,2,15,0.75) 100%)';
+        menu.style.background = overlay + ', url("' + HALL_BG + '") center center / cover no-repeat';
+    }
+
+    let _lastSkin = readCurrent();
+    applyHallBg();
+    setInterval(function() {
+        const cur = readCurrent();
+        if (cur !== _lastSkin) {
+            _lastSkin = cur;
+            applyHallBg();
+        }
+    }, 200);
+
+    // ============ 3. 注入卡片 ============
+    function injectCard() {
+        const grid = document.getElementById('skinGridV3') || document.getElementById('skinGrid');
+        if (!grid) return;
+        if (grid.querySelector('[data-skin-id="' + SKIN_ID + '"]')) return;
+
+        const panel = document.getElementById('skinPanelV3') || document.getElementById('skinPanel');
+        if (!panel || (panel.style.display === 'none' && !panel.classList.contains('show'))) return;
+
+        const isEquipped = readCurrent() === SKIN_ID;
+        const unlocked = readUnlocked(SKIN_ID);
+
+        let badge, cardStyle = 'background:linear-gradient(135deg,rgba(20,30,60,0.9),rgba(10,10,35,0.9));border:2px solid #33335a;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;transition:0.2s;cursor:pointer;position:relative;overflow:hidden;';
+
+        if (isEquipped) {
+            cardStyle += 'border-color:#4ec472;box-shadow:0 0 16px rgba(78,196,114,0.4);';
+            badge = '<div style="position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:#4ec472;color:#0a0a14;letter-spacing:1px;z-index:2;">使用中</div>';
+        } else if (unlocked) {
+            badge = '<div style="position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(0,0,0,0.75);color:#ccc;letter-spacing:1px;z-index:2;">已解鎖</div>';
+        } else {
+            cardStyle += 'opacity:0.68;';
+            badge = '<div style="position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(60,20,20,0.85);color:#ff8888;letter-spacing:1px;z-index:2;">🔒 鎖定</div>';
+        }
+
+        const card = document.createElement('div');
+        card.className = 'skin-card-v3';
+        card.dataset.skinId = SKIN_ID;
+        card.style.cssText = cardStyle;
+        card.innerHTML =
+            badge +
+            '<div style="width:100%;aspect-ratio:1.6/1;border-radius:8px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.15);background:url(' + HALL_BG + ') center/cover;">' +
+                '<div style="position:absolute;bottom:12%;left:50%;width:16%;aspect-ratio:1;transform:translateX(-50%);clip-path:polygon(50% 0%,82% 30%,68% 100%,32% 100%,18% 30%);background:linear-gradient(180deg,#fff 0%,#80c0ff 100%);box-shadow:0 0 12px #80c0ff;"></div>' +
+            '</div>' +
+            '<div style="font-size:14px;font-weight:800;color:#fff;letter-spacing:1px;">' + SKIN_NAME + '</div>' +
+            '<div style="font-size:11px;color:#888;line-height:1.4;min-height:30px;">銀河帝國、深空觀測站、發光異星森林。最夢幻的皮膚。</div>';
+
+        grid.appendChild(card);
+    }
+
+    setInterval(injectCard, 200);
+
+    // ============ 4. 攔截點擊（開啟詳情） ============
+    document.addEventListener('click', function(e) {
+        if (!e.target || !e.target.closest) return;
+        const card = e.target.closest('.skin-card-v3');
+        if (!card || card.dataset.skinId !== SKIN_ID) return;
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        openDetail();
+    }, true);
+
+    function openDetail() {
+        const modal = document.getElementById('skinDetailV3');
+        if (!modal) return;
+
+        const preview = document.getElementById('sdV3Preview');
+        if (preview) {
+            preview.innerHTML =
+                '<div style="position:absolute;inset:0;background:url(' + HALL_BG + ') center/cover;"></div>' +
+                '<div style="position:absolute;bottom:12%;left:50%;width:16%;aspect-ratio:1;transform:translateX(-50%);clip-path:polygon(50% 0%,82% 30%,68% 100%,32% 100%,18% 30%);background:linear-gradient(180deg,#fff 0%,#80c0ff 100%);box-shadow:0 0 15px #80c0ff;"></div>';
+        }
+        const nameEl = document.getElementById('sdV3Name');
+        if (nameEl) nameEl.textContent = SKIN_NAME;
+        const descEl = document.getElementById('sdV3Desc');
+        if (descEl) descEl.textContent = '銀河帝國、深空觀測站、發光異星森林。最夢幻的皮膚。';
+
+        updateActionButton();
+        modal.style.display = 'flex';
+
+        const panel = document.getElementById('skinPanelV3') || document.getElementById('skinPanel');
+        if (panel) {
+            panel.style.pointerEvents = 'none';
+            panel.style.opacity = '0.4';
+        }
+    }
+
+    function updateActionButton() {
+        const condEl = document.getElementById('sdV3Condition');
+        const btn = document.getElementById('sdV3ActionFinal') || document.getElementById('sdV3Action2') || document.getElementById('sdV3Action');
+        if (!btn) return;
+
+        const current = readCurrent();
+        const unlocked = readUnlocked(SKIN_ID);
+        const tickets = readTickets();
+
+        if (current === SKIN_ID) {
+            if (condEl) { condEl.textContent = '✅ 目前使用中'; condEl.style.color = '#4ec472'; }
+            btn.textContent = '已裝備';
+            btn.disabled = true;
+            btn.style.background = '#444';
+            btn.style.color = '#888';
+            return;
+        }
+        if (unlocked) {
+            if (condEl) { condEl.textContent = '✅ 已解鎖'; condEl.style.color = '#4ec472'; }
+            btn.textContent = '使用';
+            btn.disabled = false;
+            btn.style.background = 'linear-gradient(135deg,#ffd700,#ff8800)';
+            btn.style.color = '#0a0a14';
+            return;
+        }
+        if (condEl) {
+            condEl.textContent = '🎟️ 商店購買（' + SKIN_PRICE + ' 皮膚券）｜你有 ' + tickets + ' 券';
+            condEl.style.color = tickets >= SKIN_PRICE ? '#ffd700' : '#ff8888';
+        }
+        if (tickets >= SKIN_PRICE) {
+            btn.textContent = '購買（' + SKIN_PRICE + ' 🎟️）';
+            btn.disabled = false;
+            btn.style.background = 'linear-gradient(135deg,#ffd700,#ff8800)';
+            btn.style.color = '#0a0a14';
+        } else {
+            btn.textContent = '券不足（需 ' + SKIN_PRICE + ' 🎟️）';
+            btn.disabled = true;
+            btn.style.background = '#444';
+            btn.style.color = '#888';
+        }
+    }
+
+    // ============ 5. 攔截行動按鈕 ============
+    document.addEventListener('pointerdown', function(e) {
+        if (!e.target) return;
+        const btn = e.target.closest('#sdV3ActionFinal, #sdV3Action2, #sdV3Action');
+        if (!btn) return;
+        const nameEl = document.getElementById('sdV3Name');
+        if (!nameEl || nameEl.textContent !== SKIN_NAME) return;
+
+        e.stopImmediatePropagation();
+        e.preventDefault();
+
+        const current = readCurrent();
+        const unlocked = readUnlocked(SKIN_ID);
+        const tickets = readTickets();
+
+        if (current === SKIN_ID) return;
+
+        if (unlocked) {
+            writeCurrent(SKIN_ID);
+            if (typeof log === 'function') log('🎨 已裝備：' + SKIN_NAME, 2000);
+            if (typeof sfxPlace === 'function') sfxPlace();
+            closeAndRefresh();
+            return;
+        }
+
+        if (tickets >= SKIN_PRICE) {
+            if (confirm('確定花 ' + SKIN_PRICE + ' 皮膚券購買「' + SKIN_NAME + '」嗎？')) {
+                writeTickets(tickets - SKIN_PRICE);
+                writeUnlocked(SKIN_ID, true);
+                writeCurrent(SKIN_ID);
+                if (typeof log === 'function') log('🎨 購買並裝備：' + SKIN_NAME, 2500);
+                if (typeof sfxGold === 'function') sfxGold();
+                closeAndRefresh();
+            }
+        } else {
+            if (typeof log === 'function') log('🎟️ 皮膚券不足（需 ' + SKIN_PRICE + '）', 2000);
+        }
+    }, true);
+
+    function closeAndRefresh() {
+        const modal = document.getElementById('skinDetailV3');
+        if (modal) modal.style.display = 'none';
+        const panel = document.getElementById('skinPanelV3') || document.getElementById('skinPanel');
+        if (panel) {
+            panel.style.pointerEvents = 'auto';
+            panel.style.opacity = '1';
+            panel.style.display = 'none';
+            setTimeout(function() {
+                const btn = document.getElementById('skinBtnV3') || document.getElementById('skinBtn');
+                if (btn) btn.click();
+            }, 50);
+        }
+    }
+
+    // ============ 6. 監聽 modal 關閉恢復面板 ============
+    const modal = document.getElementById('skinDetailV3');
+    if (modal) {
+        const obs = new MutationObserver(function() {
+            if (modal.style.display === 'none') {
+                const panel = document.getElementById('skinPanelV3') || document.getElementById('skinPanel');
+                if (panel) {
+                    panel.style.pointerEvents = 'auto';
+                    panel.style.opacity = '1';
+                }
+            }
+        });
+        obs.observe(modal, { attributes: true, attributeFilter: ['style'] });
+    }
+
+    // ============ 7. 每 100ms 檢查皮膚是否被切走，即時刷新大廳 ============
+    setInterval(function() {
+        const cur = readCurrent();
+        if (cur !== _lastSkin) {
+            _lastSkin = cur;
+            applyHallBg();
+        }
+    }, 100);
+
+    console.log('[星海] 載入完成');
+})();
+</script>
   
 </body>
 </html>
