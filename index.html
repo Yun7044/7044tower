@@ -17117,6 +17117,221 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     console.log('[大太刀最終] 載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 大太刀最終調整：拒絕加速 + 傷害爆炸 + 移除擊退
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[大太刀] 最終調整載入中...');
+
+    // ============ 保險 1：Enemy 倒退攔截 ============
+    if (typeof Enemy !== 'undefined' && !Enemy.prototype._kbBlocked) {
+        Enemy.prototype._kbBlocked = true;
+        const _prevUpdate = Enemy.prototype.update;
+        Enemy.prototype.update = function(dt) {
+            const prev = this.distance;
+            _prevUpdate.call(this, dt);
+            if (this.alive && (prev - this.distance) > 5) {
+                this.distance = prev;
+            }
+        };
+    }
+
+    // ============ 保險 2：完整重建大太刀 ============
+    let patched = false;
+
+    function tryPatch() {
+        if (patched) return;
+        if (typeof SPOTS === 'undefined') return;
+
+        let sample = null;
+        for (let i = 0; i < SPOTS.length; i++) {
+            const t = SPOTS[i].tower;
+            if (t && t.config && t.config.name === '大太刀·塔') {
+                sample = t;
+                break;
+            }
+        }
+        if (!sample) return;
+
+        const proto = Object.getPrototypeOf(sample);
+        if (proto === Tower.prototype) return;
+        if (proto._odachiFinal) return;
+        proto._odachiFinal = true;
+
+        // ---- 1. 拒絕紅塔加速 ----
+        proto.applyHaste = undefined;
+        console.log('[大太刀] 拒絕紅塔加速（applyHaste = undefined）');
+
+        // ---- 2. 傷害爆炸 ----
+        const _prevApplyLevel = proto.applyLevel;
+        proto.applyLevel = function() {
+            _prevApplyLevel.call(this);
+            // 每級都再 ×5（原 applyLevel 已經 ×1.5，現在總計 ×7.5）
+            this.damage *= 5.0;
+        };
+
+        // 已經在場上的大太刀：立即調整
+        for (let i = 0; i < SPOTS.length; i++) {
+            const t = SPOTS[i].tower;
+            if (t && t.config && t.config.name === '大太刀·塔') {
+                // 強制套用一次新 applyLevel（避免重複，先除以舊倍率再乘新倍率）
+                t.damage *= 5.0;
+                // 清掉任何殘留的攻速 buff
+                t.hastedTimer = 0;
+                t.fireInterval = t.baseFireInterval;
+            }
+        }
+
+        // ---- 3. 完全重寫 fireOdachi（無擊退）----
+        proto.fireOdachi = function(target) {
+            const tp = target.getPos();
+            const baseAngle = Math.atan2(tp.y - this.y, tp.x - this.x);
+            const range = this.range;
+            const isCharged = this.chargeTimer > 0;
+            const dmg = this.damage * (isCharged ? 2.0 : 1.0);
+
+            for (let i = 0; i < enemies.length; i++) {
+                const e = enemies[i];
+                if (!e.alive) continue;
+                const p = e.getPos();
+                const dx = p.x - this.x;
+                const dy = p.y - this.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist > range) continue;
+                const angle = Math.atan2(dy, dx);
+                let diff = angle - baseAngle;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                if (Math.abs(diff) <= Math.PI / 2) {
+                    const actual = e.takeDamage(dmg);
+                    if (actual > 0 && typeof addDamage === 'function') addDamage('tachi', actual);
+                    e._stunTimer = Math.max(e._stunTimer || 0, 0.5);
+                    // ❌ 沒有 e.distance -= 30
+                }
+            }
+
+            if (isCharged) this.chargeTimer = 0;
+
+            this.lastSlash = {
+                angle: baseAngle,
+                timer: 0.12,
+                maxTimer: 0.12,
+                range: Math.min(range, 220),
+                charged: isCharged,
+            };
+
+            if (typeof sfxShoot === 'function') sfxShoot();
+            if (isCharged && typeof sfxBoss === 'function') sfxBoss();
+        };
+
+        patched = true;
+        console.log('[大太刀] 傷害 ×5、拒絕加速、無擊退 已完成');
+    }
+
+    tryPatch();
+    const iv = setInterval(function() {
+        tryPatch();
+        if (patched) clearInterval(iv);
+    }, 500);
+
+    document.addEventListener('pointerdown', function(e) {
+        if (!e.target || !e.target.closest) return;
+        const btn = e.target.closest('[data-difficulty], #startWave');
+        if (!btn) return;
+        setTimeout(function() {
+            patched = false;
+            tryPatch();
+        }, 500);
+    }, true);
+
+    // ============ 保險 3：draw 細線刀光 ============
+    let drawPatched = false;
+
+    function tryPatchDraw() {
+        if (drawPatched) return;
+        if (typeof SPOTS === 'undefined') return;
+
+        let sample = null;
+        for (let i = 0; i < SPOTS.length; i++) {
+            const t = SPOTS[i].tower;
+            if (t && t.config && t.config.name === '大太刀·塔') {
+                sample = t;
+                break;
+            }
+        }
+        if (!sample) return;
+
+        const proto = Object.getPrototypeOf(sample);
+        if (proto === Tower.prototype) return;
+        if (proto._drawFinal) return;
+        proto._drawFinal = true;
+
+        const _prevDraw = proto.draw;
+        proto.draw = function() {
+            const savedSlash = this.lastSlash;
+            this.lastSlash = null;
+            _prevDraw.call(this);
+            this.lastSlash = savedSlash;
+
+            if (savedSlash) {
+                const s = savedSlash;
+                const alpha = Math.max(0, s.timer / s.maxTimer);
+                const range = s.range;
+
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(s.angle);
+                ctx.globalAlpha = alpha * 0.35;
+
+                // 主弧
+                ctx.strokeStyle = s.charged ? '#ffb8e0' : '#FF66B2';
+                ctx.lineWidth = s.charged ? 4 : 2.5;
+                ctx.shadowColor = '#FF66B2';
+                ctx.shadowBlur = s.charged ? 14 : 8;
+                ctx.beginPath();
+                ctx.arc(0, 0, range * 0.92, -Math.PI / 2, Math.PI / 2);
+                ctx.stroke();
+
+                // 白線
+                ctx.globalAlpha = alpha * 0.6;
+                ctx.shadowColor = '#FFFFFF';
+                ctx.shadowBlur = 4;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(0, 0, range * 0.92, -Math.PI / 2, Math.PI / 2);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        };
+
+        drawPatched = true;
+        console.log('[大太刀] draw 細線刀光已套用');
+    }
+
+    tryPatchDraw();
+    const iv2 = setInterval(function() {
+        tryPatchDraw();
+        if (drawPatched) clearInterval(iv2);
+    }, 500);
+
+    document.addEventListener('pointerdown', function(e) {
+        if (!e.target || !e.target.closest) return;
+        const btn = e.target.closest('[data-difficulty], #startWave');
+        if (!btn) return;
+        setTimeout(function() {
+            drawPatched = false;
+            tryPatchDraw();
+        }, 500);
+    }, true);
+
+    console.log('[大太刀] 最終調整載入完成');
+})();
+</script>
   
 </body>
 </html>
