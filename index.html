@@ -17883,6 +17883,83 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     console.log('[星海] 載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 大廳背景圖層（隔離所有舊系統）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[大廳圖層] 載入中...');
+
+    const SKIN_BG = {
+        classic: 'bg-classic.jpg',
+        grass: 'bg.jpg',
+        deepsea: 'bg-deepsea.jpg',
+        inferno: 'bg-inferno.jpg',
+        bio: 'bg.jpg',
+        gold: 'bg-gold.jpg',
+        dark: 'bg-dark.jpg',
+        white: 'bg.jpg',
+        space: 'bg-hall-space.jpg',
+        starsea: 'bg-hall-starsea.jpg',
+    };
+
+    function getCurrent() {
+        try { return localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; }
+        catch (e) { return 'classic'; }
+    }
+
+    let _bgLayer = null;
+
+    function ensureLayer() {
+        const menu = document.getElementById('mainMenu');
+        if (!menu) return null;
+
+        if (_bgLayer && _bgLayer.parentNode === menu) return _bgLayer;
+
+        let layer = document.getElementById('menuBgLayer');
+        if (!layer) {
+            layer = document.createElement('div');
+            layer.id = 'menuBgLayer';
+            // z-index: -1 → 蓋住 mainMenu 自己的 background，但被按鈕蓋住
+            layer.style.cssText = 'position:absolute;inset:0;z-index:-1;pointer-events:none;background-size:cover;background-position:center;';
+            menu.insertBefore(layer, menu.firstChild);
+        }
+        _bgLayer = layer;
+        return layer;
+    }
+
+    function applyBg() {
+        const layer = ensureLayer();
+        if (!layer) return;
+        const skin = getCurrent();
+        const bg = SKIN_BG[skin] || 'bg.jpg';
+        const overlay = 'linear-gradient(180deg, rgba(10,5,25,0.15) 0%, rgba(5,2,15,0.4) 50%, rgba(5,2,15,0.75) 100%)';
+        layer.style.background = overlay + ', url("' + bg + '") center center / cover no-repeat';
+    }
+
+    applyBg();
+
+    let lastSkin = getCurrent();
+    setInterval(function() {
+        const cur = getCurrent();
+        if (cur !== lastSkin) {
+            lastSkin = cur;
+            applyBg();
+        }
+    }, 200);
+
+    // 保險：mainMenu 被重繪時重新插入
+    setInterval(function() {
+        const menu = document.getElementById('mainMenu');
+        if (!menu) return;
+        if (!document.getElementById('menuBgLayer')) applyBg();
+    }, 500);
+
+    console.log('[大廳圖層] 載入完成｜當前皮膚：' + getCurrent());
+})();
+</script>
   
 </body>
 </html>
