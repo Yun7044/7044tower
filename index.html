@@ -20857,6 +20857,143 @@ body.in-menu #chronoSkillBtn { display: none !important; }
     console.log('[圖鑑新塔] 載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 音符塔修正：不會選到自己或其他音符塔
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[音符修正] 載入中...');
+
+    let patched = false;
+
+    function tryPatch() {
+        if (patched) return;
+        if (typeof SPOTS === 'undefined') return;
+
+        // 找一座音符塔
+        let sample = null;
+        for (let i = 0; i < SPOTS.length; i++) {
+            const t = SPOTS[i].tower;
+            if (t && t.type === 'note') {
+                sample = t;
+                break;
+            }
+        }
+        if (!sample) return;
+
+        const proto = Object.getPrototypeOf(sample);
+        if (!proto || !proto._generateHarmony) return;
+        if (proto._harmonyFixed) return;
+        proto._harmonyFixed = true;
+
+        // 完全重寫 _generateHarmony
+        proto._generateHarmony = function() {
+            this._harmonyFreq = 0.5 + Math.random() * 1.5;
+
+            // ★ 收集候選塔：明確排除自己 + 其他音符塔
+            const candidates = [];
+            for (let i = 0; i < SPOTS.length; i++) {
+                const t = SPOTS[i].tower;
+                if (!t) continue;
+                if (t === this) continue;                     // ★ 排除自己
+                if (t.type === 'note') continue;              // ★ 排除其他音符塔
+                if (t.type === 'magenta') continue;
+                if (t.type === 'deathNote') continue;
+                if (t.type === 'red') continue;
+                if (t.type === 'chrono' && t.evolution === 'A') continue;
+                if (!t.baseFireInterval) continue;
+                const d = Math.hypot(t.x - this.x, t.y - this.y);
+                if (d <= this.range) candidates.push(t);
+            }
+
+            if (candidates.length === 0) {
+                this._harmonyTarget = null;
+                this._harmonyMult = 1;
+                this._harmonyIntervalMult = 1;
+                return;
+            }
+
+            // 找攻速最接近的
+            let best = null;
+            let bestError = Infinity;
+            for (let i = 0; i < candidates.length; i++) {
+                const t = candidates[i];
+                const fi = t.baseFireInterval || t.fireInterval || 1;
+                const err = Math.abs(fi - this._harmonyFreq) / this._harmonyFreq;
+                if (err < bestError) {
+                    bestError = err;
+                    best = t;
+                }
+            }
+
+            // ★ 保險：如果選中的是自己，什麼都不做
+            if (!best || best === this) return;
+
+            let damageMult, intervalMult;
+            if (bestError < 0.05) {
+                damageMult = 3.0;
+                intervalMult = 0.5;
+            } else if (bestError < 0.15) {
+                damageMult = 2.0;
+                intervalMult = 0.7;
+            } else if (bestError < 0.30) {
+                damageMult = 1.5;
+                intervalMult = 0.85;
+            } else if (bestError < 0.50) {
+                damageMult = 1.2;
+                intervalMult = 0.95;
+            } else {
+                damageMult = 1.0;
+                intervalMult = 1.0;
+            }
+
+            this._harmonyTarget = best;
+            this._harmonyError = bestError;
+            this._harmonyMult = damageMult;
+            this._harmonyIntervalMult = intervalMult;
+
+            best._noteBuff = {
+                damageMult: damageMult,
+                intervalMult: intervalMult,
+                noteTower: this,
+            };
+
+            this._harmonyFx.push({ timer: 1.2, maxTimer: 1.2 });
+
+            if (typeof playTone === 'function') {
+                playTone({ freq: 500, slideTo: 900, duration: 0.25, type: 'sine', volume: 0.2 });
+                playTone({ freq: 750, slideTo: 1100, duration: 0.2, type: 'sine', volume: 0.15, delay: 0.1 });
+            }
+
+            console.log('[音符塔] 和諧頻率 ' + this._harmonyFreq.toFixed(2) + 's ｜ 目標：' + (best.config ? best.config.name : best.type) + '（攻速 ' + (best.baseFireInterval || 1).toFixed(2) + 's）｜ 誤差 ' + (bestError * 100).toFixed(1) + '% ｜ 傷害 ×' + damageMult.toFixed(2));
+        };
+
+        patched = true;
+        console.log('[音符修正] 已安裝：音符塔不會選到自己');
+    }
+
+    tryPatch();
+    const iv = setInterval(function() {
+        tryPatch();
+        if (patched) clearInterval(iv);
+    }, 500);
+
+    // 遊戲開始時重新偵測
+    document.addEventListener('pointerdown', function(e) {
+        if (!e.target || !e.target.closest) return;
+        const btn = e.target.closest('[data-difficulty], #startWave');
+        if (!btn) return;
+        setTimeout(function() {
+            patched = false;
+            tryPatch();
+        }, 500);
+    }, true);
+
+    console.log('[音符修正] 載入完成');
+})();
+</script>
   
 </body>
 </html>
