@@ -20028,6 +20028,205 @@ body.in-menu #chronoSkillBtn { display: none !important; }
     console.log('[死亡筆記] 系統載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 存檔系統最終修復：完整保存所有進化狀態
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[存檔最終修復] 載入中...');
+
+    // 塔名稱 → 基礎類型 + 進化分支
+    const EVOLUTION_MAP = {
+        '墨綠塔': { base: 'green', branch: 'A' },
+        '天狼之塔': { base: 'green', branch: 'B' },
+        '電磁鏈塔': { base: 'blue', branch: 'A' },
+        '超頻藍塔': { base: 'blue', branch: 'B' },
+        '質量塔': { base: 'purple', branch: 'A' },
+        '霜凍塔': { base: 'purple', branch: 'B' },
+        '聚能伽馬塔': { base: 'orange', branch: 'A' },
+        '超新星塔': { base: 'orange', branch: 'B' },
+        '全金屬狂潮塔': { base: 'silver', branch: 'A' },
+        '霰彈加特林塔': { base: 'silver', branch: 'B' },
+        '雙刀流·塔': { base: 'tachi', branch: 'A' },
+        '大太刀·塔': { base: 'tachi', branch: 'B' },
+        '時光停滯塔': { base: 'chrono', branch: 'A' },
+        '坍縮迴圈塔': { base: 'chrono', branch: 'B' },
+    };
+
+    function getEvolution(tower) {
+        if (!tower || !tower.config) return null;
+        const n = tower.config.name;
+        if (!n) return null;
+        return EVOLUTION_MAP[n] || null;
+    }
+
+    // 套用進化的屬性變化（不觸發音效/日誌，純數據）
+    function applyEvolution(tower, branch) {
+        const baseType = tower.type;
+
+        if (baseType === 'green' && branch === 'A') {
+            tower.damage *= 2.5;
+            tower.baseFireInterval /= 1.5;
+            tower.fireInterval = tower.baseFireInterval;
+            tower.range *= 1.3;
+            tower.config = Object.assign({}, tower.config, { name: '墨綠塔', color: '#1b4d3e' });
+        } else if (baseType === 'green' && branch === 'B') {
+            tower.damage *= 1.25;
+            tower.baseFireInterval /= 1.25;
+            tower.fireInterval = tower.baseFireInterval;
+            tower.config = Object.assign({}, tower.config, { name: '天狼之塔', color: '#00fa9a' });
+        } else if (baseType === 'blue' && branch === 'A') {
+            tower.hitChance = 1;
+            tower.killChance = 0;
+            tower.damage = 1.5 + (tower.level - 1) * 0.5;
+            tower.config = Object.assign({}, tower.config, { name: '電磁鏈塔', color: '#00bfff' });
+        } else if (baseType === 'blue' && branch === 'B') {
+            tower.hitChance = 0.10;
+            tower.killChance = 1;
+            tower.config = Object.assign({}, tower.config, { name: '超頻藍塔', color: '#1e90ff' });
+        } else if (baseType === 'purple' && branch === 'A') {
+            tower.config = Object.assign({}, tower.config, { name: '質量塔', color: '#4b0082' });
+        } else if (baseType === 'purple' && branch === 'B') {
+            tower.damage *= 1.2;
+            tower.baseFireInterval /= 1.2;
+            tower.fireInterval = tower.baseFireInterval;
+            tower.config = Object.assign({}, tower.config, { name: '霜凍塔', color: '#00ffff' });
+        } else if (baseType === 'orange' && branch === 'A') {
+            tower.config = Object.assign({}, tower.config, { name: '聚能伽馬塔', color: '#ff4500' });
+        } else if (baseType === 'orange' && branch === 'B') {
+            tower.config = Object.assign({}, tower.config, { name: '超新星塔', color: '#ff8c00' });
+        } else if (baseType === 'silver' && branch === 'A') {
+            tower.config = Object.assign({}, tower.config, { name: '全金屬狂潮塔', color: '#909090' });
+        } else if (baseType === 'silver' && branch === 'B') {
+            tower.config = Object.assign({}, tower.config, { name: '霰彈加特林塔', color: '#606060' });
+        } else if (baseType === 'tachi' && branch === 'A') {
+            tower.baseFireInterval *= 0.9;
+            tower.fireInterval = tower.baseFireInterval;
+            tower.range *= 1.1;
+            tower.config = Object.assign({}, tower.config, { name: '雙刀流·塔', color: '#FF66B2' });
+            tower.evolution = 'A';
+        } else if (baseType === 'tachi' && branch === 'B') {
+            tower.damage *= 1.5;
+            tower.baseFireInterval *= 2.2;
+            tower.fireInterval = tower.baseFireInterval;
+            tower.range *= 1.3;
+            tower.config = Object.assign({}, tower.config, { name: '大太刀·塔', color: '#FF66B2' });
+            tower.evolution = 'B';
+        } else if (baseType === 'chrono' && branch === 'A') {
+            tower.damage = 0;
+            tower.config = Object.assign({}, tower.config, { name: '時光停滯塔', color: '#a0c0ff' });
+            tower.evolution = 'A';
+        } else if (baseType === 'chrono' && branch === 'B') {
+            tower.damage *= 1.5;
+            tower.baseFireInterval = 1.2;
+            tower.fireInterval = 1.2;
+            tower.config = Object.assign({}, tower.config, { name: '坍縮迴圈塔', color: '#6a9aff' });
+            tower.evolution = 'B';
+        }
+    }
+
+    // ============ 全新的 saveGame ============
+    window.saveGame = function() {
+        if (typeof currentDifficulty === 'undefined' || !currentDifficulty) return;
+        if (typeof gameState === 'undefined' || gameState !== 'playing') return;
+        try {
+            const towerData = [];
+            for (let i = 0; i < SPOTS.length; i++) {
+                const s = SPOTS[i];
+                if (s.tower) {
+                    const t = s.tower;
+                    const evo = getEvolution(t);
+                    towerData.push({
+                        idx: i,
+                        type: evo ? evo.base : t.type,
+                        level: t.level,
+                        evolution: evo ? evo.branch : null,
+                    });
+                }
+            }
+            const data = {
+                version: 2,
+                difficulty: currentDifficulty,
+                money: money,
+                lives: lives,
+                wave: wave,
+                damageStats: damageStats,
+                unlocked: Object.assign({}, unlocked),
+                towers: towerData,
+                timestamp: Date.now(),
+            };
+            localStorage.setItem(getSaveKey(), JSON.stringify(data));
+        } catch (e) {
+            console.error('[存檔] saveGame 失敗：', e);
+        }
+    };
+
+    // ============ 全新的 loadGame ============
+    window.loadGame = function() {
+        if (typeof currentDifficulty === 'undefined' || !currentDifficulty) return false;
+        try {
+            const raw = localStorage.getItem(getSaveKey());
+            if (!raw) return false;
+            const data = JSON.parse(raw);
+            // 兼容舊版存檔（version 1 沒有 evolution 欄位，等於普通塔）
+            if (!data || (data.version !== 1 && data.version !== 2)) return false;
+            if (data.difficulty !== currentDifficulty) return false;
+            if (data.wave === 0) return false;
+
+            money = data.money || DIFFICULTIES[currentDifficulty].startMoney;
+            lives = data.lives || DIFFICULTIES[currentDifficulty].startLives;
+            wave = data.wave || 0;
+            damageStats = data.damageStats || {};
+
+            if (data.unlocked) {
+                for (const k in data.unlocked) {
+                    if (unlocked.hasOwnProperty(k)) unlocked[k] = data.unlocked[k];
+                }
+            }
+
+            // 清空所有塔
+            for (let i = 0; i < SPOTS.length; i++) SPOTS[i].tower = null;
+
+            // 重建塔
+            const towers = data.towers || [];
+            for (let i = 0; i < towers.length; i++) {
+                const t = towers[i];
+                const spot = SPOTS[t.idx];
+                if (!spot) continue;
+
+                const tower = createTower(spot, t.type);
+                if (!tower) continue;
+                tower.level = Math.min(t.level || 1, MAX_TOWER_LEVEL);
+                if (tower.applyLevel) tower.applyLevel();
+                spot.tower = tower;
+
+                // 還原進化
+                if (t.evolution) {
+                    applyEvolution(tower, t.evolution);
+                }
+            }
+
+            // 更新商店按鈕
+            for (const type in unlocked) {
+                const btn = document.querySelector('.shop-btn[data-type="' + type + '"]');
+                if (!btn) continue;
+                if (unlocked[type]) btn.classList.remove('locked');
+                else btn.classList.add('locked');
+            }
+
+            if (typeof updateUI === 'function') updateUI();
+            return true;
+        } catch (e) {
+            console.error('[存檔] loadGame 失敗：', e);
+            return false;
+        }
+    };
+
+    console.log('[存檔最終修復] 載入完成｜已支援所有 14 種進化塔');
+})();
+</script>
   
 </body>
 </html>
