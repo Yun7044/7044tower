@@ -17960,6 +17960,922 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     console.log('[大廳圖層] 載入完成｜當前皮膚：' + getCurrent());
 })();
 </script>
+
+<style>
+.shop-btn[data-type="chrono"] .dot {
+    background: linear-gradient(180deg, #d0e8ff 0%, #6a9aff 45%, #1a3a80 100%);
+    filter: drop-shadow(0 0 5px rgba(106, 154, 255, 0.9));
+}
+#chronoSkillBtn {
+    position: fixed;
+    right: 10px;
+    bottom: 140px;
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #2a2a5a 0%, #101040 100%);
+    border: 2px solid #6a9aff;
+    color: #a0c0ff;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 22px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 2px;
+    transition: 0.15s;
+    z-index: 12;
+    box-shadow: 0 0 12px rgba(106, 154, 255, 0.4);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+#chronoSkillBtn.show { display: flex; }
+#chronoSkillBtn:hover:not(.cooling):not(.locked) {
+    border-color: #ffd700;
+    box-shadow: 0 0 16px rgba(255, 215, 0, 0.6);
+}
+#chronoSkillBtn.locked { opacity: 0.5; border-color: #444; }
+#chronoSkillBtn.cooling { opacity: 0.6; cursor: not-allowed; }
+#chronoSkillBtn .sk-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+#chronoSkillBtn .sk-cd {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    display: none;
+}
+#chronoSkillBtn.cooling .sk-cd { display: flex; }
+body.ui-hidden #chronoSkillBtn { transform: translateX(200%); opacity: 0; }
+body.in-menu #chronoSkillBtn { display: none !important; }
+</style>
+
+<button id="chronoSkillBtn">
+    <span>⏳</span>
+    <span class="sk-label">時空重置</span>
+    <span class="sk-cd"></span>
+</button>
+
+<script>
+// ============================================================
+// 時幻塔系統
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[時幻塔] 系統載入中...');
+
+    // ============ 塔定義 ============
+    TOWER_TYPES.chrono = {
+        name: '時幻塔', cost: 80, baseCost: 80, color: '#6a9aff',
+        fireInterval: 1.8, damage: 12, hitChance: 1, killChance: 0, range: 240,
+    };
+
+    // ============ 商店按鈕 ============
+    const bottomBar = document.getElementById('bottomBar');
+    if (bottomBar && !document.querySelector('.shop-btn[data-type="chrono"]')) {
+        const btn = document.createElement('button');
+        btn.className = 'shop-btn';
+        btn.dataset.type = 'chrono';
+        btn.innerHTML = '<div class="dot"></div><div class="price">80</div>';
+        const orangeBtn = bottomBar.querySelector('[data-type="orange"]');
+        if (orangeBtn) {
+            orangeBtn.parentNode.insertBefore(btn, orangeBtn.nextSibling);
+        } else {
+            bottomBar.insertBefore(btn, bottomBar.firstChild);
+        }
+        btn.addEventListener('pointerdown', function(e) {
+            e.preventDefault();
+            if (gameState !== 'playing') return;
+            initAudio();
+            if (shopSelected === 'chrono') {
+                shopSelected = null;
+                btn.classList.remove('selected');
+            } else {
+                shopSelected = 'chrono';
+                selectedTower = null;
+                comboSequence = [];
+                removeMode = false;
+                removeBtn.classList.remove('active');
+                document.querySelectorAll('.shop-btn').forEach(function(b) { b.classList.remove('selected'); });
+                btn.classList.add('selected');
+                updateTowerPanel();
+            }
+        }, { passive: false });
+    }
+
+    // ============ 歷史位置追蹤（時間倒流用） ============
+    const _chronoHistories = new WeakMap();
+    setInterval(function() {
+        if (typeof gameState === 'undefined' || gameState !== 'playing') return;
+        if (typeof enemies === 'undefined') return;
+        const now = performance.now();
+        for (let i = 0; i < enemies.length; i++) {
+            const e = enemies[i];
+            if (!e.alive) continue;
+            let h = _chronoHistories.get(e);
+            if (!h) { h = []; _chronoHistories.set(e, h); }
+            h.push({ d: e.distance, t: now });
+            while (h.length > 0 && now - h[0].t > 2000) h.shift();
+        }
+    }, 100);
+
+    function applyTimeRewind(enemy) {
+        if (!enemy || !enemy.alive) return;
+        const h = _chronoHistories.get(enemy);
+        if (!h || h.length < 2) return;
+        const now = performance.now();
+        const targetTime = now - 1500;
+        let snapshot = null;
+        for (let i = h.length - 1; i >= 0; i--) {
+            if (h[i].t <= targetTime) { snapshot = h[i]; break; }
+        }
+        if (!snapshot) snapshot = h[0];
+        if (!snapshot) return;
+        const rewindAmount = enemy.distance - snapshot.d;
+        if (rewindAmount <= 0.5) return;
+        const actualRewind = enemy.isBoss ? rewindAmount * 0.2 : rewindAmount;
+        enemy.distance = Math.max(0, enemy.distance - actualRewind);
+        // 視覺效果
+        enemy._chronoBlink = 0.4;
+    }
+
+    // ============ 包裝 Enemy.update 處理時滯 + 秒殺加成計時 ============
+    const _prevEnemyUpdate = Enemy.prototype.update;
+    Enemy.prototype.update = function(dt) {
+        // 時滯
+        let chronoSlow = 1;
+        if (this._chronoSlowTimer > 0) {
+            this._chronoSlowTimer -= dt;
+            if (this._chronoSlowTimer <= 0) {
+                this._chronoSlowFactor = 1;
+            } else {
+                chronoSlow = this._chronoSlowFactor || 1;
+            }
+        }
+        // 秒殺加成計時
+        if (this._killBonusTimer > 0) this._killBonusTimer -= dt;
+        // 印記計時
+        if (this._chronoMarkTimer > 0) {
+            this._chronoMarkTimer -= dt;
+            if (this._chronoMarkTimer <= 0) this._chronoMarks = 0;
+        }
+        // 閃爍計時
+        if (this._chronoBlink > 0) this._chronoBlink -= dt;
+
+        if (chronoSlow < 1) {
+            const savedBase = this.baseSpeed;
+            this.baseSpeed = savedBase * chronoSlow;
+            _prevEnemyUpdate.call(this, dt);
+            this.baseSpeed = savedBase;
+        } else {
+            _prevEnemyUpdate.call(this, dt);
+        }
+    };
+
+    // ============ 包裝 Enemy.draw 顯示時滯光環 ============
+    const _prevEnemyDraw = Enemy.prototype.draw;
+    Enemy.prototype.draw = function() {
+        _prevEnemyDraw.call(this);
+        if (!this.alive) return;
+        const p = this.getPos();
+        const r = this.isBoss ? 22 : 13;
+
+        // 時滯光環
+        if (this._chronoSlowTimer > 0) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(106, 154, 255, ' + (0.5 + 0.3 * Math.sin(performance.now() / 200)) + ')';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#6a9aff';
+            ctx.shadowBlur = 10;
+            ctx.setLineDash([5, 5]);
+            ctx.lineDashOffset = -performance.now() / 80;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r + 5, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
+
+        // 停滯狀態（定身）
+        if (this._stunTimer > 0) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(160, 200, 255, 0.9)';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#a0c0ff';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r + 8, 0, Math.PI * 2);
+            ctx.stroke();
+            // 時鐘指針
+            ctx.fillStyle = '#a0c0ff';
+            ctx.font = 'bold 11px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText('⏸', p.x, p.y + 4);
+            ctx.restore();
+        }
+
+        // 時間印記
+        if (this._chronoMarks > 0) {
+            ctx.save();
+            ctx.fillStyle = '#a0c0ff';
+            ctx.font = 'bold 10px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText('⏳×' + this._chronoMarks, p.x, p.y - r - 12);
+            ctx.restore();
+        }
+
+        // 時間倒流閃爍
+        if (this._chronoBlink > 0) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(160, 200, 255, ' + this._chronoBlink * 2 + ')';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r + 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    };
+
+    // ============ 包裝 Bullet.update 處理秒殺率加成 ============
+    const _prevBulletUpdate = Bullet.prototype.update;
+    Bullet.prototype.update = function(dt) {
+        if (this.killChance > 0 && this.target && this.target.alive && this.target._killBonusTimer > 0) {
+            const saved = this.killChance;
+            this.killChance = saved * 1.5;
+            const result = _prevBulletUpdate.call(this, dt);
+            this.killChance = saved;
+            return result;
+        }
+        return _prevBulletUpdate.call(this, dt);
+    };
+
+    // ============ 包裝 Enemy.takeDamage 處理坍縮連鎖 ============
+    const _prevTakeDamage = Enemy.prototype.takeDamage;
+    Enemy.prototype.takeDamage = function(amount) {
+        const wasAlive = this.alive;
+        const result = _prevTakeDamage.call(this, amount);
+
+        // 剛死亡 + 有印記 → 觸發坍縮
+        if (wasAlive && !this.alive && this._chronoMarks > 0 && !this._collapseTriggered) {
+            this._collapseTriggered = true;
+            triggerCollapse(this);
+        }
+        return result;
+    };
+
+    function triggerCollapse(deadEnemy) {
+        const p = deadEnemy.getPos();
+        const stacks = deadEnemy._chronoMarks || 1;
+        const dmg = deadEnemy.maxHp * 0.05 * stacks; // 5% / 10% / 15%
+
+        // 視覺：藍色衝擊波
+        if (!window._chronoCollapseFx) window._chronoCollapseFx = [];
+        window._chronoCollapseFx.push({
+            x: p.x, y: p.y, timer: 0.5, maxTimer: 0.5, radius: 100,
+        });
+
+        let kills = 0;
+        for (let i = 0; i < enemies.length; i++) {
+            const other = enemies[i];
+            if (other === deadEnemy || !other.alive) continue;
+            const op = other.getPos();
+            if (Math.hypot(op.x - p.x, op.y - p.y) <= 100) {
+                const wasAlive = other.alive;
+                const actual = _prevTakeDamage.call(other, dmg);
+                if (actual > 0) addDamage('chrono', actual);
+                if (wasAlive && !other.alive) {
+                    kills++;
+                    // 坍縮擊殺額外獎勵
+                    money += Math.floor((other.isBoss ? 250 : 10) * 0.2);
+                }
+            }
+        }
+        if (kills > 0) sfxHit();
+    }
+
+    // ============ 包裝 drawBackground 繪製坍縮衝擊波 ============
+    const _prevDrawBg = drawBackground;
+    drawBackground = function() {
+        _prevDrawBg.call(this);
+
+        if (!window._chronoCollapseFx) return;
+        const dt = 1 / 60;
+        for (let i = window._chronoCollapseFx.length - 1; i >= 0; i--) {
+            const fx = window._chronoCollapseFx[i];
+            fx.timer -= dt;
+            if (fx.timer <= 0) {
+                window._chronoCollapseFx.splice(i, 1);
+                continue;
+            }
+            const t = 1 - fx.timer / fx.maxTimer;
+            const r = fx.radius * (0.3 + t * 1.0);
+            const alpha = fx.timer / fx.maxTimer;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(106, 154, 255, ' + alpha + ')';
+            ctx.lineWidth = 4 * alpha;
+            ctx.shadowColor = '#6a9aff';
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.arc(fx.x, fx.y, r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(220, 240, 255, ' + (alpha * 0.7) + ')';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(fx.x, fx.y, r * 0.7, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+
+    // ============ ChronoTower 類別 ============
+    function ChronoTower(spot) {
+        Tower.call(this, spot, 'chrono');
+        this.evolution = null;
+        this.stopWaveTimer = 0;
+        this.stasisWave = null;
+    }
+    ChronoTower.prototype = Object.create(Tower.prototype);
+    ChronoTower.prototype.constructor = ChronoTower;
+
+    // 覆寫 update
+    ChronoTower.prototype.update = function(dt) {
+        // 分支 A：時光停滯塔 → 不走普通攻擊
+        if (this.evolution === 'A') {
+            this.fireFlash = Math.max(0, this.fireFlash - dt * 6);
+            if (this.hastedTimer > 0) {
+                this.hastedTimer -= dt;
+                if (this.hastedTimer <= 0) this.fireInterval = this.baseFireInterval;
+            }
+            // 停滯波計時
+            this.stopWaveTimer -= dt;
+            if (this.stopWaveTimer <= 0) {
+                this.stopWaveTimer = 4.0;
+                fireStasisWave(this);
+            }
+            // 停滯波視覺計時
+            if (this.stasisWave) {
+                this.stasisWave.timer -= dt;
+                if (this.stasisWave.timer <= 0) this.stasisWave = null;
+            }
+            return;
+        }
+        // 分支 B 和未進化 → 走普通攻擊
+        Tower.prototype.update.call(this, dt);
+    };
+
+    function fireStasisWave(tower) {
+        const radius = 150;
+        tower.stasisWave = { timer: 0.4, maxTimer: 0.4, radius: radius };
+
+        for (let i = 0; i < enemies.length; i++) {
+            const e = enemies[i];
+            if (!e.alive) continue;
+            const p = e.getPos();
+            if (Math.hypot(p.x - tower.x, p.y - tower.y) <= radius) {
+                const stunDur = e.isBoss ? 0.6 : 1.2;
+                e._stunTimer = Math.max(e._stunTimer || 0, stunDur);
+                // 秒殺率加成（Boss 不吃）
+                if (!e.isBoss) {
+                    e._killBonusTimer = stunDur;
+                }
+            }
+        }
+        sfxHit();
+        if (typeof playTone === 'function') {
+            playTone({ freq: 400, slideTo: 800, duration: 0.3, type: 'sine', volume: 0.3 });
+        }
+    }
+
+    // 覆寫 fire：時間倒流 + 時滯 + 印記
+    ChronoTower.prototype.fire = function(target) {
+        this.fireFlash = 1;
+        bullets.push(new ChronoBullet(this, target));
+        if (typeof sfxShoot === 'function') sfxShoot();
+    };
+
+    // 覆寫 draw
+    ChronoTower.prototype.draw = function() {
+        Tower.prototype.draw.call(this);
+
+        // 時光停滯塔：畫停滯波
+        if (this.evolution === 'A' && this.stasisWave) {
+            const sw = this.stasisWave;
+            const t = 1 - sw.timer / sw.maxTimer;
+            const r = sw.radius * (0.3 + t * 0.9);
+            const alpha = sw.timer / sw.maxTimer;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(160, 200, 255, ' + alpha + ')';
+            ctx.lineWidth = 4 * alpha;
+            ctx.shadowColor = '#6a9aff';
+            ctx.shadowBlur = 25;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(220, 240, 255, ' + (alpha * 0.8) + ')';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, r * 0.7, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+
+    // 覆寫 drawBody：時幻塔外觀
+    ChronoTower.prototype.drawBody = function(x, y, alpha) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        const color = this.evolution === 'A' ? '#a0c0ff' :
+                      this.evolution === 'B' ? '#6a9aff' : '#8aaaee';
+        drawTowerBase(x, y, color, this.evolution === 'A');
+        ctx.restore();
+        drawChronoIcon(this.evolution, x, y, 70);
+    };
+
+    function drawChronoIcon(evolution, x, y, size) {
+        ctx.save();
+        const s = size;
+
+        if (evolution === 'A') {
+            // 時光停滯塔：時鐘 + 沙漏
+            const h = s * 0.42, w = s * 0.22;
+            ctx.shadowColor = '#a0c0ff';
+            ctx.shadowBlur = 18;
+            // 六邊形底座
+            ctx.beginPath();
+            ctx.moveTo(x, y - h);
+            ctx.lineTo(x + w, y - h * 0.3);
+            ctx.lineTo(x + w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w, y - h * 0.3);
+            ctx.closePath();
+            const g = ctx.createLinearGradient(x, y - h, x, y + h);
+            g.addColorStop(0, '#e0f0ff');
+            g.addColorStop(0.5, '#a0c0ff');
+            g.addColorStop(1, '#3060a0');
+            ctx.fillStyle = g;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            // 時鐘圓
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, s * 0.18, 0, Math.PI * 2);
+            ctx.stroke();
+            // 指針
+            const angle = (performance.now() / 1000) % (Math.PI * 2);
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + Math.cos(angle - Math.PI / 2) * s * 0.14, y + Math.sin(angle - Math.PI / 2) * s * 0.14);
+            ctx.stroke();
+        } else if (evolution === 'B') {
+            // 坍縮迴圈塔：迴圈箭頭
+            const h = s * 0.42, w = s * 0.22;
+            ctx.shadowColor = '#6a9aff';
+            ctx.shadowBlur = 18;
+            ctx.beginPath();
+            ctx.moveTo(x, y - h);
+            ctx.lineTo(x + w, y - h * 0.3);
+            ctx.lineTo(x + w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w, y - h * 0.3);
+            ctx.closePath();
+            const g = ctx.createLinearGradient(x, y - h, x, y + h);
+            g.addColorStop(0, '#d0e0ff');
+            g.addColorStop(0.5, '#6a9aff');
+            g.addColorStop(1, '#203a70');
+            ctx.fillStyle = g;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            // 迴圈箭頭
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, s * 0.16, 0.4, Math.PI * 2 - 0.4);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x + s * 0.16, y - s * 0.04);
+            ctx.lineTo(x + s * 0.22, y - s * 0.06);
+            ctx.lineTo(x + s * 0.14, y + s * 0.04);
+            ctx.closePath();
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+        } else {
+            // 未進化：時鐘齒輪
+            const h = s * 0.42, w = s * 0.22;
+            ctx.shadowColor = '#8aaaee';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.moveTo(x, y - h);
+            ctx.lineTo(x + w, y - h * 0.3);
+            ctx.lineTo(x + w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w * 0.7, y + h * 0.85);
+            ctx.lineTo(x - w, y - h * 0.3);
+            ctx.closePath();
+            const g = ctx.createLinearGradient(x, y - h, x, y + h);
+            g.addColorStop(0, '#d0e0ff');
+            g.addColorStop(0.5, '#8aaaee');
+            g.addColorStop(1, '#3050a0');
+            ctx.fillStyle = g;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            // 時鐘
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, s * 0.16, 0, Math.PI * 2);
+            ctx.stroke();
+            const angle = (performance.now() / 1500) % (Math.PI * 2);
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + Math.cos(angle - Math.PI / 2) * s * 0.12, y + Math.sin(angle - Math.PI / 2) * s * 0.12);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    // ============ ChronoBullet ============
+    function ChronoBullet(tower, target) {
+        Bullet.call(this, tower, target);
+        this.color = '#a0c0ff';
+        this.towerType = 'chrono';
+        this._sourceTower = tower;
+        this._isChrono = true;
+    }
+    ChronoBullet.prototype = Object.create(Bullet.prototype);
+    ChronoBullet.prototype.constructor = ChronoBullet;
+
+    const _prevChronoBulletUpdate = ChronoBullet.prototype.update;
+    ChronoBullet.prototype.update = function(dt) {
+        if (!this.alive) return;
+        if (!this.target.alive) { this.alive = false; return; }
+        const tp = this.target.getPos();
+        const dx = tp.x - this.x, dy = tp.y - this.y;
+        const dist = Math.hypot(dx, dy), move = this.speed * dt;
+
+        if (dist <= move) {
+            const tower = this._sourceTower;
+            const isEvolvedB = tower && tower.evolution === 'B';
+
+            // 傷害
+            let dmg = this.damage;
+            if (this.target.isBoss && this.antiBossMultiplier) dmg *= this.antiBossMultiplier;
+            if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
+            const actual = this.target.takeDamage(dmg);
+            if (actual > 0) addDamage('chrono', actual);
+
+            // 時滯（兩分支都有）
+            this.target._chronoSlowTimer = 2.0;
+            this.target._chronoSlowFactor = 0.85;
+
+            // 時間倒流（兩分支都有）
+            if (Math.random() < 0.15) {
+                applyTimeRewind(this.target);
+            }
+
+            // 印記（只有分支 B）
+            if (isEvolvedB) {
+                this.target._chronoMarks = Math.min(3, (this.target._chronoMarks || 0) + 1);
+                this.target._chronoMarkTimer = 5.0;
+            }
+
+            if (typeof sfxHit === 'function') sfxHit();
+            this.alive = false;
+        } else {
+            this.x += (dx / dist) * move;
+            this.y += (dy / dist) * move;
+        }
+    };
+
+    ChronoBullet.prototype.draw = function() {
+        if (!this.alive) return;
+        ctx.save();
+        ctx.shadowColor = '#a0c0ff';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#d0e0ff';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        // 時鐘指針
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x + 3, this.y - 3);
+        ctx.stroke();
+        ctx.restore();
+    };
+
+    // ============ 覆寫 createTower ============
+    const _prevCreateTower = createTower;
+    createTower = function(spot, type) {
+        if (type === 'chrono') return new ChronoTower(spot);
+        return _prevCreateTower.call(this, spot, type);
+    };
+
+    // ============ 覆寫 drawTowerIcon ============
+    const _prevDrawTowerIcon = drawTowerIcon;
+    drawTowerIcon = function(type, x, y, size) {
+        if (type === 'chrono') {
+            drawChronoIcon(null, x, y, size);
+            return;
+        }
+        _prevDrawTowerIcon.call(this, type, x, y, size);
+    };
+
+    // ============ 進化 UI ============
+    function updateChronoEvolveUI() {
+        if (!(selectedTower instanceof ChronoTower) || selectedTower.evolution || selectedTower.level < 3) {
+            const old = document.getElementById('chronoBranchUI');
+            if (old) old.remove();
+            return;
+        }
+        if (document.getElementById('chronoBranchUI')) return;
+
+        const panel = document.getElementById('towerPanel');
+        if (!panel) return;
+
+        const ui = document.createElement('div');
+        ui.id = 'chronoBranchUI';
+        ui.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-top:8px;border-top:1px dashed #555;padding-top:8px;width:100%;';
+        ui.innerHTML =
+            '<button data-branch="A" style="background:#1a2a4a;border:1.5px solid #6a9aff;color:#fff;padding:8px 10px;border-radius:6px;cursor:pointer;text-align:left;font-family:inherit;transition:0.15s;">' +
+                '<div style="font-weight:bold;color:#6a9aff;font-size:13px;">⏸ 分支 A：時光停滯塔</div>' +
+                '<div style="font-size:11px;color:#aaa;margin-top:3px;line-height:1.4;">取消普通攻擊，每 4 秒發射 150px 停滯波<br>範圍內敵人定身 1.2s（Boss 0.6s）+ 秒殺率 ×1.5</div>' +
+            '</button>' +
+            '<button data-branch="B" style="background:#1a2a4a;border:1.5px solid #6a9aff;color:#fff;padding:8px 10px;border-radius:6px;cursor:pointer;text-align:left;font-family:inherit;transition:0.15s;">' +
+                '<div style="font-weight:bold;color:#6a9aff;font-size:13px;">💥 分支 B：坍縮迴圈塔</div>' +
+                '<div style="font-size:11px;color:#aaa;margin-top:3px;line-height:1.4;">攻速 1.2s，命中施加印記（最多 3 層）<br>帶印記敵人死亡時爆炸，對 100px 內造成 5%×層數 最大生命傷害</div>' +
+            '</button>';
+
+        panel.appendChild(ui);
+
+        ui.querySelectorAll('button').forEach(function(btn) {
+            btn.addEventListener('pointerdown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                window.evolveSelectedTower(btn.dataset.branch);
+                ui.remove();
+            }, { passive: false });
+        });
+    }
+    setInterval(updateChronoEvolveUI, 100);
+
+    // ============ 進化執行 ============
+    function evolveChrono(tower, branch) {
+        if (!tower || !(tower instanceof ChronoTower) || tower.evolution) return;
+        tower.evolution = branch;
+
+        if (branch === 'A') {
+            tower.damage = 0;
+            tower.config = Object.assign({}, tower.config, { name: '時光停滯塔', color: '#a0c0ff' });
+            if (typeof log === 'function') log('⏸ 時幻塔進化為【時光停滯塔】！', 3000);
+        } else {
+            tower.damage *= 1.5;
+            tower.baseFireInterval = 1.2;
+            tower.fireInterval = 1.2;
+            tower.config = Object.assign({}, tower.config, { name: '坍縮迴圈塔', color: '#6a9aff' });
+            if (typeof log === 'function') log('💥 時幻塔進化為【坍縮迴圈塔】！', 3000);
+        }
+
+        if (typeof sfxUpgrade === 'function') sfxUpgrade();
+        if (typeof updateUI === 'function') updateUI();
+        if (typeof updateTowerPanel === 'function') updateTowerPanel();
+        if (typeof saveGame === 'function') saveGame();
+    }
+
+    const _prevEvolve = window.evolveSelectedTower;
+    window.evolveSelectedTower = function(branch) {
+        if (selectedTower instanceof ChronoTower && !selectedTower.evolution) {
+            evolveChrono(selectedTower, branch);
+            return;
+        }
+        if (typeof _prevEvolve === 'function') _prevEvolve(branch);
+    };
+
+    // ============ 主動技能：時空重置 ============
+    const CHRONO_SKILL_KEY = 'towerDefenseChronoSkillUnlocked_v1';
+    const CHRONO_SKILL_COST = 600;
+    const CHRONO_SKILL_CD = 50;
+
+    let chronoSkillUnlocked = false;
+    let chronoSkillCooldown = 0;
+    try { chronoSkillUnlocked = localStorage.getItem(CHRONO_SKILL_KEY) === '1'; } catch (e) {}
+
+    const skillBtn = document.getElementById('chronoSkillBtn');
+
+    function updateSkillBtn() {
+        if (!skillBtn) return;
+        if (typeof gameState === 'undefined' || gameState !== 'playing') {
+            skillBtn.classList.remove('show');
+            return;
+        }
+        // 場上要有時幻塔才顯示
+        let hasChronoTower = false;
+        if (typeof SPOTS !== 'undefined') {
+            for (let i = 0; i < SPOTS.length; i++) {
+                if (SPOTS[i].tower && SPOTS[i].tower instanceof ChronoTower) {
+                    hasChronoTower = true;
+                    break;
+                }
+            }
+        }
+        if (!hasChronoTower) {
+            skillBtn.classList.remove('show');
+            return;
+        }
+        skillBtn.classList.add('show');
+        if (!chronoSkillUnlocked) {
+            skillBtn.classList.add('locked');
+            skillBtn.classList.remove('cooling');
+            skillBtn.querySelector('.sk-cd').style.display = 'none';
+        } else if (chronoSkillCooldown > 0) {
+            skillBtn.classList.remove('locked');
+            skillBtn.classList.add('cooling');
+            skillBtn.querySelector('.sk-cd').textContent = Math.ceil(chronoSkillCooldown);
+            skillBtn.querySelector('.sk-cd').style.display = 'flex';
+        } else {
+            skillBtn.classList.remove('locked', 'cooling');
+            skillBtn.querySelector('.sk-cd').style.display = 'none';
+        }
+    }
+    setInterval(updateSkillBtn, 100);
+
+    setInterval(function() {
+        if (chronoSkillCooldown > 0) {
+            chronoSkillCooldown = Math.max(0, chronoSkillCooldown - 0.1);
+        }
+    }, 100);
+
+    function triggerChronoReset() {
+        if (!chronoSkillUnlocked) {
+            if (typeof money === 'undefined' || money < CHRONO_SKILL_COST) {
+                if (typeof log === 'function') log('金幣不足（需 ' + CHRONO_SKILL_COST + '）', 2000);
+                return;
+            }
+            money -= CHRONO_SKILL_COST;
+            chronoSkillUnlocked = true;
+            try { localStorage.setItem(CHRONO_SKILL_KEY, '1'); } catch (e) {}
+            if (typeof log === 'function') log('⏳ 時空重置已解鎖！', 3000);
+            if (typeof updateUI === 'function') updateUI();
+            if (typeof sfxGold === 'function') sfxGold();
+            return;
+        }
+        if (chronoSkillCooldown > 0) {
+            if (typeof log === 'function') log('⏳ 冷卻中（' + Math.ceil(chronoSkillCooldown) + 's）', 1500);
+            return;
+        }
+        chronoSkillCooldown = CHRONO_SKILL_CD;
+
+        // 傳送最前面的 8 隻非 Boss 到起點
+        const nonBosses = [];
+        for (let i = 0; i < enemies.length; i++) {
+            const e = enemies[i];
+            if (e.alive && !e.isBoss) nonBosses.push(e);
+        }
+        nonBosses.sort(function(a, b) { return b.distance - a.distance; });
+        const targets = nonBosses.slice(0, 8);
+        for (let i = 0; i < targets.length; i++) {
+            targets[i].distance = 0;
+            targets[i].pathIndex = 1;
+            targets[i]._chronoBlink = 0.6;
+        }
+
+        // Boss 效果
+        let boss = null;
+        for (let i = 0; i < enemies.length; i++) {
+            if (enemies[i].alive && enemies[i].isBoss) { boss = enemies[i]; break; }
+        }
+        if (boss) {
+            boss._stunTimer = Math.max(boss._stunTimer || 0, 3.0);
+            // 全場塔 +40% 攻速，持續 6 秒
+            if (typeof SPOTS !== 'undefined') {
+                for (let i = 0; i < SPOTS.length; i++) {
+                    const t = SPOTS[i].tower;
+                    if (t && typeof t.applyHaste === 'function') {
+                        const curInterval = t.fireInterval || 1;
+                        t.applyHaste(6.0, curInterval / 1.4);
+                    }
+                }
+            }
+        }
+        if (typeof log === 'function') log('⏳ 時空重置！傳送 ' + targets.length + ' 隻敵人', 2500);
+        if (typeof sfxBoss === 'function') sfxBoss();
+    }
+
+    if (skillBtn) {
+        skillBtn.addEventListener('pointerdown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof initAudio === 'function') initAudio();
+            triggerChronoReset();
+        }, { passive: false });
+    }
+
+    // ============ 存檔整合 ============
+    const _prevSave = saveGame;
+    saveGame = function() {
+        if (!currentDifficulty || gameState !== 'playing') return;
+        try {
+            const towerData = [];
+            for (let i = 0; i < SPOTS.length; i++) {
+                const s = SPOTS[i];
+                if (s.tower) {
+                    const t = s.tower;
+                    const evo = (t instanceof ChronoTower) ? t.evolution : null;
+                    towerData.push({
+                        idx: i,
+                        type: t.type,
+                        level: t.level,
+                        chronoEvo: evo,
+                    });
+                }
+            }
+            const data = {
+                version: 1, difficulty: currentDifficulty,
+                money: money, lives: lives, wave: wave,
+                damageStats: damageStats,
+                unlocked: Object.assign({}, unlocked),
+                towers: towerData,
+                timestamp: Date.now(),
+            };
+            localStorage.setItem(getSaveKey(), JSON.stringify(data));
+        } catch (e) {}
+    };
+
+    const _prevLoad = loadGame;
+    loadGame = function() {
+        if (!currentDifficulty) return false;
+        try {
+            const raw = localStorage.getItem(getSaveKey());
+            if (!raw) return false;
+            const data = JSON.parse(raw);
+            if (!data || data.version !== 1 || data.difficulty !== currentDifficulty || data.wave === 0) return false;
+            money = data.money || DIFFICULTIES[currentDifficulty].startMoney;
+            lives = data.lives || DIFFICULTIES[currentDifficulty].startLives;
+            wave = data.wave || 0;
+            damageStats = data.damageStats || {};
+            if (data.unlocked) {
+                for (const k in data.unlocked) {
+                    if (unlocked.hasOwnProperty(k)) unlocked[k] = data.unlocked[k];
+                }
+            }
+            for (let i = 0; i < SPOTS.length; i++) SPOTS[i].tower = null;
+            const towers = data.towers || [];
+            for (let i = 0; i < towers.length; i++) {
+                const t = towers[i];
+                const spot = SPOTS[t.idx];
+                if (!spot) continue;
+                const tower = createTower(spot, t.type);
+                if (!tower) continue;
+                tower.level = Math.min(t.level || 1, MAX_TOWER_LEVEL);
+                if (tower.applyLevel) tower.applyLevel();
+                spot.tower = tower;
+                if (t.chronoEvo && tower instanceof ChronoTower) {
+                    tower.evolution = t.chronoEvo;
+                    if (t.chronoEvo === 'A') {
+                        tower.damage = 0;
+                        tower.config = Object.assign({}, tower.config, { name: '時光停滯塔', color: '#a0c0ff' });
+                    } else {
+                        tower.damage *= 1.5;
+                        tower.baseFireInterval = 1.2;
+                        tower.fireInterval = 1.2;
+                        tower.config = Object.assign({}, tower.config, { name: '坍縮迴圈塔', color: '#6a9aff' });
+                    }
+                }
+            }
+            for (const type in unlocked) {
+                const btn = document.querySelector('.shop-btn[data-type="' + type + '"]');
+                if (!btn) continue;
+                if (unlocked[type]) btn.classList.remove('locked');
+                else btn.classList.add('locked');
+            }
+            if (typeof updateUI === 'function') updateUI();
+            return true;
+        } catch (e) { return false; }
+    };
+
+    console.log('[時幻塔] 系統載入完成');
+})();
+</script>
   
 </body>
 </html>
