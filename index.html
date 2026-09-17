@@ -15927,29 +15927,31 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
 
 <script>
 // ============================================================
-// 皮膚彈窗狀態修正
+// 皮膚彈窗狀態修正 v2（修正無限迴圈）
 // ============================================================
 (function() {
     'use strict';
-    console.log('[狀態修正] 載入中...');
+    console.log('[狀態修正v2] 載入中...');
 
     const SKIN_DB = {
-        '經典': { id: 'classic', price: 0, locked: false },
-        '草原': { id: 'grass', price: 0, locked: true, cond: '首次通關「簡單模式」' },
-        '深海': { id: 'deepsea', price: 300, locked: true },
-        '烈焰': { id: 'inferno', price: 400, locked: true },
-        '生物': { id: 'bio', price: 0, locked: true, cond: '首次進化一座塔' },
-        '黃金': { id: 'gold', price: 0, locked: true, cond: '通關「普通模式」' },
-        '暗黑': { id: 'dark', price: 0, locked: true, cond: '通關「困難模式」' },
-        '純白': { id: 'white', price: 0, locked: true, cond: '無損通關任一難度' },
-        '星際': { id: 'space', price: 600, locked: true },
+        '經典': { id: 'classic', price: 0, cond: '' },
+        '草原': { id: 'grass', price: 0, cond: '首次通關「簡單模式」' },
+        '深海': { id: 'deepsea', price: 300, cond: '' },
+        '烈焰': { id: 'inferno', price: 400, cond: '' },
+        '生物': { id: 'bio', price: 0, cond: '首次進化一座塔' },
+        '黃金': { id: 'gold', price: 0, cond: '通關「普通模式」' },
+        '暗黑': { id: 'dark', price: 0, cond: '通關「困難模式」' },
+        '純白': { id: 'white', price: 0, cond: '無損通關任一難度' },
+        '星際': { id: 'space', price: 600, cond: '' },
     };
 
     function readCurrent() {
-        try { return localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; } catch (e) { return 'classic'; }
+        try { return localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; }
+        catch (e) { return 'classic'; }
     }
     function readTickets() {
-        try { return parseInt(localStorage.getItem('towerDefenseSkinTickets_v1') || '0', 10) || 0; } catch (e) { return 0; }
+        try { return parseInt(localStorage.getItem('towerDefenseSkinTickets_v1') || '0', 10) || 0; }
+        catch (e) { return 0; }
     }
     function readUnlocked(id) {
         try {
@@ -15958,179 +15960,116 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
         } catch (e) { return id === 'classic'; }
     }
 
+    // ★ 關鍵：用旗標防止遞迴
+    let _updating = false;
+
     function updateButtonState() {
-        const nameEl = document.getElementById('sdV3Name');
-        const btn = document.getElementById('sdV3ActionFinal') || document.getElementById('sdV3Action2');
-        const condEl = document.getElementById('sdV3Condition');
+        if (_updating) return;
+        _updating = true;
 
-        if (!nameEl || !btn) return;
+        try {
+            const nameEl = document.getElementById('sdV3Name');
+            const btn = document.getElementById('sdV3ActionFinal') || document.getElementById('sdV3Action2');
+            const condEl = document.getElementById('sdV3Condition');
 
-        const skinName = nameEl.textContent;
-        const meta = SKIN_DB[skinName];
-        if (!meta) return;
+            if (!nameEl || !btn) return;
 
-        const current = readCurrent();
-        const unlocked = readUnlocked(meta.id);
-        const tickets = readTickets();
+            const skinName = nameEl.textContent;
+            const meta = SKIN_DB[skinName];
+            if (!meta) return;
 
-        // ============ 已裝備 ============
-        if (current === meta.id) {
-            if (condEl) {
-                condEl.textContent = '✅ 目前使用中';
-                condEl.style.color = '#4ec472';
-                condEl.style.background = 'rgba(78,196,114,0.08)';
-                condEl.style.borderColor = 'rgba(78,196,114,0.4)';
-            }
-            btn.textContent = '已裝備';
-            btn.disabled = true;
-            btn.style.background = '#444';
-            btn.style.color = '#888';
-            btn.style.boxShadow = 'none';
-            btn.style.cursor = 'not-allowed';
-            btn.dataset.action = 'none';
-            return;
-        }
+            const current = readCurrent();
+            const unlocked = readUnlocked(meta.id);
+            const tickets = readTickets();
 
-        // ============ 已解鎖，未裝備 ============
-        if (unlocked) {
-            if (condEl) {
-                condEl.textContent = '✅ 已解鎖';
-                condEl.style.color = '#4ec472';
-                condEl.style.background = 'rgba(78,196,114,0.08)';
-                condEl.style.borderColor = 'rgba(78,196,114,0.4)';
-            }
-            btn.textContent = '使用';
-            btn.disabled = false;
-            btn.style.background = 'linear-gradient(135deg,#ffd700,#ff8800)';
-            btn.style.color = '#0a0a14';
-            btn.style.boxShadow = '0 4px 16px rgba(255,215,0,0.35)';
-            btn.style.cursor = 'pointer';
-            btn.dataset.action = 'use';
-            return;
-        }
-
-        // ============ 商店皮膚（可購買） ============
-        if (meta.price > 0) {
-            if (condEl) {
-                condEl.textContent = '🎟️ 商店購買（' + meta.price + ' 皮膚券）｜你有 ' + tickets + ' 券';
-                condEl.style.color = tickets >= meta.price ? '#ffd700' : '#ff8888';
-                condEl.style.background = 'rgba(255,215,0,0.08)';
-                condEl.style.borderColor = 'rgba(255,215,0,0.3)';
-            }
-            if (tickets >= meta.price) {
-                btn.textContent = '購買（' + meta.price + ' 🎟️）';
-                btn.disabled = false;
-                btn.style.background = 'linear-gradient(135deg,#ffd700,#ff8800)';
-                btn.style.color = '#0a0a14';
-                btn.style.boxShadow = '0 4px 16px rgba(255,215,0,0.35)';
-                btn.style.cursor = 'pointer';
-                btn.dataset.action = 'buy';
-            } else {
-                btn.textContent = '券不足（需 ' + meta.price + ' 🎟️）';
-                btn.disabled = true;
-                btn.style.background = '#444';
-                btn.style.color = '#888';
-                btn.style.boxShadow = 'none';
-                btn.style.cursor = 'not-allowed';
+            // 已裝備
+            if (current === meta.id) {
+                setCond(condEl, '✅ 目前使用中', '#4ec472', 'rgba(78,196,114,0.08)', 'rgba(78,196,114,0.4)');
+                setBtn(btn, '已裝備', true, 'disabled', 'none');
                 btn.dataset.action = 'none';
+                return;
             }
-            return;
-        }
 
-        // ============ 成就皮膚，條件未達成 ============
-        if (condEl) {
-            condEl.textContent = '🔒 ' + (meta.cond || '條件未達成');
-            condEl.style.color = '#ff8888';
-            condEl.style.background = 'rgba(255,136,136,0.08)';
-            condEl.style.borderColor = 'rgba(255,136,136,0.3)';
+            // 已解鎖
+            if (unlocked) {
+                setCond(condEl, '✅ 已解鎖', '#4ec472', 'rgba(78,196,114,0.08)', 'rgba(78,196,114,0.4)');
+                setBtn(btn, '使用', false, 'gold', '0 4px 16px rgba(255,215,0,0.35)');
+                btn.dataset.action = 'use';
+                return;
+            }
+
+            // 商店皮膚
+            if (meta.price > 0) {
+                if (tickets >= meta.price) {
+                    setCond(condEl, '🎟️ 商店購買（' + meta.price + ' 皮膚券）｜你有 ' + tickets + ' 券',
+                            '#ffd700', 'rgba(255,215,0,0.08)', 'rgba(255,215,0,0.3)');
+                    setBtn(btn, '購買（' + meta.price + ' 🎟️）', false, 'gold', '0 4px 16px rgba(255,215,0,0.35)');
+                    btn.dataset.action = 'buy';
+                } else {
+                    setCond(condEl, '🎟️ 商店購買（' + meta.price + ' 皮膚券）｜你有 ' + tickets + ' 券',
+                            '#ff8888', 'rgba(255,215,0,0.08)', 'rgba(255,215,0,0.3)');
+                    setBtn(btn, '券不足（需 ' + meta.price + ' 🎟️）', true, 'disabled', 'none');
+                    btn.dataset.action = 'none';
+                }
+                return;
+            }
+
+            // 成就皮膚，條件未達成
+            setCond(condEl, '🔒 ' + meta.cond, '#ff8888', 'rgba(255,136,136,0.08)', 'rgba(255,136,136,0.3)');
+            setBtn(btn, '條件未達成', true, 'disabled', 'none');
+            btn.dataset.action = 'none';
+        } finally {
+            _updating = false;
         }
-        btn.textContent = '條件未達成';
-        btn.disabled = true;
-        btn.style.background = '#444';
-        btn.style.color = '#888';
-        btn.style.boxShadow = 'none';
-        btn.style.cursor = 'not-allowed';
-        btn.dataset.action = 'none';
     }
 
-    // ============ 監聽彈窗開啟（name 一變就更新按鈕） ============
+    function setCond(el, text, color, bg, border) {
+        if (!el) return;
+        if (el.textContent !== text) el.textContent = text;
+        if (el.style.color !== color) el.style.color = color;
+        if (el.style.background !== bg) el.style.background = bg;
+        if (el.style.borderColor !== border) el.style.borderColor = border;
+    }
+
+    function setBtn(btn, text, disabled, styleType, shadow) {
+        if (!btn) return;
+        if (btn.textContent !== text) btn.textContent = text;
+        if (btn.disabled !== disabled) btn.disabled = disabled;
+
+        let bg, color;
+        if (styleType === 'gold') {
+            bg = 'linear-gradient(135deg,#ffd700,#ff8800)';
+            color = '#0a0a14';
+        } else {
+            bg = '#444';
+            color = '#888';
+        }
+        if (btn.style.background !== bg) btn.style.background = bg;
+        if (btn.style.color !== color) btn.style.color = color;
+        if (btn.style.boxShadow !== shadow) btn.style.boxShadow = shadow;
+        btn.style.cursor = disabled ? 'not-allowed' : 'pointer';
+    }
+
+    // ★ 只監聽 sdV3Name 的文字變化，不監聽整個彈窗
     const nameEl = document.getElementById('sdV3Name');
     if (nameEl) {
         const obs = new MutationObserver(updateButtonState);
         obs.observe(nameEl, { childList: true, characterData: true, subtree: true });
     }
 
-    // ============ 也監聽整個彈窗的變化（防止其他系統覆蓋文字） ============
+    // ★ 只監聽彈窗的 style 屬性變化（開關時觸發一次），不監聽子樹
     const modal = document.getElementById('skinDetailV3');
     if (modal) {
         const obs2 = new MutationObserver(function() {
-            // 只在彈窗可見時才強制更新
             if (modal.style.display === 'flex') {
-                updateButtonState();
+                // 用 setTimeout 避開 mutation 批次處理階段
+                setTimeout(updateButtonState, 0);
             }
         });
-        obs2.observe(modal, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+        obs2.observe(modal, { attributes: true, attributeFilter: ['style'] });
     }
 
-    // ============ 保險：每 100ms 檢查一次按鈕狀態（彈窗可見時） ============
-    let _lastBtnText = '';
-    setInterval(function() {
-        if (!modal || modal.style.display !== 'flex') return;
-        const btn = document.getElementById('sdV3ActionFinal') || document.getElementById('sdV3Action2');
-        if (!btn) return;
-        // 如果按鈕文字跟我們預期的不同，強制修正
-        const nameEl2 = document.getElementById('sdV3Name');
-        if (!nameEl2) return;
-        const skinName = nameEl2.textContent;
-        const meta = SKIN_DB[skinName];
-        if (!meta) return;
-
-        const current = readCurrent();
-        const unlocked = readUnlocked(meta.id);
-        const tickets = readTickets();
-
-        let expectedText = '';
-        if (current === meta.id) expectedText = '已裝備';
-        else if (unlocked) expectedText = '使用';
-        else if (meta.price > 0) {
-            expectedText = tickets >= meta.price ? ('購買（' + meta.price + ' 🎟️）') : ('券不足（需 ' + meta.price + ' 🎟️）');
-        } else expectedText = '條件未達成';
-
-        if (btn.textContent !== expectedText) {
-            updateButtonState();
-        }
-    }, 100);
-
-    // ============ 修正條件文字（防止舊系統覆蓋星際的「商店購買」） ============
-    // 有些舊系統看到「星際」找不到資料，會 fallback 顯示「通關困難模式」。
-    // 我們強制把星際的文字改回來。
-    setInterval(function() {
-        const condEl = document.getElementById('sdV3Condition');
-        const nameEl3 = document.getElementById('sdV3Name');
-        if (!condEl || !nameEl3) return;
-
-        // 只在彈窗可見時修正
-        if (!modal || modal.style.display !== 'flex') return;
-
-        const skinName = nameEl3.textContent;
-        if (skinName === '星際' && condEl.textContent.indexOf('通關') >= 0) {
-            const tickets = readTickets();
-            condEl.textContent = '🎟️ 商店購買（600 皮膚券）｜你有 ' + tickets + ' 券';
-            condEl.style.color = tickets >= 600 ? '#ffd700' : '#ff8888';
-        }
-        if (skinName === '深海' && condEl.textContent.indexOf('通關') >= 0) {
-            const tickets = readTickets();
-            condEl.textContent = '🎟️ 商店購買（300 皮膚券）｜你有 ' + tickets + ' 券';
-            condEl.style.color = tickets >= 300 ? '#ffd700' : '#ff8888';
-        }
-        if (skinName === '烈焰' && condEl.textContent.indexOf('通關') >= 0) {
-            const tickets = readTickets();
-            condEl.textContent = '🎟️ 商店購買（400 皮膚券）｜你有 ' + tickets + ' 券';
-            condEl.style.color = tickets >= 400 ? '#ffd700' : '#ff8888';
-        }
-    }, 150);
-
-    console.log('[狀態修正] 載入完成');
+    console.log('[狀態修正v2] 載入完成');
 })();
 </script>
   
