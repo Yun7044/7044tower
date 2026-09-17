@@ -13725,5 +13725,2205 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
 })();
 </script>
   
+<style>
+.shop-btn[data-type="tachi"] .dot {
+    background: linear-gradient(180deg, #ffb8d8 0%, #FF66B2 45%, #801050 100%);
+    filter: drop-shadow(0 0 5px rgba(255, 102, 178, 0.9));
+}
+</style>
+
+<script>
+// ============================================================
+// 太刀塔系統
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[太刀塔] 系統載入中...');
+
+    // ============ 1. 塔定義 ============
+    TOWER_TYPES.tachi = {
+        name: '太刀塔', cost: 45, baseCost: 45, color: '#FF66B2',
+        fireInterval: 0.9, damage: 18, hitChance: 1, killChance: 0, range: 240,
+    };
+
+    // ============ 2. 商店按鈕 ============
+    const bottomBar = document.getElementById('bottomBar');
+    if (bottomBar && !document.querySelector('.shop-btn[data-type="tachi"]')) {
+        const btn = document.createElement('button');
+        btn.className = 'shop-btn';
+        btn.dataset.type = 'tachi';
+        btn.innerHTML = '<div class="dot"></div><div class="price">45</div>';
+        const purpleBtn = bottomBar.querySelector('[data-type="purple"]');
+        if (purpleBtn) {
+            purpleBtn.parentNode.insertBefore(btn, purpleBtn.nextSibling);
+        } else {
+            bottomBar.insertBefore(btn, bottomBar.firstChild);
+        }
+
+        btn.addEventListener('pointerdown', function(e) {
+            e.preventDefault();
+            if (gameState !== 'playing') return;
+            initAudio();
+            if (shopSelected === 'tachi') {
+                shopSelected = null;
+                btn.classList.remove('selected');
+            } else {
+                shopSelected = 'tachi';
+                selectedTower = null;
+                comboSequence = [];
+                removeMode = false;
+                removeBtn.classList.remove('active');
+                document.querySelectorAll('.shop-btn').forEach(function(b) { b.classList.remove('selected'); });
+                btn.classList.add('selected');
+                updateTowerPanel();
+            }
+        }, { passive: false });
+    }
+
+    // ============ 3. TachiTower 類別 ============
+    function TachiTower(spot) {
+        Tower.call(this, spot, 'tachi');
+        this.evolution = null;
+        this.hasteStacks = 0;
+        this.hasteStacksTimer = 0;
+        this.chargeTimer = 0;
+        this.lastSlash = null;
+    }
+    TachiTower.prototype = Object.create(Tower.prototype);
+    TachiTower.prototype.constructor = TachiTower;
+
+    // 核心：發射邏輯
+    TachiTower.prototype.fire = function(target) {
+        this.fireFlash = 1;
+
+        if (this.evolution === 'B') {
+            this.fireOdachi(target);
+            return;
+        }
+
+        if (this.evolution === 'A') {
+            const dmg = this.damage * 0.5;
+            bullets.push(new SlashBullet(this, target, dmg, 0.55, -0.12));
+            bullets.push(new SlashBullet(this, target, dmg, 0.55, 0.12));
+        } else {
+            bullets.push(new SlashBullet(this, target, this.damage, 1.0, 0));
+        }
+
+        sfxShoot();
+    };
+
+    // 大太刀：180 度扇形即時攻擊
+    TachiTower.prototype.fireOdachi = function(target) {
+        const tp = target.getPos();
+        const baseAngle = Math.atan2(tp.y - this.y, tp.x - this.x);
+        const range = this.range;
+
+        const isCharged = this.chargeTimer > 0;
+        let dmg = this.damage * (isCharged ? 2.0 : 1.0);
+
+        for (let i = 0; i < enemies.length; i++) {
+            const e = enemies[i];
+            if (!e.alive) continue;
+            const p = e.getPos();
+            const dx = p.x - this.x;
+            const dy = p.y - this.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist > range) continue;
+
+            const angle = Math.atan2(dy, dx);
+            let diff = angle - baseAngle;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+
+            if (Math.abs(diff) <= Math.PI / 2) {
+                let actual = e.takeDamage(dmg);
+                if (actual > 0) addDamage('tachi', actual);
+                e._stunTimer = Math.max(e._stunTimer || 0, 0.5);
+                if (isCharged) {
+                    e.distance -= 30;
+                    if (e.distance < 0) e.distance = 0;
+                }
+            }
+        }
+
+        if (isCharged) this.chargeTimer = 0;
+
+        this.lastSlash = {
+            angle: baseAngle,
+            timer: 0.25,
+            maxTimer: 0.25,
+            range: range,
+            charged: isCharged,
+        };
+
+        sfxShoot();
+        if (isCharged) sfxBoss();
+    };
+
+    // 覆寫 update：處理蓄力 + 攻速疊層 + 刀光計時
+    const _prevTowerUpdate = Tower.prototype.update;
+    TachiTower.prototype.update = function(dt) {
+        // 大太刀蓄力
+        if (this.evolution === 'B') {
+            const hasTarget = this.findTarget() !== null;
+            if (!hasTarget) {
+                this.chargeTimer = Math.min(this.chargeTimer + dt, 3.0);
+            }
+            if (this.lastSlash) {
+                this.lastSlash.timer -= dt;
+                if (this.lastSlash.timer <= 0) this.lastSlash = null;
+            }
+        }
+
+        // 雙刀流攻速疊層衰減
+        if (this.evolution === 'A' && this.hasteStacks > 0) {
+            this.hasteStacksTimer -= dt;
+            if (this.hasteStacksTimer <= 0) {
+                this.hasteStacks = 0;
+                if (this.hastedTimer <= 0) {
+                    this.fireInterval = this.baseFireInterval;
+                }
+            }
+        }
+
+        _prevTowerUpdate.call(this, dt);
+    };
+
+    // 命中回呼：雙刀流疊攻速 + 附加流血
+    TachiTower.prototype.onSlashHit = function(enemy, bullet) {
+        if (this.evolution === 'A') {
+            this.hasteStacks = Math.min(5, this.hasteStacks + 1);
+            this.hasteStacksTimer = 3.0;
+            const newInterval = this.baseFireInterval * Math.pow(0.85, this.hasteStacks);
+            if (this.hastedTimer <= 0) {
+                this.fireInterval = newInterval;
+            }
+            // 流血
+            enemy._bleedTimer = 3.0;
+            enemy._bleedDps = this.damage * 0.3;
+        }
+    };
+
+    // 自訂繪製：加上大太刀 180 度刀光 + 蓄力光環
+    const _prevTowerDraw = Tower.prototype.draw;
+    TachiTower.prototype.draw = function() {
+        _prevTowerDraw.call(this);
+
+        // 大太刀刀光
+        if (this.lastSlash) {
+            const s = this.lastSlash;
+            const alpha = s.timer / s.maxTimer;
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(s.angle);
+            ctx.globalAlpha = alpha;
+            ctx.shadowColor = '#FF66B2';
+            ctx.shadowBlur = 25;
+            ctx.fillStyle = s.charged ? 'rgba(255, 200, 230, 0.75)' : 'rgba(255, 102, 178, 0.5)';
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, s.range * 0.9, -Math.PI / 2, Math.PI / 2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // 大太刀蓄力光環
+        if (this.evolution === 'B' && this.chargeTimer > 0) {
+            const t = this.chargeTimer / 3.0;
+            const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 100);
+            ctx.save();
+            ctx.shadowColor = '#FF66B2';
+            ctx.shadowBlur = 20 * t;
+            ctx.strokeStyle = 'rgba(255, 102, 178, ' + (0.4 + t * 0.5 * pulse) + ')';
+            ctx.lineWidth = 3 + t * 3;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 40 + t * 15, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // 雙刀流疊層視覺
+        if (this.evolution === 'A' && this.hasteStacks > 0) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 180, 220, ' + (0.4 + this.hasteStacks * 0.1) + ')';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < this.hasteStacks; i++) {
+                const a = i * Math.PI * 2 / this.hasteStacks + performance.now() / 500;
+                const r = 42;
+                ctx.beginPath();
+                ctx.moveTo(this.x + Math.cos(a) * (r - 6), this.y + Math.sin(a) * (r - 6));
+                ctx.lineTo(this.x + Math.cos(a) * r, this.y + Math.sin(a) * r);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+    };
+
+    // ============ 4. 劍氣子彈 ============
+    function SlashBullet(tower, target, damage, sizeScale, angleOffset) {
+        Bullet.call(this, tower, target);
+        this.color = '#FF66B2';
+        this.damage = damage;
+        this.sizeScale = sizeScale;
+        this.angleOffset = angleOffset || 0;
+        this.spinAngle = Math.random() * Math.PI * 2;
+        this.isSlash = true;
+        this.towerType = 'tachi';
+        this._sourceTower = tower;
+    }
+    SlashBullet.prototype = Object.create(Bullet.prototype);
+    SlashBullet.prototype.constructor = SlashBullet;
+
+    // 覆寫 update：命中後通知塔
+    SlashBullet.prototype.update = function(dt) {
+        if (!this.alive) return;
+        if (!this.target.alive) { this.alive = false; return; }
+        const tp = this.target.getPos();
+        const dx = tp.x - this.x, dy = tp.y - this.y;
+        const dist = Math.hypot(dx, dy), move = this.speed * dt;
+
+        if (dist <= move) {
+            let dmg = this.damage;
+            if (this.critRate > 0 && Math.random() < this.critRate) dmg *= this.critDamage;
+            const actual = this.target.takeDamage(dmg);
+            if (actual > 0) addDamage('tachi', actual);
+
+            if (this._sourceTower && this._sourceTower.onSlashHit) {
+                this._sourceTower.onSlashHit(this.target, this);
+            }
+
+            sfxHit();
+            this.alive = false;
+        } else {
+            this.x += (dx / dist) * move;
+            this.y += (dy / dist) * move;
+        }
+    };
+
+    // 劍氣視覺：旋轉的弧形
+    SlashBullet.prototype.draw = function() {
+        if (!this.alive) return;
+
+        const tp = this.target && this.target.alive ? this.target.getPos() : { x: this.x, y: this.y };
+        const flyAngle = Math.atan2(tp.y - this.y, tp.x - this.x);
+
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(flyAngle + this.spinAngle + this.angleOffset);
+
+        const size = 22 * this.sizeScale;
+        const arcAngle = 1.6;
+
+        ctx.shadowColor = '#FF66B2';
+        ctx.shadowBlur = 14;
+
+        // 外層粉色弧
+        ctx.strokeStyle = '#FF66B2';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(0, 0, size, -arcAngle / 2, arcAngle / 2);
+        ctx.stroke();
+
+        // 內層白色弧
+        ctx.shadowColor = '#FFFFFF';
+        ctx.shadowBlur = 8;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(0, 0, size, -arcAngle / 2, arcAngle / 2);
+        ctx.stroke();
+
+        ctx.restore();
+    };
+
+    // ============ 5. 覆寫 createTower ============
+    const _prevCreateTower = createTower;
+    createTower = function(spot, type) {
+        if (type === 'tachi') return new TachiTower(spot);
+        return _prevCreateTower.call(this, spot, type);
+    };
+
+    // ============ 6. 覆寫 drawTowerIcon：粉色六邊形 + 「斬」字 ============
+    const _prevDrawTowerIcon = drawTowerIcon;
+    drawTowerIcon = function(type, x, y, size) {
+        if (type === 'tachi') {
+            drawTachiIcon(x, y, size);
+            return;
+        }
+        _prevDrawTowerIcon.call(this, type, x, y, size);
+    };
+
+    function drawTachiIcon(x, y, size) {
+        ctx.save();
+
+        // 中央「斬」字
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold ' + (size * 0.58) + 'px "Noto Sans CJK TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        ctx.shadowColor = '#FF66B2';
+        ctx.shadowBlur = 12;
+        ctx.fillText('斬', x, y + 2);
+
+        // 粉色裝飾環
+        ctx.shadowBlur = 8;
+        ctx.strokeStyle = 'rgba(255, 102, 178, 0.85)';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.42, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 兩道斜線（刀痕）
+        ctx.strokeStyle = 'rgba(255, 200, 230, 0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x - size * 0.35, y - size * 0.35);
+        ctx.lineTo(x - size * 0.1, y - size * 0.1);
+        ctx.moveTo(x + size * 0.35, y + size * 0.35);
+        ctx.lineTo(x + size * 0.1, y + size * 0.1);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    // ============ 7. 進化 UI ============
+    function updateTachiEvolveUI() {
+        // 不是太刀塔 → 移除 UI
+        if (!(selectedTower instanceof TachiTower) || selectedTower.evolution || selectedTower.level < 3) {
+            const old = document.getElementById('tachiBranchUI');
+            if (old) old.remove();
+            return;
+        }
+
+        // 已經有 UI → 不重複建立
+        if (document.getElementById('tachiBranchUI')) return;
+
+        const panel = document.getElementById('towerPanel');
+        if (!panel) return;
+
+        const ui = document.createElement('div');
+        ui.id = 'tachiBranchUI';
+        ui.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-top:8px;border-top:1px dashed #555;padding-top:8px;width:100%;';
+        ui.innerHTML =
+            '<button data-branch="A" style="background:#2a1a2a;border:1.5px solid #FF66B2;color:#fff;padding:8px 10px;border-radius:6px;cursor:pointer;text-align:left;font-family:inherit;transition:0.15s;">' +
+                '<div style="font-weight:bold;color:#FF66B2;font-size:13px;">⚔️ 分支 A：雙刀流·塔</div>' +
+                '<div style="font-size:11px;color:#aaa;margin-top:3px;line-height:1.4;">每 0.9 秒揮出兩道半尺寸劍氣，命中疊攻速（最多 5 層），附加流血</div>' +
+            '</button>' +
+            '<button data-branch="B" style="background:#2a1a2a;border:1.5px solid #FF66B2;color:#fff;padding:8px 10px;border-radius:6px;cursor:pointer;text-align:left;font-family:inherit;transition:0.15s;">' +
+                '<div style="font-weight:bold;color:#FF66B2;font-size:13px;">🗡️ 分支 B：大太刀·塔</div>' +
+                '<div style="font-size:11px;color:#aaa;margin-top:3px;line-height:1.4;">180 度巨型劍氣，命中眩暈 0.5 秒，無目標時居合蓄力（傷害翻倍＋擊退）</div>' +
+            '</button>';
+
+        panel.appendChild(ui);
+
+        ui.querySelectorAll('button').forEach(function(btn) {
+            btn.addEventListener('pointerdown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                window.evolveSelectedTower(btn.dataset.branch);
+                ui.remove();
+            }, { passive: false });
+        });
+    }
+    setInterval(updateTachiEvolveUI, 100);
+
+    // ============ 8. 進化執行 ============
+    function evolveTachi(tower, branch) {
+        if (!tower || !(tower instanceof TachiTower) || tower.evolution) return;
+        tower.evolution = branch;
+
+        if (branch === 'A') {
+            tower.baseFireInterval *= 0.9;
+            tower.fireInterval = tower.baseFireInterval;
+            tower.range *= 1.1;
+            tower.config = Object.assign({}, tower.config, { name: '雙刀流·塔', color: '#FF66B2' });
+            log('⚔️ 太刀塔進化為【雙刀流·塔】！', 3000);
+        } else {
+            tower.damage *= 1.5;
+            tower.baseFireInterval *= 2.2;
+            tower.fireInterval = tower.baseFireInterval;
+            tower.range *= 1.3;
+            tower.config = Object.assign({}, tower.config, { name: '大太刀·塔', color: '#FF66B2' });
+            log('🗡️ 太刀塔進化為【大太刀·塔】！', 3000);
+        }
+
+        sfxUpgrade();
+        updateUI();
+        updateTowerPanel();
+        saveGame();
+    }
+
+    // 接管全域 evolveSelectedTower
+    const _prevEvolve = window.evolveSelectedTower;
+    window.evolveSelectedTower = function(branch) {
+        if (selectedTower instanceof TachiTower && !selectedTower.evolution) {
+            evolveTachi(selectedTower, branch);
+            return;
+        }
+        if (typeof _prevEvolve === 'function') _prevEvolve(branch);
+    };
+
+    // ============ 9. 流血 + 眩暈 ============
+    const _prevEnemyUpdate = Enemy.prototype.update;
+    Enemy.prototype.update = function(dt) {
+        if (this.alive && this._bleedTimer > 0) {
+            this._bleedTimer -= dt;
+            const actual = this.takeDamage(this._bleedDps * dt);
+            if (actual > 0) addDamage('tachi', actual);
+        }
+        if (this.alive && this._stunTimer > 0) {
+            this._stunTimer -= dt;
+            this.elapsed += dt;
+            return;
+        }
+        _prevEnemyUpdate.call(this, dt);
+    };
+
+    const _prevEnemyDraw = Enemy.prototype.draw;
+    Enemy.prototype.draw = function() {
+        _prevEnemyDraw.call(this);
+        if (!this.alive) return;
+        const p = this.getPos();
+        const r = this.isBoss ? 22 : 13;
+
+        // 流血光環
+        if (this._bleedTimer > 0) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 102, 178, ' + Math.min(1, this._bleedTimer / 3) + ')';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.lineDashOffset = -performance.now() / 60;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r + 3, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
+
+        // 眩暈星號
+        if (this._stunTimer > 0) {
+            ctx.save();
+            ctx.fillStyle = '#FFD700';
+            ctx.font = 'bold 14px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText('💫', p.x, p.y - r - 8);
+            ctx.restore();
+        }
+    };
+
+    // ============ 10. 存檔整合 ============
+    const _prevSave = saveGame;
+    saveGame = function() {
+        if (!currentDifficulty || gameState !== 'playing') return;
+        try {
+            const towerData = [];
+            for (let i = 0; i < SPOTS.length; i++) {
+                const s = SPOTS[i];
+                if (s.tower) {
+                    const t = s.tower;
+                    // 如果塔已進化過，從 config name 反查它的類型
+                    const evo = (t instanceof TachiTower) ? t.evolution : null;
+                    towerData.push({
+                        idx: i,
+                        type: t.type,
+                        level: t.level,
+                        tachiEvo: evo,
+                    });
+                }
+            }
+            const data = {
+                version: 1,
+                difficulty: currentDifficulty,
+                money: money,
+                lives: lives,
+                wave: wave,
+                damageStats: damageStats,
+                unlocked: Object.assign({}, unlocked),
+                towers: towerData,
+                timestamp: Date.now(),
+            };
+            localStorage.setItem(getSaveKey(), JSON.stringify(data));
+        } catch (e) {}
+    };
+
+    const _prevLoad = loadGame;
+    loadGame = function() {
+        if (!currentDifficulty) return false;
+        try {
+            const raw = localStorage.getItem(getSaveKey());
+            if (!raw) return false;
+            const data = JSON.parse(raw);
+            if (!data || data.version !== 1 || data.difficulty !== currentDifficulty || data.wave === 0) return false;
+            money = data.money || DIFFICULTIES[currentDifficulty].startMoney;
+            lives = data.lives || DIFFICULTIES[currentDifficulty].startLives;
+            wave = data.wave || 0;
+            damageStats = data.damageStats || {};
+            if (data.unlocked) {
+                for (const k in data.unlocked) {
+                    if (unlocked.hasOwnProperty(k)) unlocked[k] = data.unlocked[k];
+                }
+            }
+            for (let i = 0; i < SPOTS.length; i++) SPOTS[i].tower = null;
+            const towers = data.towers || [];
+            for (let i = 0; i < towers.length; i++) {
+                const t = towers[i];
+                const spot = SPOTS[t.idx];
+                if (!spot) continue;
+                const tower = createTower(spot, t.type);
+                if (!tower) continue;
+                tower.level = Math.min(t.level || 1, MAX_TOWER_LEVEL);
+                if (tower.applyLevel) tower.applyLevel();
+                spot.tower = tower;
+
+                // 還原太刀塔進化
+                if (t.tachiEvo && tower instanceof TachiTower) {
+                    tower.evolution = t.tachiEvo;
+                    if (t.tachiEvo === 'A') {
+                        tower.baseFireInterval *= 0.9;
+                        tower.fireInterval = tower.baseFireInterval;
+                        tower.range *= 1.1;
+                        tower.config = Object.assign({}, tower.config, { name: '雙刀流·塔' });
+                    } else {
+                        tower.damage *= 1.5;
+                        tower.baseFireInterval *= 2.2;
+                        tower.fireInterval = tower.baseFireInterval;
+                        tower.range *= 1.3;
+                        tower.config = Object.assign({}, tower.config, { name: '大太刀·塔' });
+                    }
+                }
+            }
+            for (const type in unlocked) {
+                const btn = document.querySelector('.shop-btn[data-type="' + type + '"]');
+                if (!btn) continue;
+                if (unlocked[type]) btn.classList.remove('locked');
+                else btn.classList.add('locked');
+            }
+            updateUI();
+            return true;
+        } catch (e) { return false; }
+    };
+
+    console.log('[太刀塔] 系統載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 太刀塔專屬音效
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[太刀音效] 載入中...');
+
+    // ============ 噪音緩衝（惰性建立） ============
+    let _noiseBuffer = null;
+    function getNoiseBuffer() {
+        if (_noiseBuffer) return _noiseBuffer;
+        if (typeof audioCtx === 'undefined' || !audioCtx) return null;
+        try {
+            const sr = audioCtx.sampleRate;
+            const len = Math.floor(sr * 0.5);
+            const buf = audioCtx.createBuffer(1, len, sr);
+            const data = buf.getChannelData(0);
+            for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+            _noiseBuffer = buf;
+            return buf;
+        } catch (e) { return null; }
+    }
+
+    // ============ 通用噪音播放（帶濾波掃頻） ============
+    function playNoise(opts) {
+        if (typeof audioCtx === 'undefined' || !audioCtx) return;
+        if (typeof muted !== 'undefined' && muted) return;
+        const o = opts || {};
+        const duration = o.duration || 0.15;
+        const filterFrom = o.filterFrom || 5000;
+        const filterTo = o.filterTo || 500;
+        const filterType = o.filterType || 'bandpass';
+        const q = o.q || 1.5;
+        const volume = o.volume || 0.25;
+        const delay = o.delay || 0;
+        try {
+            const buffer = getNoiseBuffer();
+            if (!buffer) return;
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = filterType;
+            filter.Q.value = q;
+            const gain = audioCtx.createGain();
+            const t = audioCtx.currentTime + delay;
+            filter.frequency.setValueAtTime(filterFrom, t);
+            filter.frequency.exponentialRampToValueAtTime(Math.max(50, filterTo), t + duration);
+            gain.gain.setValueAtTime(0.001, t);
+            gain.gain.linearRampToValueAtTime(volume, t + 0.008);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+            source.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            source.start(t);
+            source.stop(t + duration + 0.02);
+        } catch (e) {}
+    }
+
+    // ============ 音效庫 ============
+
+    // 太刀塔基礎：迅捷的「咻」
+    function sfxTachiSlash() {
+        if (typeof throttled !== 'function') return;
+        throttled('tachi_slash', 60, function() {
+            playNoise({
+                duration: 0.16,
+                filterFrom: 6500,
+                filterTo: 700,
+                q: 2.2,
+                volume: 0.16,
+            });
+            try {
+                playTone({ freq: 2400, slideTo: 800, duration: 0.1, type: 'triangle', volume: 0.06 });
+            } catch (e) {}
+        });
+    }
+
+    // 雙刀流：兩道交錯劍氣「颯、颯」
+    function sfxTachiDouble() {
+        if (typeof throttled !== 'function') return;
+        throttled('tachi_double', 80, function() {
+            playNoise({
+                duration: 0.13,
+                filterFrom: 7200,
+                filterTo: 900,
+                q: 2.5,
+                volume: 0.15,
+                delay: 0,
+            });
+            playNoise({
+                duration: 0.13,
+                filterFrom: 7200,
+                filterTo: 900,
+                q: 2.5,
+                volume: 0.15,
+                delay: 0.07,
+            });
+            try {
+                playTone({ freq: 2600, slideTo: 1000, duration: 0.08, type: 'triangle', volume: 0.05 });
+                playTone({ freq: 2600, slideTo: 1000, duration: 0.08, type: 'triangle', volume: 0.05, delay: 0.07 });
+            } catch (e) {}
+        });
+    }
+
+    // 大太刀：刀身破空的「唰——」
+    function sfxTachiOdachi(charged) {
+        if (typeof throttled !== 'function') return;
+        throttled('tachi_odachi', 100, function() {
+            const vol = charged ? 1.4 : 1.0;
+
+            // 1. 主刀身：極高頻快速下滑（「唰」的核心）
+            playNoise({
+                duration: 0.28,
+                filterFrom: 9500,
+                filterTo: 1100,
+                filterType: 'bandpass',
+                q: 2.8,
+                volume: 0.28 * vol,
+            });
+
+            // 2. 空氣包覆層：稍微慢一點、更寬的呼聲
+            playNoise({
+                duration: 0.38,
+                filterFrom: 3500,
+                filterTo: 450,
+                filterType: 'lowpass',
+                q: 1.2,
+                volume: 0.12 * vol,
+                delay: 0.03,
+            });
+
+            // 3. 金屬劍刃泛音（很輕）
+            try {
+                playTone({ freq: 3800, slideTo: 1400, duration: 0.12, type: 'sine', volume: 0.05 * vol });
+                playTone({ freq: 5200, slideTo: 2200, duration: 0.08, type: 'sine', volume: 0.03 * vol, delay: 0.015 });
+            } catch (e) {}
+
+            // 4. 居合：額外的高頻尖銳爆音
+            if (charged) {
+                playNoise({
+                    duration: 0.5,
+                    filterFrom: 12000,
+                    filterTo: 1800,
+                    filterType: 'bandpass',
+                    q: 2.2,
+                    volume: 0.20,
+                    delay: 0.04,
+                });
+                try {
+                    playTone({ freq: 7000, slideTo: 900, duration: 0.3, type: 'sine', volume: 0.08, delay: 0.05 });
+                } catch (e) {}
+            }
+        });
+    }
+
+    // 大太刀蓄力：金屬共振（「嗡——」）
+    function sfxTachiCharge() {
+        if (typeof throttled !== 'function') return;
+        throttled('tachi_charge', 900, function() {
+            try {
+                // 稍微高一點的共鳴，避免像扣血
+                playTone({ freq: 420, slideTo: 780, duration: 0.9, type: 'sine', volume: 0.035 });
+                playTone({ freq: 630, slideTo: 1170, duration: 0.85, type: 'sine', volume: 0.022, delay: 0.06 });
+            } catch (e) {}
+        });
+    }
+
+    // 命中：清脆的「鏘」
+    function sfxTachiHit() {
+        if (typeof throttled !== 'function') return;
+        throttled('tachi_hit', 70, function() {
+            try {
+                playTone({ freq: 3200, slideTo: 1600, duration: 0.06, type: 'triangle', volume: 0.07 });
+                playNoise({
+                    duration: 0.05,
+                    filterFrom: 8000,
+                    filterTo: 3000,
+                    q: 3,
+                    volume: 0.06,
+                });
+            } catch (e) {}
+        });
+    }
+
+    // ============ 偵測太刀塔開火（輪詢子彈陣列） ============
+    let _lastBulletCount = 0;
+
+    setInterval(function() {
+        if (typeof gameState === 'undefined' || gameState !== 'playing') return;
+        if (typeof bullets === 'undefined') return;
+
+        let count = 0;
+        let hasSmall = false;
+        for (let i = 0; i < bullets.length; i++) {
+            const b = bullets[i];
+            if (b.towerType === 'tachi' && b.alive && b.isSlash) {
+                count++;
+                if (b.sizeScale !== undefined && b.sizeScale < 0.8) hasSmall = true;
+            }
+        }
+
+        if (count > _lastBulletCount) {
+            const diff = count - _lastBulletCount;
+            if (diff >= 2 || hasSmall) {
+                sfxTachiDouble();
+            } else {
+                sfxTachiSlash();
+            }
+        }
+
+        _lastBulletCount = count;
+    }, 25);
+
+    // ============ 偵測大太刀刀光 + 蓄力 ============
+    const _lastOdachiState = new WeakMap();
+
+    setInterval(function() {
+        if (typeof gameState === 'undefined' || gameState !== 'playing') return;
+        if (typeof SPOTS === 'undefined') return;
+
+        for (let i = 0; i < SPOTS.length; i++) {
+            const t = SPOTS[i].tower;
+            if (!t) continue;
+            if (!t.config || t.config.name !== '大太刀·塔') continue;
+
+            // 刀光：剛生成時 timer 會是 0.25
+            const currTimer = t.lastSlash ? t.lastSlash.timer : 0;
+            const prevState = _lastOdachiState.get(t) || { slashTimer: 0, charge: 0 };
+
+            if (currTimer > 0.2 && prevState.slashTimer < 0.2) {
+                // 剛揮刀
+                const charged = t.lastSlash && t.lastSlash.charged;
+                sfxTachiOdachi(charged);
+            }
+
+            // 蓄力：chargeTimer 上升時持續播放低鳴
+            const currCharge = t.chargeTimer || 0;
+            if (currCharge > 0.5 && currCharge > prevState.charge) {
+                sfxTachiCharge();
+            }
+
+            _lastOdachiState.set(t, { slashTimer: currTimer, charge: currCharge });
+        }
+    }, 50);
+
+    // ============ 劍氣命中音效 ============
+    // 包裝 addDamage：偵測太刀傷害，播放清脆命中的「鏘」
+    if (typeof addDamage === 'function') {
+        const _origAddDamage = addDamage;
+        addDamage = function(type, amount) {
+            if (type === 'tachi' && amount > 0) {
+                sfxTachiHit();
+            }
+            return _origAddDamage.call(this, type, amount);
+        };
+    }
+
+    console.log('[太刀音效] 載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 新皮膚：星際（圖片模式）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[星際] 皮膚系統載入中...');
+
+    const SKIN_ID = 'space';
+    const SKIN_NAME = '星際';
+    const SKIN_PRICE = 600;
+    const GAME_BG = 'bg-game-space.jpg';
+    const HALL_BG = 'bg-hall-space.jpg';
+
+    // ============ 預先載入圖片 ============
+    const gameBgImg = new Image();
+    gameBgImg.src = GAME_BG;
+    gameBgImg.onload = function() {
+        console.log('[星際] 遊戲內背景載入成功：' + gameBgImg.naturalWidth + 'x' + gameBgImg.naturalHeight);
+    };
+    gameBgImg.onerror = function() {
+        console.error('[星際] ❌ 找不到 ' + GAME_BG);
+    };
+
+    // ============ 註冊皮膚到系統 ============
+    // 皮膚列表
+    const SKIN_LIST_KEY = 'towerDefenseSkinList_v1';
+    try {
+        let list = JSON.parse(localStorage.getItem(SKIN_LIST_KEY) || '[]');
+        if (list.indexOf(SKIN_ID) < 0) {
+            list.push(SKIN_ID);
+            localStorage.setItem(SKIN_LIST_KEY, JSON.stringify(list));
+        }
+    } catch (e) {}
+
+    // ============ 覆寫 drawBackground ============
+    const _prevDrawBackground = drawBackground;
+    drawBackground = function() {
+        // 判斷當前皮膚是不是星際
+        let currentSkin = 'classic';
+        try {
+            currentSkin = localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic';
+        } catch (e) {}
+
+        if (currentSkin === SKIN_ID && gameBgImg.complete && gameBgImg.naturalWidth > 0) {
+            // 用圖片當背景
+            ctx.drawImage(gameBgImg, 0, 0, BASE_W, BASE_H);
+
+            // 疊一層淡紫色漸層，讓路徑和塔更清楚
+            const overlay = ctx.createLinearGradient(0, 0, 0, BASE_H);
+            overlay.addColorStop(0, 'rgba(20, 5, 40, 0.15)');
+            overlay.addColorStop(0.5, 'rgba(10, 3, 25, 0.25)');
+            overlay.addColorStop(1, 'rgba(5, 2, 15, 0.45)');
+            ctx.fillStyle = overlay;
+            ctx.fillRect(0, 0, BASE_W, BASE_H);
+
+            return;
+        }
+
+        // 其他皮膚走原本的邏輯
+        _prevDrawBackground.call(this);
+    };
+
+    // ============ 覆寫 drawPath（星際皮膚路徑變淡） ============
+    const _prevDrawPath = drawPath;
+    drawPath = function() {
+        let currentSkin = 'classic';
+        try {
+            currentSkin = localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic';
+        } catch (e) {}
+
+        if (currentSkin === SKIN_ID) {
+            // 星際皮膚：路徑透明度降低，避免跟圖片打架
+            ctx.save();
+            ctx.globalAlpha = 0.35; // 原本是 1.0，降到 35%
+            _prevDrawPath.call(this);
+            ctx.restore();
+            return;
+        }
+
+        _prevDrawPath.call(this);
+    };
+
+    // ============ 覆寫 drawHexSpot（星際皮膚塔位半透明） ============
+    const _prevDrawHexSpot = drawHexSpot;
+    drawHexSpot = function(cx, cy, half, opts) {
+        let currentSkin = 'classic';
+        try {
+            currentSkin = localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic';
+        } catch (e) {}
+
+        if (currentSkin === SKIN_ID) {
+            // 只畫發光邊框，不填色（因為圖裡已經有塔位了）
+            const r = half * 0.98;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 180, 255, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#c060ff';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const a = -Math.PI / 2 + i * Math.PI / 3;
+                const px = cx + Math.cos(a) * r;
+                const py = cy + Math.sin(a) * r;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+            return;
+        }
+
+        _prevDrawHexSpot.call(this, cx, cy, half, opts);
+    };
+
+    // ============ 大廳背景 ============
+    const _skinBgMap = {
+        space: HALL_BG,
+    };
+
+    function applyHallBg() {
+        let currentSkin = 'classic';
+        try {
+            currentSkin = localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic';
+        } catch (e) {}
+
+        const menu = document.getElementById('mainMenu');
+        if (!menu) return;
+
+        const bgFile = _skinBgMap[currentSkin];
+        const overlay = 'linear-gradient(180deg, rgba(10,5,25,0.15) 0%, rgba(5,2,15,0.4) 50%, rgba(5,2,15,0.75) 100%)';
+
+        if (bgFile) {
+            menu.style.background = overlay + ', url("' + bgFile + '") center center / cover no-repeat';
+            console.log('[星際] 套用大廳背景：' + bgFile);
+        }
+    }
+
+    let _lastSkinSeen = '';
+    try { _lastSkinSeen = localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; } catch (e) {}
+    applyHallBg();
+
+    setInterval(function() {
+        let cur = 'classic';
+        try { cur = localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; } catch (e) {}
+        if (cur !== _lastSkinSeen) {
+            _lastSkinSeen = cur;
+            applyHallBg();
+        }
+    }, 300);
+
+    // ============ 在皮膚面板加一張卡片 ============
+    function injectSkinCard() {
+        const grid = document.getElementById('skinGridV3');
+        if (!grid) return;
+        if (grid.querySelector('[data-skin-id="space"]')) return;
+
+        let unlocked = false;
+        let isEquipped = false;
+        try {
+            const raw = localStorage.getItem('towerDefenseUnlockedSkins_v1');
+            const obj = raw ? JSON.parse(raw) : {};
+            unlocked = obj[SKIN_ID] === true;
+            isEquipped = (localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic') === SKIN_ID;
+        } catch (e) {}
+
+        let badge = '';
+        let cardStyle = 'background:linear-gradient(135deg,rgba(30,20,60,0.9),rgba(15,10,35,0.9));border:2px solid #33335a;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;transition:0.2s;cursor:pointer;position:relative;overflow:hidden;';
+
+        if (isEquipped) {
+            cardStyle += 'border-color:#4ec472;box-shadow:0 0 16px rgba(78,196,114,0.4);';
+            badge = '<div style="position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:#4ec472;color:#0a0a14;letter-spacing:1px;z-index:2;">使用中</div>';
+        } else if (unlocked) {
+            badge = '<div style="position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(0,0,0,0.75);color:#ccc;letter-spacing:1px;z-index:2;">已解鎖</div>';
+        } else {
+            cardStyle += 'opacity:0.68;';
+            badge = '<div style="position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(60,20,20,0.85);color:#ff8888;letter-spacing:1px;z-index:2;">🔒 鎖定</div>';
+        }
+
+        const card = document.createElement('div');
+        card.className = 'skin-card-v3';
+        card.dataset.skinId = SKIN_ID;
+        card.style.cssText = cardStyle;
+        card.innerHTML =
+            badge +
+            '<div style="width:100%;aspect-ratio:1.6/1;border-radius:8px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.15);background:url(' + HALL_BG + ') center/cover;">' +
+                '<div style="position:absolute;bottom:12%;left:50%;width:16%;aspect-ratio:1;transform:translateX(-50%);clip-path:polygon(50% 0%,82% 30%,68% 100%,32% 100%,18% 30%);background:linear-gradient(180deg,#fff 0%,#c060ff 100%);box-shadow:0 0 12px #a060ff;"></div>' +
+            '</div>' +
+            '<div style="font-size:14px;font-weight:800;color:#fff;letter-spacing:1px;">' + SKIN_NAME + '</div>' +
+            '<div style="font-size:11px;color:#888;line-height:1.4;min-height:30px;">深邃宇宙、星艦軌道、黑洞奇點。最精緻的皮膚。</div>';
+
+        grid.appendChild(card);
+
+        card.addEventListener('click', function() {
+            openSkinDetail(SKIN_ID);
+        });
+    }
+
+    // ============ 詳情彈窗（複製皮膚4的邏輯，但為星際皮膚訂製） ============
+    function openSkinDetail(id) {
+        const modal = document.getElementById('skinDetailV3');
+        if (!modal) return;
+
+        // 手動填入內容
+        const previewEl = document.getElementById('sdV3Preview');
+        if (previewEl) {
+            previewEl.innerHTML = '<div style="position:absolute;inset:0;background:url(' + HALL_BG + ') center/cover;"></div>' +
+                '<div style="position:absolute;bottom:12%;left:50%;width:16%;aspect-ratio:1;transform:translateX(-50%);clip-path:polygon(50% 0%,82% 30%,68% 100%,32% 100%,18% 30%);background:linear-gradient(180deg,#fff 0%,#c060ff 100%);box-shadow:0 0 15px #a060ff;"></div>';
+        }
+        document.getElementById('sdV3Name').textContent = SKIN_NAME;
+        document.getElementById('sdV3Desc').textContent = '深邃宇宙、星艦軌道、黑洞奇點。最精緻的皮膚。';
+
+        const current = (function() { try { return localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; } catch (e) { return 'classic'; } })();
+        const unlocked = (function() {
+            try { const o = JSON.parse(localStorage.getItem('towerDefenseUnlockedSkins_v1') || '{}'); return o[id] === true; } catch (e) { return false; }
+        })();
+        const tickets = (function() { try { return parseInt(localStorage.getItem('towerDefenseSkinTickets_v1') || '0', 10) || 0; } catch (e) { return 0; } })();
+
+        const condEl = document.getElementById('sdV3Condition');
+        const actionBtn = document.getElementById('sdV3Action2');
+        const placeholder = document.getElementById('sdV3Action');
+        const cond = unlocked ? '✅ 已解鎖' : '🎟️ 商店購買（' + SKIN_PRICE + ' 皮膚券）｜你有 ' + tickets + ' 券';
+        if (condEl) {
+            condEl.textContent = cond;
+            condEl.style.color = unlocked ? '#4ec472' : '#ffd700';
+        }
+
+        // 佔位元素（給舊版 openDetail 用）
+        if (placeholder) {
+            placeholder.textContent = '使用';
+            placeholder.disabled = false;
+        }
+
+        if (actionBtn) {
+            if (id === current) {
+                actionBtn.textContent = '已裝備';
+                actionBtn.disabled = true;
+                actionBtn.style.background = '#444';
+                actionBtn.style.color = '#888';
+            } else if (unlocked) {
+                actionBtn.textContent = '使用';
+                actionBtn.disabled = false;
+                actionBtn.style.background = 'linear-gradient(135deg,#ffd700,#ff8800)';
+                actionBtn.style.color = '#0a0a14';
+            } else if (tickets >= SKIN_PRICE) {
+                actionBtn.textContent = '購買（' + SKIN_PRICE + ' 🎟️）';
+                actionBtn.disabled = false;
+                actionBtn.style.background = 'linear-gradient(135deg,#ffd700,#ff8800)';
+                actionBtn.style.color = '#0a0a14';
+            } else {
+                actionBtn.textContent = '券不足（需 ' + SKIN_PRICE + ' 🎟️）';
+                actionBtn.disabled = true;
+                actionBtn.style.background = '#444';
+                actionBtn.style.color = '#888';
+            }
+        }
+
+        // 用弱引用記錄當前顯示的皮膚 id
+        modal.dataset.skinId = id;
+
+        modal.style.display = 'flex';
+        // 隔離皮膚面板
+        const panel = document.getElementById('skinPanelV3');
+        if (panel) {
+            panel.style.pointerEvents = 'none';
+            panel.style.opacity = '0.4';
+        }
+    }
+
+    // ============ 攔截 sdV3Action2 的點擊（星際皮膚專用邏輯） ============
+    const _sdAction2 = document.getElementById('sdV3Action2');
+    if (_sdAction2) {
+        // 先移除舊監聽（用 clone 的方式太暴力，這裡用旗標）
+        _sdAction2.addEventListener('pointerdown', function(e) {
+            const modal = document.getElementById('skinDetailV3');
+            if (!modal) return;
+            const id = modal.dataset.skinId;
+            if (id !== SKIN_ID) return; // 不是星際皮膚，讓其他 handler 處理
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const tickets = (function() { try { return parseInt(localStorage.getItem('towerDefenseSkinTickets_v1') || '0', 10) || 0; } catch (e) { return 0; } })();
+            const unlocked = (function() {
+                try { const o = JSON.parse(localStorage.getItem('towerDefenseUnlockedSkins_v1') || '{}'); return o[id] === true; } catch (e) { return false; }
+            })();
+
+            if (unlocked) {
+                // 直接裝備
+                try { localStorage.setItem('towerDefenseCurrentSkin_v1', id); } catch (err) {}
+                if (typeof log === 'function') log('🎨 已裝備：' + SKIN_NAME, 2000);
+                if (typeof sfxPlace === 'function') sfxPlace();
+                modal.style.display = 'none';
+                const panel = document.getElementById('skinPanelV3');
+                if (panel) { panel.style.pointerEvents = 'auto'; panel.style.opacity = '1'; }
+                // 關掉再開皮膚面板以刷新
+                if (panel) {
+                    panel.style.display = 'none';
+                    setTimeout(function() {
+                        const btn = document.getElementById('skinBtnV3');
+                        if (btn) btn.click();
+                    }, 50);
+                }
+                return;
+            }
+
+            if (tickets >= SKIN_PRICE) {
+                if (confirm('確定花 ' + SKIN_PRICE + ' 皮膚券購買「' + SKIN_NAME + '」嗎？')) {
+                    try {
+                        localStorage.setItem('towerDefenseSkinTickets_v1', String(tickets - SKIN_PRICE));
+                        const u = JSON.parse(localStorage.getItem('towerDefenseUnlockedSkins_v1') || '{}');
+                        u[id] = true;
+                        localStorage.setItem('towerDefenseUnlockedSkins_v1', JSON.stringify(u));
+                        localStorage.setItem('towerDefenseCurrentSkin_v1', id);
+                    } catch (err) {}
+                    if (typeof log === 'function') log('🎨 購買並裝備：' + SKIN_NAME, 2500);
+                    if (typeof sfxGold === 'function') sfxGold();
+                    modal.style.display = 'none';
+                    const panel = document.getElementById('skinPanelV3');
+                    if (panel) { panel.style.pointerEvents = 'auto'; panel.style.opacity = '1'; }
+                    if (panel) {
+                        panel.style.display = 'none';
+                        setTimeout(function() {
+                            const btn = document.getElementById('skinBtnV3');
+                            if (btn) btn.click();
+                        }, 50);
+                    }
+                }
+            }
+        }, true); // 捕獲階段，優先執行
+    }
+
+    // ============ 每次面板開啟時注入卡片 ============
+    setInterval(injectSkinCard, 300);
+
+    console.log('[星際] 皮膚系統載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 星際皮膚：修復點擊與購買
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[星際2] 修復載入中...');
+
+    const SKIN_ID = 'space';
+    const SKIN_NAME = '星際';
+    const SKIN_PRICE = 600;
+    const HALL_BG = 'bg-hall-space.jpg';
+
+    function readCurrent() {
+        try { return localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; }
+        catch (e) { return 'classic'; }
+    }
+    function readTickets() {
+        try { return parseInt(localStorage.getItem('towerDefenseSkinTickets_v1') || '0', 10) || 0; }
+        catch (e) { return 0; }
+    }
+    function readUnlocked(id) {
+        try {
+            const o = JSON.parse(localStorage.getItem('towerDefenseUnlockedSkins_v1') || '{}');
+            return o[id] === true || id === 'classic';
+        } catch (e) { return id === 'classic'; }
+    }
+    function writeCurrent(id) {
+        try { localStorage.setItem('towerDefenseCurrentSkin_v1', id); } catch (e) {}
+    }
+    function writeTickets(n) {
+        try { localStorage.setItem('towerDefenseSkinTickets_v1', String(Math.max(0, Math.floor(n)))); } catch (e) {}
+    }
+    function writeUnlocked(id, val) {
+        try {
+            const o = JSON.parse(localStorage.getItem('towerDefenseUnlockedSkins_v1') || '{}');
+            o[id] = val;
+            localStorage.setItem('towerDefenseUnlockedSkins_v1', JSON.stringify(o));
+        } catch (e) {}
+    }
+
+    // ============ 開啟星際詳情彈窗 ============
+    function openSpaceDetail() {
+        console.log('[星際2] 開啟星際皮膚詳情');
+        const modal = document.getElementById('skinDetailV3');
+        if (!modal) {
+            console.error('[星際2] ❌ 找不到 skinDetailV3');
+            return;
+        }
+
+        const preview = document.getElementById('sdV3Preview');
+        if (preview) {
+            preview.innerHTML =
+                '<div style="position:absolute;inset:0;background:url(' + HALL_BG + ') center/cover;"></div>' +
+                '<div style="position:absolute;bottom:12%;left:50%;width:16%;aspect-ratio:1;transform:translateX(-50%);clip-path:polygon(50% 0%,82% 30%,68% 100%,32% 100%,18% 30%);background:linear-gradient(180deg,#fff 0%,#c060ff 100%);box-shadow:0 0 15px #a060ff;"></div>';
+        }
+
+        const nameEl = document.getElementById('sdV3Name');
+        if (nameEl) nameEl.textContent = SKIN_NAME;
+
+        const descEl = document.getElementById('sdV3Desc');
+        if (descEl) descEl.textContent = '深邃宇宙、星艦軌道、黑洞奇點。最精緻的皮膚。';
+
+        modal.dataset.skinId = SKIN_ID;
+        updateActionButton();
+        modal.style.display = 'flex';
+
+        const panel = document.getElementById('skinPanelV3');
+        if (panel) {
+            panel.style.pointerEvents = 'none';
+            panel.style.opacity = '0.4';
+        }
+    }
+
+    // ============ 更新按鈕狀態 ============
+    function updateActionButton() {
+        const condEl = document.getElementById('sdV3Condition');
+        const actionBtn = document.getElementById('sdV3Action2');
+        if (!actionBtn) return;
+
+        const current = readCurrent();
+        const unlocked = readUnlocked(SKIN_ID);
+        const tickets = readTickets();
+
+        if (current === SKIN_ID) {
+            if (condEl) { condEl.textContent = '✅ 目前使用中'; condEl.style.color = '#4ec472'; }
+            actionBtn.textContent = '已裝備';
+            actionBtn.disabled = true;
+            actionBtn.style.background = '#444';
+            actionBtn.style.color = '#888';
+            return;
+        }
+        if (unlocked) {
+            if (condEl) { condEl.textContent = '✅ 已解鎖'; condEl.style.color = '#4ec472'; }
+            actionBtn.textContent = '使用';
+            actionBtn.disabled = false;
+            actionBtn.style.background = 'linear-gradient(135deg,#ffd700,#ff8800)';
+            actionBtn.style.color = '#0a0a14';
+            return;
+        }
+        if (condEl) {
+            condEl.textContent = '🎟️ 商店購買（' + SKIN_PRICE + ' 皮膚券）｜你有 ' + tickets + ' 券';
+            condEl.style.color = tickets >= SKIN_PRICE ? '#ffd700' : '#ff8888';
+        }
+        if (tickets >= SKIN_PRICE) {
+            actionBtn.textContent = '購買（' + SKIN_PRICE + ' 🎟️）';
+            actionBtn.disabled = false;
+            actionBtn.style.background = 'linear-gradient(135deg,#ffd700,#ff8800)';
+            actionBtn.style.color = '#0a0a14';
+        } else {
+            actionBtn.textContent = '券不足（需 ' + SKIN_PRICE + ' 🎟️）';
+            actionBtn.disabled = true;
+            actionBtn.style.background = '#444';
+            actionBtn.style.color = '#888';
+        }
+    }
+
+    function restoreSkinPanel() {
+        const panel = document.getElementById('skinPanelV3');
+        if (panel) {
+            panel.style.pointerEvents = 'auto';
+            panel.style.opacity = '1';
+        }
+    }
+
+    function refreshPanel() {
+        const panel = document.getElementById('skinPanelV3');
+        if (!panel) return;
+        panel.style.display = 'none';
+        setTimeout(function() {
+            const btn = document.getElementById('skinBtnV3');
+            if (btn) btn.click();
+        }, 50);
+    }
+
+    // ============ 監聽 modal 關閉 → 恢復面板 ============
+    const modal = document.getElementById('skinDetailV3');
+    if (modal) {
+        const obs = new MutationObserver(function() {
+            if (modal.style.display === 'none') restoreSkinPanel();
+        });
+        obs.observe(modal, { attributes: true, attributeFilter: ['style'] });
+    }
+
+    // ============ ★ 關鍵：document 層級捕獲，搶在所有系統之前 ============
+    document.addEventListener('click', function(e) {
+        if (!e.target || !e.target.closest) return;
+        const card = e.target.closest('.skin-card-v3');
+        if (!card) return;
+        if (card.dataset.skinId !== SKIN_ID) return;
+
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        console.log('[星際2] ★ 攔截到星際卡片點擊');
+        openSpaceDetail();
+    }, true);
+
+    // ============ ★ 攔截 sdV3Action2 按鈕 ============
+    document.addEventListener('pointerdown', function(e) {
+        if (!e.target || e.target.id !== 'sdV3Action2') return;
+        const m = document.getElementById('skinDetailV3');
+        if (!m || m.dataset.skinId !== SKIN_ID) return;
+
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        console.log('[星際2] ★ 攔截到行動按鈕點擊');
+
+        const current = readCurrent();
+        const unlocked = readUnlocked(SKIN_ID);
+        const tickets = readTickets();
+
+        if (current === SKIN_ID) return;
+
+        if (unlocked) {
+            writeCurrent(SKIN_ID);
+            if (typeof log === 'function') log('🎨 已裝備：' + SKIN_NAME, 2000);
+            if (typeof sfxPlace === 'function') sfxPlace();
+            m.style.display = 'none';
+            refreshPanel();
+            return;
+        }
+
+        if (tickets >= SKIN_PRICE) {
+            if (confirm('確定花 ' + SKIN_PRICE + ' 皮膚券購買「' + SKIN_NAME + '」嗎？')) {
+                writeTickets(tickets - SKIN_PRICE);
+                writeUnlocked(SKIN_ID, true);
+                writeCurrent(SKIN_ID);
+                if (typeof log === 'function') log('🎨 購買並裝備：' + SKIN_NAME, 2500);
+                if (typeof sfxGold === 'function') sfxGold();
+                m.style.display = 'none';
+                refreshPanel();
+            }
+        } else {
+            if (typeof log === 'function') log('🎟️ 皮膚券不足（需 ' + SKIN_PRICE + '）', 2000);
+        }
+    }, true);
+
+    // ============ 確保卡片一直存在（防止被 renderAll 洗掉） ============
+    setInterval(function() {
+        const grid = document.getElementById('skinGridV3');
+        if (!grid) return;
+        if (grid.querySelector('[data-skin-id="space"]')) return;
+
+        // 檢查面板是否開啟
+        const panel = document.getElementById('skinPanelV3');
+        if (!panel || panel.style.display === 'none') return;
+
+        // 重新注入
+        const unlocked = readUnlocked(SKIN_ID);
+        const current = readCurrent();
+        const isEquipped = current === SKIN_ID;
+
+        let badge = '';
+        let cardStyle = 'background:linear-gradient(135deg,rgba(30,20,60,0.9),rgba(15,10,35,0.9));border:2px solid #33335a;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;transition:0.2s;cursor:pointer;position:relative;overflow:hidden;';
+
+        if (isEquipped) {
+            cardStyle += 'border-color:#4ec472;box-shadow:0 0 16px rgba(78,196,114,0.4);';
+            badge = '<div style="position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:#4ec472;color:#0a0a14;letter-spacing:1px;z-index:2;">使用中</div>';
+        } else if (unlocked) {
+            badge = '<div style="position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(0,0,0,0.75);color:#ccc;letter-spacing:1px;z-index:2;">已解鎖</div>';
+        } else {
+            cardStyle += 'opacity:0.68;';
+            badge = '<div style="position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(60,20,20,0.85);color:#ff8888;letter-spacing:1px;z-index:2;">🔒 鎖定</div>';
+        }
+
+        const card = document.createElement('div');
+        card.className = 'skin-card-v3';
+        card.dataset.skinId = SKIN_ID;
+        card.style.cssText = cardStyle;
+        card.innerHTML =
+            badge +
+            '<div style="width:100%;aspect-ratio:1.6/1;border-radius:8px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.15);background:url(' + HALL_BG + ') center/cover;">' +
+                '<div style="position:absolute;bottom:12%;left:50%;width:16%;aspect-ratio:1;transform:translateX(-50%);clip-path:polygon(50% 0%,82% 30%,68% 100%,32% 100%,18% 30%);background:linear-gradient(180deg,#fff 0%,#c060ff 100%);box-shadow:0 0 12px #a060ff;"></div>' +
+            '</div>' +
+            '<div style="font-size:14px;font-weight:800;color:#fff;letter-spacing:1px;">' + SKIN_NAME + '</div>' +
+            '<div style="font-size:11px;color:#888;line-height:1.4;min-height:30px;">深邃宇宙、星艦軌道、黑洞奇點。最精緻的皮膚。</div>';
+
+        grid.appendChild(card);
+        console.log('[星際2] 卡片已注入');
+    }, 200);
+
+    console.log('[星際2] 修復載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 星際皮膚：修正切換邏輯
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[星際3] 修正載入中...');
+
+    const SKIN_ID = 'space';
+    const SKIN_NAME = '星際';
+    const SKIN_PRICE = 600;
+    const HALL_BG = 'bg-hall-space.jpg';
+
+    function readCurrent() {
+        try { return localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; } catch (e) { return 'classic'; }
+    }
+    function readTickets() {
+        try { return parseInt(localStorage.getItem('towerDefenseSkinTickets_v1') || '0', 10) || 0; } catch (e) { return 0; }
+    }
+    function readUnlocked(id) {
+        try {
+            const o = JSON.parse(localStorage.getItem('towerDefenseUnlockedSkins_v1') || '{}');
+            return o[id] === true || id === 'classic';
+        } catch (e) { return id === 'classic'; }
+    }
+    function writeCurrent(id) { try { localStorage.setItem('towerDefenseCurrentSkin_v1', id); } catch (e) {} }
+    function writeTickets(n) { try { localStorage.setItem('towerDefenseSkinTickets_v1', String(Math.max(0, Math.floor(n)))); } catch (e) {} }
+    function writeUnlocked(id, val) {
+        try {
+            const o = JSON.parse(localStorage.getItem('towerDefenseUnlockedSkins_v1') || '{}');
+            o[id] = val;
+            localStorage.setItem('towerDefenseUnlockedSkins_v1', JSON.stringify(o));
+        } catch (e) {}
+    }
+
+    // ============ 判斷當前彈窗是不是星際 ============
+    function isSpaceDetailOpen() {
+        const nameEl = document.getElementById('sdV3Name');
+        return nameEl && nameEl.textContent === SKIN_NAME;
+    }
+
+    // ============ 開啟星際詳情 ============
+    function openSpaceDetail() {
+        const modal = document.getElementById('skinDetailV3');
+        if (!modal) return;
+
+        const preview = document.getElementById('sdV3Preview');
+        if (preview) {
+            preview.innerHTML =
+                '<div style="position:absolute;inset:0;background:url(' + HALL_BG + ') center/cover;"></div>' +
+                '<div style="position:absolute;bottom:12%;left:50%;width:16%;aspect-ratio:1;transform:translateX(-50%);clip-path:polygon(50% 0%,82% 30%,68% 100%,32% 100%,18% 30%);background:linear-gradient(180deg,#fff 0%,#c060ff 100%);box-shadow:0 0 15px #a060ff;"></div>';
+        }
+        const nameEl = document.getElementById('sdV3Name');
+        if (nameEl) nameEl.textContent = SKIN_NAME;
+        const descEl = document.getElementById('sdV3Desc');
+        if (descEl) descEl.textContent = '深邃宇宙、星艦軌道、黑洞奇點。最精緻的皮膚。';
+
+        updateActionButton();
+        modal.style.display = 'flex';
+
+        const panel = document.getElementById('skinPanelV3');
+        if (panel) { panel.style.pointerEvents = 'none'; panel.style.opacity = '0.4'; }
+    }
+
+    function updateActionButton() {
+        const condEl = document.getElementById('sdV3Condition');
+        const actionBtn = document.getElementById('sdV3Action2');
+        if (!actionBtn) return;
+
+        const current = readCurrent();
+        const unlocked = readUnlocked(SKIN_ID);
+        const tickets = readTickets();
+
+        if (current === SKIN_ID) {
+            if (condEl) { condEl.textContent = '✅ 目前使用中'; condEl.style.color = '#4ec472'; }
+            actionBtn.textContent = '已裝備';
+            actionBtn.disabled = true;
+            actionBtn.style.background = '#444';
+            actionBtn.style.color = '#888';
+            return;
+        }
+        if (unlocked) {
+            if (condEl) { condEl.textContent = '✅ 已解鎖'; condEl.style.color = '#4ec472'; }
+            actionBtn.textContent = '使用';
+            actionBtn.disabled = false;
+            actionBtn.style.background = 'linear-gradient(135deg,#ffd700,#ff8800)';
+            actionBtn.style.color = '#0a0a14';
+            return;
+        }
+        if (condEl) {
+            condEl.textContent = '🎟️ 商店購買（' + SKIN_PRICE + ' 皮膚券）｜你有 ' + tickets + ' 券';
+            condEl.style.color = tickets >= SKIN_PRICE ? '#ffd700' : '#ff8888';
+        }
+        if (tickets >= SKIN_PRICE) {
+            actionBtn.textContent = '購買（' + SKIN_PRICE + ' 🎟️）';
+            actionBtn.disabled = false;
+            actionBtn.style.background = 'linear-gradient(135deg,#ffd700,#ff8800)';
+            actionBtn.style.color = '#0a0a14';
+        } else {
+            actionBtn.textContent = '券不足（需 ' + SKIN_PRICE + ' 🎟️）';
+            actionBtn.disabled = true;
+            actionBtn.style.background = '#444';
+            actionBtn.style.color = '#888';
+        }
+    }
+
+    function restoreSkinPanel() {
+        const panel = document.getElementById('skinPanelV3');
+        if (panel) { panel.style.pointerEvents = 'auto'; panel.style.opacity = '1'; }
+    }
+
+    function refreshPanel() {
+        const panel = document.getElementById('skinPanelV3');
+        if (!panel) return;
+        panel.style.display = 'none';
+        setTimeout(function() {
+            const btn = document.getElementById('skinBtnV3');
+            if (btn) btn.click();
+        }, 50);
+    }
+
+    // ============ 監聽 modal 關閉 → 恢復面板 ============
+    const modal = document.getElementById('skinDetailV3');
+    if (modal) {
+        const obs = new MutationObserver(function() {
+            if (modal.style.display === 'none') restoreSkinPanel();
+        });
+        obs.observe(modal, { attributes: true, attributeFilter: ['style'] });
+    }
+
+    // ============ 點卡片：用「id」判斷，只攔截 space ============
+    document.addEventListener('click', function(e) {
+        if (!e.target || !e.target.closest) return;
+        const card = e.target.closest('.skin-card-v3');
+        if (!card) return;
+        if (card.dataset.skinId !== SKIN_ID) return; // ★ 只處理星際卡片
+
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        openSpaceDetail();
+    }, true);
+
+    // ============ 點按鈕：改用「標題文字」判斷 ★ 這是關鍵修正 ============
+    document.addEventListener('pointerdown', function(e) {
+        if (!e.target || e.target.id !== 'sdV3Action2') return;
+        // ★ 只處理「彈窗標題是星際」的情況
+        if (!isSpaceDetailOpen()) return;
+
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        console.log('[星際3] 處理星際按鈕');
+
+        const current = readCurrent();
+        const unlocked = readUnlocked(SKIN_ID);
+        const tickets = readTickets();
+
+        if (current === SKIN_ID) return;
+
+        if (unlocked) {
+            writeCurrent(SKIN_ID);
+            if (typeof log === 'function') log('🎨 已裝備：' + SKIN_NAME, 2000);
+            if (typeof sfxPlace === 'function') sfxPlace();
+            modal.style.display = 'none';
+            refreshPanel();
+            return;
+        }
+
+        if (tickets >= SKIN_PRICE) {
+            if (confirm('確定花 ' + SKIN_PRICE + ' 皮膚券購買「' + SKIN_NAME + '」嗎？')) {
+                writeTickets(tickets - SKIN_PRICE);
+                writeUnlocked(SKIN_ID, true);
+                writeCurrent(SKIN_ID);
+                if (typeof log === 'function') log('🎨 購買並裝備：' + SKIN_NAME, 2500);
+                if (typeof sfxGold === 'function') sfxGold();
+                modal.style.display = 'none';
+                refreshPanel();
+            }
+        } else {
+            if (typeof log === 'function') log('🎟️ 皮膚券不足（需 ' + SKIN_PRICE + '）', 2000);
+        }
+    }, true);
+
+    // ============ 確保卡片一直存在 ============
+    setInterval(function() {
+        const grid = document.getElementById('skinGridV3');
+        if (!grid) return;
+        if (grid.querySelector('[data-skin-id="space"]')) return;
+
+        const panel = document.getElementById('skinPanelV3');
+        if (!panel || panel.style.display === 'none') return;
+
+        const unlocked = readUnlocked(SKIN_ID);
+        const current = readCurrent();
+        const isEquipped = current === SKIN_ID;
+
+        let badge = '';
+        let cardStyle = 'background:linear-gradient(135deg,rgba(30,20,60,0.9),rgba(15,10,35,0.9));border:2px solid #33335a;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;transition:0.2s;cursor:pointer;position:relative;overflow:hidden;';
+
+        if (isEquipped) {
+            cardStyle += 'border-color:#4ec472;box-shadow:0 0 16px rgba(78,196,114,0.4);';
+            badge = '<div style="position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:#4ec472;color:#0a0a14;letter-spacing:1px;z-index:2;">使用中</div>';
+        } else if (unlocked) {
+            badge = '<div style="position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(0,0,0,0.75);color:#ccc;letter-spacing:1px;z-index:2;">已解鎖</div>';
+        } else {
+            cardStyle += 'opacity:0.68;';
+            badge = '<div style="position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(60,20,20,0.85);color:#ff8888;letter-spacing:1px;z-index:2;">🔒 鎖定</div>';
+        }
+
+        const card = document.createElement('div');
+        card.className = 'skin-card-v3';
+        card.dataset.skinId = SKIN_ID;
+        card.style.cssText = cardStyle;
+        card.innerHTML =
+            badge +
+            '<div style="width:100%;aspect-ratio:1.6/1;border-radius:8px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.15);background:url(' + HALL_BG + ') center/cover;">' +
+                '<div style="position:absolute;bottom:12%;left:50%;width:16%;aspect-ratio:1;transform:translateX(-50%);clip-path:polygon(50% 0%,82% 30%,68% 100%,32% 100%,18% 30%);background:linear-gradient(180deg,#fff 0%,#c060ff 100%);box-shadow:0 0 12px #a060ff;"></div>' +
+            '</div>' +
+            '<div style="font-size:14px;font-weight:800;color:#fff;letter-spacing:1px;">' + SKIN_NAME + '</div>' +
+            '<div style="font-size:11px;color:#888;line-height:1.4;min-height:30px;">深邃宇宙、星艦軌道、黑洞奇點。最精緻的皮膚。</div>';
+
+        grid.appendChild(card);
+    }, 200);
+
+    console.log('[星際3] 修正載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 皮膚切換即時刷新
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[即時刷新] 載入中...');
+
+    // ============ 對應表 ============
+    const SKIN_BG = {
+        classic: 'bg-classic.jpg',
+        grass: 'bg.jpg',           // 沒圖 → 用預設
+        deepsea: 'bg-deepsea.jpg',
+        inferno: 'bg-inferno.jpg',
+        bio: 'bg.jpg',
+        gold: 'bg-gold.jpg',
+        dark: 'bg-dark.jpg',
+        white: 'bg.jpg',
+        space: 'bg-hall-space.jpg',
+    };
+
+    // ============ 強制更新大廳背景 ============
+    function forceApplyMenuBg(skinId) {
+        const menu = document.getElementById('mainMenu');
+        if (!menu) return;
+
+        const bgFile = SKIN_BG[skinId] || 'bg.jpg';
+        const overlay = 'linear-gradient(180deg, rgba(10,5,25,0.15) 0%, rgba(5,2,15,0.4) 50%, rgba(5,2,15,0.75) 100%)';
+
+        menu.style.background = overlay + ', url("' + bgFile + '") center center / cover no-repeat';
+        console.log('[即時刷新] 大廳背景 → ' + bgFile + '（皮膚：' + skinId + '）');
+    }
+
+    // ============ 每隔 100ms 檢查一次 ============
+    let lastSkin = null;
+    try { lastSkin = localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; } catch (e) { lastSkin = 'classic'; }
+    forceApplyMenuBg(lastSkin);
+
+    setInterval(function() {
+        let current = 'classic';
+        try { current = localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; } catch (e) {}
+
+        if (current !== lastSkin) {
+            lastSkin = current;
+            forceApplyMenuBg(current);
+        }
+    }, 100);
+
+    // ============ 監聽皮膚面板的任何點擊，切換後立即刷新 ============
+    // 用「捕獲階段」監聽整個 document，任何點擊後 50ms 內檢查一次
+    document.addEventListener('click', function() {
+        setTimeout(function() {
+            let current = 'classic';
+            try { current = localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; } catch (e) {}
+            if (current !== lastSkin) {
+                lastSkin = current;
+                forceApplyMenuBg(current);
+            }
+        }, 50);
+    }, true);
+
+    document.addEventListener('pointerdown', function() {
+        setTimeout(function() {
+            let current = 'classic';
+            try { current = localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; } catch (e) {}
+            if (current !== lastSkin) {
+                lastSkin = current;
+                forceApplyMenuBg(current);
+            }
+        }, 50);
+    }, true);
+
+    console.log('[即時刷新] 載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 大廳背景鎖定器
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[大廳鎖定] 載入中...');
+
+    const menu = document.getElementById('mainMenu');
+    if (!menu) {
+        console.error('[大廳鎖定] ❌ 找不到 mainMenu');
+        return;
+    }
+
+    const SKIN_BG = {
+        classic: 'bg-classic.jpg',
+        grass: 'bg.jpg',
+        deepsea: 'bg-deepsea.jpg',
+        inferno: 'bg-inferno.jpg',
+        bio: 'bg.jpg',
+        gold: 'bg-gold.jpg',
+        dark: 'bg-dark.jpg',
+        white: 'bg.jpg',
+        space: 'bg-hall-space.jpg',
+    };
+
+    function getSkin() {
+        try { return localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; }
+        catch (e) { return 'classic'; }
+    }
+
+    function buildBg() {
+        const skin = getSkin();
+        const bgFile = SKIN_BG[skin] || 'bg.jpg';
+        const overlay = 'linear-gradient(180deg, rgba(10,5,25,0.15) 0%, rgba(5,2,15,0.4) 50%, rgba(5,2,15,0.75) 100%)';
+        return overlay + ', url("' + bgFile + '") center center / cover no-repeat';
+    }
+
+    let _applying = false;
+
+    function enforce() {
+        const desired = buildBg();
+        if (menu.style.background !== desired) {
+            _applying = true;
+            menu.style.background = desired;
+            const skin = getSkin();
+            console.log('[大廳鎖定] 修正背景 → ' + (SKIN_BG[skin] || 'bg.jpg') + '（皮膚：' + skin + '）');
+            setTimeout(function() { _applying = false; }, 0);
+        }
+    }
+
+    // MutationObserver：一被改動就檢查
+    const obs = new MutationObserver(function() {
+        if (_applying) return;
+        enforce();
+    });
+    obs.observe(menu, { attributes: true, attributeFilter: ['style'] });
+
+    // 保險：每 150ms 檢查一次
+    setInterval(enforce, 150);
+
+    // 皮膚變更時立即套用
+    let lastSkin = getSkin();
+    setInterval(function() {
+        const cur = getSkin();
+        if (cur !== lastSkin) {
+            lastSkin = cur;
+            enforce();
+        }
+    }, 100);
+
+    // 立即執行一次
+    enforce();
+
+    console.log('[大廳鎖定] 載入完成｜當前皮膚：' + getSkin());
+})();
+</script>
+
+<script>
+// ============================================================
+// 皮膚詳情彈窗：統一接管（清掉所有舊監聽器）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[皮膚統一] 載入中...');
+
+    const SKIN_ID = 'space';
+    const SKIN_NAME = '星際';
+    const SKIN_PRICE = 600;
+    const HALL_BG = 'bg-hall-space.jpg';
+
+    function readCurrent() {
+        try { return localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; } catch (e) { return 'classic'; }
+    }
+    function readTickets() {
+        try { return parseInt(localStorage.getItem('towerDefenseSkinTickets_v1') || '0', 10) || 0; } catch (e) { return 0; }
+    }
+    function readUnlocked(id) {
+        try {
+            const o = JSON.parse(localStorage.getItem('towerDefenseUnlockedSkins_v1') || '{}');
+            return o[id] === true || id === 'classic';
+        } catch (e) { return id === 'classic'; }
+    }
+    function writeCurrent(id) { try { localStorage.setItem('towerDefenseCurrentSkin_v1', id); } catch (e) {} }
+    function writeTickets(n) { try { localStorage.setItem('towerDefenseSkinTickets_v1', String(Math.max(0, Math.floor(n)))); } catch (e) {} }
+    function writeUnlocked(id, val) {
+        try {
+            const o = JSON.parse(localStorage.getItem('towerDefenseUnlockedSkins_v1') || '{}');
+            o[id] = val;
+            localStorage.setItem('towerDefenseUnlockedSkins_v1', JSON.stringify(o));
+        } catch (e) {}
+    }
+
+    // ============ 用「clone」清掉 sdV3Action2 上所有舊監聽器 ============
+    function rebuildButton() {
+        const oldBtn = document.getElementById('sdV3Action2');
+        if (!oldBtn) return null;
+        // 複製一個新按鈕（不會繼承任何事件監聽器）
+        const newBtn = oldBtn.cloneNode(true);
+        oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+        console.log('[皮膚統一] 按鈕已重建，清空舊監聽器');
+        return newBtn;
+    }
+
+    const actionBtn = rebuildButton();
+    if (!actionBtn) {
+        console.error('[皮膚統一] ❌ 找不到 sdV3Action2');
+        return;
+    }
+
+    // ============ 判斷彈窗標題 ============
+    function getDetailSkinName() {
+        const el = document.getElementById('sdV3Name');
+        return el ? el.textContent : '';
+    }
+
+    // ============ 處理「星際」皮膚 ============
+    function handleSpaceAction() {
+        const current = readCurrent();
+        const unlocked = readUnlocked(SKIN_ID);
+        const tickets = readTickets();
+
+        if (current === SKIN_ID) return;
+
+        if (unlocked) {
+            writeCurrent(SKIN_ID);
+            if (typeof log === 'function') log('🎨 已裝備：' + SKIN_NAME, 2000);
+            if (typeof sfxPlace === 'function') sfxPlace();
+            closeAndRefresh();
+            return;
+        }
+
+        if (tickets >= SKIN_PRICE) {
+            if (confirm('確定花 ' + SKIN_PRICE + ' 皮膚券購買「' + SKIN_NAME + '」嗎？')) {
+                writeTickets(tickets - SKIN_PRICE);
+                writeUnlocked(SKIN_ID, true);
+                writeCurrent(SKIN_ID);
+                if (typeof log === 'function') log('🎨 購買並裝備：' + SKIN_NAME, 2500);
+                if (typeof sfxGold === 'function') sfxGold();
+                closeAndRefresh();
+            }
+        } else {
+            if (typeof log === 'function') log('🎟️ 皮膚券不足（需 ' + SKIN_PRICE + '）', 2000);
+        }
+    }
+
+    function closeAndRefresh() {
+        const modal = document.getElementById('skinDetailV3');
+        if (modal) modal.style.display = 'none';
+        const panel = document.getElementById('skinPanelV3');
+        if (panel) {
+            panel.style.pointerEvents = 'auto';
+            panel.style.opacity = '1';
+            panel.style.display = 'none';
+            setTimeout(function() {
+                const btn = document.getElementById('skinBtnV3');
+                if (btn) btn.click();
+            }, 50);
+        }
+    }
+
+    // ============ 綁定新按鈕的點擊 ============
+    actionBtn.addEventListener('pointerdown', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const name = getDetailSkinName();
+
+        if (name === SKIN_NAME) {
+            // 星際：走我們的邏輯
+            console.log('[皮膚統一] 處理星際按鈕');
+            handleSpaceAction();
+            return;
+        }
+
+        // 其他皮膚：直接切換
+        // 反查皮膚 id
+        const SKIN_MAP = {
+            '經典': 'classic',
+            '草原': 'grass',
+            '深海': 'deepsea',
+            '烈焰': 'inferno',
+            '生物': 'bio',
+            '黃金': 'gold',
+            '暗黑': 'dark',
+            '純白': 'white',
+        };
+        const id = SKIN_MAP[name];
+        if (!id) return;
+
+        console.log('[皮膚統一] 處理其他皮膚：' + name + ' (id=' + id + ')');
+
+        const current = readCurrent();
+        if (current === id) return;
+
+        const unlocked = readUnlocked(id);
+        const tickets = readTickets();
+
+        if (unlocked) {
+            writeCurrent(id);
+            if (typeof log === 'function') log('🎨 已裝備：' + name, 2000);
+            if (typeof sfxPlace === 'function') sfxPlace();
+            closeAndRefresh();
+            return;
+        }
+
+        // 商店皮膚（深海 300、烈焰 400）
+        const PRICES = { deepsea: 300, inferno: 400 };
+        const price = PRICES[id];
+        if (price) {
+            if (tickets >= price) {
+                if (confirm('確定花 ' + price + ' 皮膚券購買「' + name + '」嗎？')) {
+                    writeTickets(tickets - price);
+                    writeUnlocked(id, true);
+                    writeCurrent(id);
+                    if (typeof log === 'function') log('🎨 購買並裝備：' + name, 2500);
+                    if (typeof sfxGold === 'function') sfxGold();
+                    closeAndRefresh();
+                }
+            } else {
+                if (typeof log === 'function') log('🎟️ 皮膚券不足（需 ' + price + '）', 2000);
+            }
+        }
+    }, false); // 用冒泡階段，讓舊系統先有機會處理（但舊系統會被 clone 清掉）
+
+    // ============ 攔截 sdV3Close2（關閉按鈕） ============
+    // 也重建一次，避免舊監聽器干擾
+    const closeBtn = document.getElementById('sdV3Close2');
+    if (closeBtn) {
+        const newCloseBtn = closeBtn.cloneNode(true);
+        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+        newCloseBtn.addEventListener('pointerdown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const modal = document.getElementById('skinDetailV3');
+            if (modal) modal.style.display = 'none';
+            const panel = document.getElementById('skinPanelV3');
+            if (panel) {
+                panel.style.pointerEvents = 'auto';
+                panel.style.opacity = '1';
+            }
+        }, false);
+    }
+
+    // ============ 移除舊的 document 層級攔截器（用特徵識別） ============
+    // 舊的 [星際2] 攔截器在 document 上用捕獲階段監聽。
+    // 我們沒辦法直接移除它們，但可以「中和」它們：
+    // 每次點擊時，如果 modal 已關閉，那些攔截器也不會做什麼。
+    // 並且我們把 sdV3Action2 完全重建，舊攔截器找不到元素（因為已經被替換），
+    // 所以它們的 e.target.id === 'sdV3Action2' 判斷會失效。
+
+    console.log('[皮膚統一] 載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 皮膚詳情彈窗：最終接管（改 ID 讓舊監聽器失效）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[最終接管] 載入中...');
+
+    const SKIN_ID = 'space';
+    const SKIN_NAME = '星際';
+    const SKIN_PRICE = 600;
+    const HALL_BG = 'bg-hall-space.jpg';
+
+    const SKIN_MAP = {
+        '經典': { id: 'classic', price: 0 },
+        '草原': { id: 'grass', price: 0 },
+        '深海': { id: 'deepsea', price: 300 },
+        '烈焰': { id: 'inferno', price: 400 },
+        '生物': { id: 'bio', price: 0 },
+        '黃金': { id: 'gold', price: 0 },
+        '暗黑': { id: 'dark', price: 0 },
+        '純白': { id: 'white', price: 0 },
+        '星際': { id: 'space', price: 600 },
+    };
+
+    function readCurrent() {
+        try { return localStorage.getItem('towerDefenseCurrentSkin_v1') || 'classic'; } catch (e) { return 'classic'; }
+    }
+    function readTickets() {
+        try { return parseInt(localStorage.getItem('towerDefenseSkinTickets_v1') || '0', 10) || 0; } catch (e) { return 0; }
+    }
+    function readUnlocked(id) {
+        try {
+            const o = JSON.parse(localStorage.getItem('towerDefenseUnlockedSkins_v1') || '{}');
+            return o[id] === true || id === 'classic';
+        } catch (e) { return id === 'classic'; }
+    }
+    function writeCurrent(id) { try { localStorage.setItem('towerDefenseCurrentSkin_v1', id); } catch (e) {} }
+    function writeTickets(n) { try { localStorage.setItem('towerDefenseSkinTickets_v1', String(Math.max(0, Math.floor(n)))); } catch (e) {} }
+    function writeUnlocked(id, val) {
+        try {
+            const o = JSON.parse(localStorage.getItem('towerDefenseUnlockedSkins_v1') || '{}');
+            o[id] = val;
+            localStorage.setItem('towerDefenseUnlockedSkins_v1', JSON.stringify(o));
+        } catch (e) {}
+    }
+
+    const FINAL_BTN_ID = 'sdV3ActionFinal';
+
+    // ============ 把按鈕改名 + 重建，讓所有舊監聽器失效 ============
+    function rebuildActionButton() {
+        const oldBtn = document.getElementById('sdV3Action2') || document.getElementById(FINAL_BTN_ID);
+        if (!oldBtn) return null;
+
+        // 複製一份（清空所有事件監聽器）
+        const newBtn = oldBtn.cloneNode(true);
+        newBtn.id = FINAL_BTN_ID;
+
+        // 替換舊按鈕
+        oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+
+        // 綁定新的處理器
+        newBtn.addEventListener('pointerdown', handleClick, false);
+
+        console.log('[最終接管] 按鈕已重建，ID = ' + FINAL_BTN_ID);
+        return newBtn;
+    }
+
+    // ============ 處理點擊 ============
+    function handleClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const nameEl = document.getElementById('sdV3Name');
+        const skinName = nameEl ? nameEl.textContent : '';
+        const meta = SKIN_MAP[skinName];
+
+        if (!meta) {
+            console.log('[最終接管] 未知皮膚名稱：' + skinName);
+            return;
+        }
+
+        const current = readCurrent();
+        if (current === meta.id) return;
+
+        const unlocked = readUnlocked(meta.id);
+        const tickets = readTickets();
+
+        // 已解鎖 → 直接切換
+        if (unlocked) {
+            writeCurrent(meta.id);
+            if (typeof log === 'function') log('🎨 已裝備：' + skinName, 2000);
+            if (typeof sfxPlace === 'function') sfxPlace();
+            closeAndRefresh();
+            return;
+        }
+
+        // 商店皮膚 → 購買
+        if (meta.price > 0) {
+            if (tickets >= meta.price) {
+                if (confirm('確定花 ' + meta.price + ' 皮膚券購買「' + skinName + '」嗎？')) {
+                    writeTickets(tickets - meta.price);
+                    writeUnlocked(meta.id, true);
+                    writeCurrent(meta.id);
+                    if (typeof log === 'function') log('🎨 購買並裝備：' + skinName, 2500);
+                    if (typeof sfxGold === 'function') sfxGold();
+                    closeAndRefresh();
+                }
+            } else {
+                if (typeof log === 'function') log('🎟️ 皮膚券不足（需 ' + meta.price + '）', 2000);
+            }
+            return;
+        }
+
+        // 未解鎖且非商店 → 條件未達成
+        if (typeof log === 'function') log('🔒 ' + skinName + ' 條件尚未達成', 2000);
+    }
+
+    function closeAndRefresh() {
+        const modal = document.getElementById('skinDetailV3');
+        if (modal) modal.style.display = 'none';
+        const panel = document.getElementById('skinPanelV3');
+        if (panel) {
+            panel.style.pointerEvents = 'auto';
+            panel.style.opacity = '1';
+            panel.style.display = 'none';
+            setTimeout(function() {
+                const btn = document.getElementById('skinBtnV3');
+                if (btn) btn.click();
+            }, 50);
+        }
+    }
+
+    // ============ 開場重建一次 ============
+    rebuildActionButton();
+
+    // ============ 監聽 modal 是否被重繪（例如玩家又點了一次卡片） ============
+    // 用 MutationObserver 監聽 skinDetailV3，看看 sdV3Action2 是否又出現
+    const modal = document.getElementById('skinDetailV3');
+    if (modal) {
+        const obs = new MutationObserver(function() {
+            // 如果又看到 sdV3Action2（被舊系統重建了），就再改一次
+            if (document.getElementById('sdV3Action2')) {
+                setTimeout(rebuildActionButton, 10);
+            }
+        });
+        obs.observe(modal, { childList: true, subtree: true });
+    }
+
+    // ============ 保險：每 200ms 檢查一次 ============
+    setInterval(function() {
+        const hasOld = document.getElementById('sdV3Action2');
+        const hasNew = document.getElementById(FINAL_BTN_ID);
+        if (hasOld && !hasNew) {
+            rebuildActionButton();
+        } else if (hasOld && hasNew) {
+            // 兩個都出現，把舊的隱藏掉
+            const old = document.getElementById('sdV3Action2');
+            if (old) old.style.display = 'none';
+        }
+    }, 200);
+
+    // ============ 順便接管關閉按鈕 ============
+    function rebuildCloseButton() {
+        const oldBtn = document.getElementById('sdV3Close2');
+        if (!oldBtn) return;
+        const newBtn = oldBtn.cloneNode(true);
+        newBtn.id = 'sdV3CloseFinal';
+        oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+        newBtn.addEventListener('pointerdown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const m = document.getElementById('skinDetailV3');
+            if (m) m.style.display = 'none';
+            const panel = document.getElementById('skinPanelV3');
+            if (panel) {
+                panel.style.pointerEvents = 'auto';
+                panel.style.opacity = '1';
+            }
+        }, false);
+    }
+    rebuildCloseButton();
+
+    console.log('[最終接管] 載入完成');
+})();
+</script>
+
 </body>
 </html>
