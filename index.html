@@ -17332,6 +17332,81 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     console.log('[大太刀] 最終調整載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 怪物 + Boss 全面削弱
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[削弱] 系統載入中...');
+
+    // ============ 1. 削弱各難度血量成長 ============
+    if (typeof DIFFICULTIES !== 'undefined') {
+        DIFFICULTIES.easy.hpGrowth = 1.10;
+        DIFFICULTIES.normal.hpGrowth = 1.14;
+        DIFFICULTIES.hard.hpGrowth = 1.18;
+        console.log('[削弱] hpGrowth 已調整（簡單 1.10 / 普通 1.14 / 困難 1.18）');
+    }
+
+    // ============ 2. 削弱 Boss HP（包裝 startWave） ============
+    if (typeof startWave === 'function') {
+        const _prevStartWave = startWave;
+        startWave = function() {
+            _prevStartWave.call(this);
+            // 修改剛生成的 spawnQueue 裡的 Boss HP
+            if (typeof spawnQueue !== 'undefined' && spawnQueue.length > 0) {
+                let modified = false;
+                for (let i = 0; i < spawnQueue.length; i++) {
+                    if (spawnQueue[i].isBoss) {
+                        // 從 ×20 改成 ×14（乘 0.7）
+                        spawnQueue[i].hp = Math.floor(spawnQueue[i].hp * 0.7);
+                        modified = true;
+                    }
+                }
+                if (modified) console.log('[削弱] Boss HP 已 ×0.7');
+            }
+        };
+        console.log('[削弱] startWave 已包裝');
+    }
+
+    // ============ 3. 削弱 Boss 減傷 + 暴走（包裝 Enemy） ============
+    if (typeof Enemy !== 'undefined') {
+        // 3a. Boss 減傷：40% → 20%
+        if (!Enemy.prototype._drNerfed) {
+            Enemy.prototype._drNerfed = true;
+            const _prevTakeDamage = Enemy.prototype.takeDamage;
+            Enemy.prototype.takeDamage = function(amount) {
+                // 第一次被 Boss 呼叫時，降低它的減傷
+                if (this.isBoss && this.damageReduction === 0.4) {
+                    this.damageReduction = 0.2;
+                }
+                return _prevTakeDamage.call(this, amount);
+            };
+            console.log('[削弱] Boss 減傷 → 20%');
+        }
+
+        // 3b. Boss 暴走上限：2.2 → 1.6（把 elapsed 成長減半）
+        if (!Enemy.prototype._rageNerfed) {
+            Enemy.prototype._rageNerfed = true;
+            const _prevEnemyUpdate = Enemy.prototype.update;
+            Enemy.prototype.update = function(dt) {
+                if (this.isBoss && this.alive) {
+                    // elapsed 在 update 裡會 += dt
+                    // 我們先扣掉 dt*0.4，讓淨成長只有 0.6*dt
+                    // 這樣 rageMultiplier 到達上限的速度變慢
+                    this.elapsed -= dt * 0.4;
+                    if (this.elapsed < 0) this.elapsed = 0;
+                }
+                return _prevEnemyUpdate.call(this, dt);
+            };
+            console.log('[削弱] Boss 暴走成長已放慢');
+        }
+    }
+
+    console.log('[削弱] 系統載入完成');
+})();
+</script>
   
 </body>
 </html>
