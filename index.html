@@ -16277,6 +16277,425 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     console.log('[圖鑑v2] 載入完成');
 })();
 </script>
+
+<style>
+#teamGuideBtn {
+    border: 2px solid #4a8a6a;
+    color: #a8e8c8;
+    box-shadow:
+        0 0 0 1px rgba(78, 196, 114, 0.2),
+        0 4px 20px rgba(78, 196, 114, 0.15),
+        inset 0 0 24px rgba(78, 196, 114, 0.08);
+}
+#teamGuideBtn:hover {
+    border-color: #7ee89a;
+    box-shadow: 0 0 0 1px rgba(78, 196, 114, 0.4), 0 6px 28px rgba(78, 196, 114, 0.35);
+}
+
+#teamGuidePanel {
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(ellipse at top, #1a2a1a 0%, transparent 60%),
+        #05050f;
+    display: none;
+    flex-direction: column;
+    padding: 20px;
+    z-index: 72;
+    overflow: hidden;
+    padding-top: max(20px, env(safe-area-inset-top));
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+#teamGuidePanel.show { display: flex; }
+
+.tg-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    max-width: 620px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    flex-shrink: 0;
+}
+.tg-header h2 {
+    font-size: 22px;
+    font-weight: 900;
+    background: linear-gradient(180deg, #a8ffcc, #4ec472);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 4px;
+}
+.tg-close {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: rgba(20, 20, 40, 0.9);
+    border: 2px solid #33335a;
+    color: #ccc;
+    font-size: 18px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: 0.15s;
+}
+.tg-close:hover { border-color: #ffd700; color: #ffd700; }
+
+.tg-content {
+    flex: 1;
+    overflow-y: auto;
+    max-width: 620px;
+    width: 100%;
+    margin: 0 auto;
+    padding-right: 4px;
+    -webkit-overflow-scrolling: touch;
+}
+.tg-content::-webkit-scrollbar { width: 6px; }
+.tg-content::-webkit-scrollbar-thumb {
+    background: #3a5a4a;
+    border-radius: 3px;
+}
+
+.tg-card {
+    background: linear-gradient(135deg, rgba(20, 40, 30, 0.9), rgba(10, 20, 15, 0.9));
+    border-left: 4px solid #4ec472;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+}
+.tg-card.tg-easy { border-left-color: #4ec472; }
+.tg-card.tg-normal { border-left-color: #f1c40f; }
+.tg-card.tg-hard { border-left-color: #e74c3c; }
+.tg-card.tg-pro { border-left-color: #9b59b6; }
+.tg-card.tg-god { border-left-color: #ffd700; }
+
+.tg-title {
+    font-size: 16px;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.tg-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    letter-spacing: 1px;
+}
+.tg-badge.tg-easy { background: rgba(78, 196, 114, 0.2); color: #7ee89a; }
+.tg-badge.tg-normal { background: rgba(241, 196, 15, 0.2); color: #ffd700; }
+.tg-badge.tg-hard { background: rgba(231, 76, 60, 0.2); color: #ff8888; }
+.tg-badge.tg-pro { background: rgba(155, 89, 182, 0.2); color: #d4a0ff; }
+.tg-badge.tg-god { background: rgba(255, 215, 0, 0.2); color: #ffd700; }
+
+.tg-desc {
+    font-size: 12px;
+    color: #aaa;
+    line-height: 1.6;
+    margin-bottom: 10px;
+}
+
+.tg-towers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.tg-tower-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid #33335a;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 11px;
+    color: #ddd;
+}
+.tg-tower-chip .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    display: inline-block;
+}
+.tg-tower-chip.tg-must {
+    border-color: #ffd700;
+    box-shadow: 0 0 6px rgba(255, 215, 0, 0.3);
+}
+
+.tg-tip {
+    font-size: 11px;
+    color: #88cc99;
+    background: rgba(78, 196, 114, 0.08);
+    border: 1px solid rgba(78, 196, 114, 0.2);
+    border-radius: 6px;
+    padding: 8px 10px;
+    line-height: 1.5;
+}
+.tg-tip::before {
+    content: '💡 ';
+}
+</style>
+
+<div id="teamGuidePanel">
+    <div class="tg-header">
+        <h2>📋 配隊參考</h2>
+        <button class="tg-close" id="closeTeamGuide">✕</button>
+    </div>
+    <div class="tg-content" id="tgContent"></div>
+</div>
+
+<script>
+// ============================================================
+// 配隊參考系統
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[配隊] 系統載入中...');
+
+    const TOWER_COLORS = {
+        white: '#f0f0f0', green: '#2ecc71', blue: '#3498db', purple: '#9b59b6',
+        cyan: '#00e5ff', orange: '#e67e22', red: '#c0392b', gold: '#f1c40f',
+        silver: '#c0c0c0', amethyst: '#B088FF', jade: '#66FF66',
+        magenta: '#FF33CC', fireArrow: '#FF4500', tachi: '#FF66B2',
+        inkGreen: '#1b4d3e', sirius: '#00fa9a', elecChain: '#00bfff',
+        overclock: '#1e90ff', mass: '#4b0082', frost: '#00ffff',
+        gamma: '#ff4500', supernova: '#ff8c00', fullMetal: '#909090',
+        shotgun: '#606060', doubleBlade: '#FF66B2', odachi: '#FF66B2',
+    };
+
+    const TEAMS = [
+
+                {
+            name: '太刀劍氣',
+            icon: '⚔️',
+            badge: 'normal',
+            badgeText: '普通模式',
+            desc: '太刀塔發射弧形劍氣，雙刀流疊攻速、大太刀掃全場。粉色劍氣滿天飛，視覺跟輸出都很爽。',
+            towers: [
+                { id: 'tachi', name: '太刀塔', must: true },
+                { id: 'doubleBlade', name: '雙刀流·塔', must: true },
+                { id: 'odachi', name: '大太刀·塔', must: true },
+                { id: 'amethyst', name: '紫晶塔', must: false },
+                { id: 'jade', name: '翠玉塔', must: false },
+                { id: 'frost', name: '霜凍塔', must: false },
+            ],
+            tip: '雙刀流·塔放路徑中段，命中疊攻速最高 5 層。大太刀·塔放路徑轉角，180 度一次掃一整排。霜凍塔把怪凍住，讓大太刀的居合蓄力更有效。',
+        },
+      
+        {
+            name: '新手入門',
+            icon: '🌱',
+            badge: 'simple',
+            badgeText: '簡單模式',
+            desc: '剛開始玩，用最便宜的塔鋪滿全場。白塔負責賭秒殺，綠塔負責穩定輸出。不用想太多，蓋就對了。',
+            towers: [
+                { id: 'white', name: '白塔', must: true },
+                { id: 'green', name: '綠塔', must: true },
+                { id: 'purple', name: '紫塔', must: false },
+            ],
+            tip: '白塔 10 元，蓋 5~6 座在路徑轉角。綠塔用白+白合成，45% 機率出。',
+        },
+        {
+            name: '均衡發展',
+            icon: '⚖️',
+            badge: 'normal',
+            badgeText: '普通模式',
+            desc: '綠塔清場、紫塔控速、藍塔賭秒、銀塔收尾。這是最穩的通用配置，任何波次都能應對。',
+            towers: [
+                { id: 'green', name: '綠塔', must: true },
+                { id: 'purple', name: '紫塔', must: true },
+                { id: 'blue', name: '藍塔', must: true },
+                { id: 'silver', name: '銀塔', must: true },
+            ],
+            tip: '紫塔放路徑轉彎處減速最有效。銀塔放敵人會經過兩次的位置，傷害翻倍。',
+        },
+        {
+            name: '打王特化',
+            icon: '🎯',
+            badge: 'hard',
+            badgeText: '普通 / 困難',
+            desc: '專為 Boss 設計。青藍塔對 Boss 傷害 ×80，紫晶塔 +20% 爆擊率，翠玉塔 +65% 爆擊傷害。三座放一起，Boss 融化。',
+            towers: [
+                { id: 'cyan', name: '青藍塔', must: true },
+                { id: 'amethyst', name: '紫晶塔', must: true },
+                { id: 'jade', name: '翠玉塔', must: true },
+                { id: 'green', name: '綠塔', must: false },
+            ],
+            tip: '青藍塔是白+白合成時 5% 機率出的，要早點開始試。紫晶和翠玉放青藍塔旁邊，讓它吃增益。',
+        },
+        {
+            name: '超頻核爆',
+            icon: '💥',
+            badge: 'hard',
+            badgeText: '困難',
+            desc: '玩家實測能無損通關困難 100 波的陣容。霜凍塔把怪凍成一團，超頻藍塔秒殺一隻就炸全場，紅塔加速整個循環。',
+            towers: [
+                { id: 'overclock', name: '超頻藍塔', must: true },
+                { id: 'frost', name: '霜凍塔', must: true },
+                { id: 'red', name: '紅塔', must: true },
+                { id: 'amethyst', name: '紫晶塔', must: false },
+                { id: 'jade', name: '翠玉塔', must: false },
+                { id: 'cyan', name: '青藍塔', must: false },
+            ],
+            tip: '超頻藍塔秒殺時，對 120 像素內敵人造成「目標最大生命 20%」傷害。霜凍塔把怪黏在一起，一次炸一群。這是目前最強的陣容。',
+        },
+        {
+            name: '光環流',
+            icon: '🌿',
+            badge: 'pro',
+            badgeText: '困難',
+            desc: '天狼之塔讓全場塔附加灼燒，紫晶+翠玉讓所有塔爆擊翻倍。適合喜歡「全隊增幅」的玩家。',
+            towers: [
+                { id: 'sirius', name: '天狼之塔', must: true },
+                { id: 'amethyst', name: '紫晶塔', must: true },
+                { id: 'jade', name: '翠玉塔', must: true },
+                { id: 'inkGreen', name: '墨綠塔', must: false },
+                { id: 'elecChain', name: '電磁鏈塔', must: false },
+            ],
+            tip: '天狼之塔放在中央，讓它的光環覆蓋最多塔。所有攻擊都有 20% 機率附加灼燒，配電磁鏈塔的 DOT 超強。',
+        },
+        {
+            name: '金色傳說',
+            icon: '👑',
+            badge: 'god',
+            badgeText: '困難',
+            desc: '終極陣容。金塔讓整條路變成倒退履帶，火矢塔對 Boss 每秒 100 發，配上所有增幅塔，理論上沒有打不過的關卡。',
+            towers: [
+                { id: 'gold', name: '金塔', must: true },
+                { id: 'fireArrow', name: '火矢塔', must: true },
+                { id: 'amethyst', name: '紫晶塔', must: true },
+                { id: 'jade', name: '翠玉塔', must: true },
+                { id: 'silver', name: '銀塔', must: false },
+                { id: 'overclock', name: '超頻藍塔', must: false },
+            ],
+            tip: '金塔配方：白→綠→藍→紫→橙→紅 依序點 6 座塔。火矢塔放紫晶+翠玉旁邊，命中率×2、爆擊率 50%、爆傷 265%，DPS 破萬。',
+        },
+    ];
+
+    function makeCardHTML(team) {
+        let towerChips = '';
+        for (let i = 0; i < team.towers.length; i++) {
+            const t = team.towers[i];
+            const color = TOWER_COLORS[t.id] || '#666';
+            const cls = t.must ? 'tg-must' : '';
+            towerChips += '<span class="tg-tower-chip ' + cls + '">' +
+                '<span class="dot" style="background:' + color + ';"></span>' +
+                t.name +
+                (t.must ? ' ★' : '') +
+            '</span>';
+        }
+        return '<div class="tg-card tg-' + team.badge + '">' +
+            '<div class="tg-title">' + team.icon + ' ' + team.name +
+                '<span class="tg-badge tg-' + team.badge + '">' + team.badgeText + '</span>' +
+            '</div>' +
+            '<div class="tg-desc">' + team.desc + '</div>' +
+            '<div class="tg-towers">' + towerChips + '</div>' +
+            '<div class="tg-tip">' + team.tip + '</div>' +
+        '</div>';
+    }
+
+    function render() {
+        const content = document.getElementById('tgContent');
+        if (!content) return;
+        let html = '';
+        for (let i = 0; i < TEAMS.length; i++) {
+            html += makeCardHTML(TEAMS[i]);
+        }
+        content.innerHTML = html;
+    }
+
+    // ============ 主選單加按鈕 ============
+    function addButton() {
+        const menuRow = document.querySelector('.menu-row');
+        if (!menuRow) return;
+        if (document.getElementById('teamGuideBtn')) return;
+
+        const btn = document.createElement('button');
+        btn.className = 'menu-action';
+        btn.id = 'teamGuideBtn';
+        btn.textContent = '📋 配隊';
+        // 插在教學後面
+        const tutorialBtn = document.getElementById('tutorialBtn');
+        if (tutorialBtn && tutorialBtn.parentNode === menuRow) {
+            tutorialBtn.parentNode.insertBefore(btn, tutorialBtn.nextSibling);
+        } else {
+            menuRow.appendChild(btn);
+        }
+
+        btn.addEventListener('click', function() {
+            if (typeof initAudio === 'function') initAudio();
+            document.getElementById('teamGuidePanel').classList.add('show');
+            render();
+        });
+
+        console.log('[配隊] 按鈕已新增');
+    }
+
+    document.getElementById('closeTeamGuide').addEventListener('pointerdown', function(e) {
+        e.preventDefault();
+        document.getElementById('teamGuidePanel').classList.remove('show');
+    }, { passive: false });
+
+    // 等 DOM 好
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', addButton);
+    } else {
+        addButton();
+    }
+    setInterval(addButton, 500);
+
+    console.log('[配隊] 系統載入完成｜' + TEAMS.length + ' 組配隊');
+})();
+</script>
+
+<script>
+// ============================================================
+// 移除大太刀擊退
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[大太刀] 擊退移除載入中...');
+
+    if (typeof TachiTower === 'undefined') {
+        console.warn('[大太刀] 找不到 TachiTower');
+        return;
+    }
+
+    const _prevFireOdachi = TachiTower.prototype.fireOdachi;
+
+    TachiTower.prototype.fireOdachi = function(target) {
+        // 攻擊前：記錄所有敵人的位置
+        const saved = [];
+        if (typeof enemies !== 'undefined') {
+            for (let i = 0; i < enemies.length; i++) {
+                const e = enemies[i];
+                if (e && e.alive) {
+                    saved.push({ enemy: e, distance: e.distance });
+                }
+            }
+        }
+
+        // 執行原版（會擊退）
+        _prevFireOdachi.call(this, target);
+
+        // 攻擊後：把被擊退的敵人恢復原位
+        for (let i = 0; i < saved.length; i++) {
+            const item = saved[i];
+            if (item.enemy && item.enemy.alive && item.enemy.distance < item.distance) {
+                item.enemy.distance = item.distance;
+            }
+        }
+    };
+
+    console.log('[大太刀] 擊退已移除（居合傷害加成保留）');
+})();
+</script>
   
 </body>
 </html>
