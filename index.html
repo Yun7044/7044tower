@@ -20227,6 +20227,636 @@ body.in-menu #chronoSkillBtn { display: none !important; }
     console.log('[存檔最終修復] 載入完成｜已支援所有 14 種進化塔');
 })();
 </script>
+
+<style>
+.shop-btn[data-type="note"] .dot {
+    background: linear-gradient(180deg, #e0a0ff 0%, #cc66ff 45%, #6020a0 100%);
+    filter: drop-shadow(0 0 5px rgba(204, 102, 255, 0.9));
+}
+</style>
+
+<script>
+// ============================================================
+// 音符頻率塔（修正版：純頻率接近度）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[音符塔] 系統載入中...');
+
+    // ============ 塔定義 ============
+    TOWER_TYPES.note = {
+        name: '音符塔', cost: 240, baseCost: 240, color: '#cc66ff',
+        fireInterval: 999, damage: 0, hitChance: 0, killChance: 0, range: 220,
+        isNote: true,
+    };
+
+    // ============ 商店按鈕 ============
+    const bottomBar = document.getElementById('bottomBar');
+    if (bottomBar && !document.querySelector('.shop-btn[data-type="note"]')) {
+        const btn = document.createElement('button');
+        btn.className = 'shop-btn';
+        btn.dataset.type = 'note';
+        btn.innerHTML = '<div class="dot"></div><div class="price">240</div>';
+        const dnBtn = bottomBar.querySelector('[data-type="deathNote"]');
+        if (dnBtn) {
+            dnBtn.parentNode.insertBefore(btn, dnBtn.nextSibling);
+        } else {
+            bottomBar.insertBefore(btn, document.getElementById('startWave'));
+        }
+
+        btn.addEventListener('pointerdown', function(e) {
+            e.preventDefault();
+            if (gameState !== 'playing') return;
+            initAudio();
+            if (shopSelected === 'note') {
+                shopSelected = null;
+                btn.classList.remove('selected');
+            } else {
+                shopSelected = 'note';
+                selectedTower = null;
+                comboSequence = [];
+                removeMode = false;
+                removeBtn.classList.remove('active');
+                document.querySelectorAll('.shop-btn').forEach(function(b) { b.classList.remove('selected'); });
+                btn.classList.add('selected');
+                updateTowerPanel();
+            }
+        }, { passive: false });
+    }
+
+    // ============ 判斷是否為「攻擊塔」 ============
+    function isAttacker(tower) {
+        if (!tower) return false;
+        if (tower.type === 'note') return false;
+        if (tower.type === 'magenta') return false;
+        if (tower.type === 'deathNote') return false;
+        if (tower.type === 'red') return false;
+        if (tower.type === 'chrono' && tower.evolution === 'A') return false;
+        if (!tower.baseFireInterval) return false;
+        return true;
+    }
+
+    // ============ NoteTower 類別 ============
+    function NoteTower(spot) {
+        Tower.call(this, spot, 'note');
+        this._noAttack = true;
+        this._pulse = 0;
+        this._harmonyFreq = 0;
+        this._harmonyTarget = null;
+        this._harmonyError = 0;
+        this._harmonyMult = 1;
+        this._harmonyIntervalMult = 1;
+        this._harmonyFx = [];
+    }
+    NoteTower.prototype = Object.create(Tower.prototype);
+    NoteTower.prototype.constructor = NoteTower;
+
+    NoteTower.prototype.update = function(dt) {
+        this._pulse += dt;
+        for (let i = this._harmonyFx.length - 1; i >= 0; i--) {
+            this._harmonyFx[i].timer -= dt;
+            if (this._harmonyFx[i].timer <= 0) {
+                this._harmonyFx.splice(i, 1);
+            }
+        }
+        if (this._harmonyFreq === 0) {
+            this._generateHarmony();
+        }
+    };
+
+    NoteTower.prototype._generateHarmony = function() {
+        // 頻率範圍 0.5 ~ 2.0 秒
+        this._harmonyFreq = 0.5 + Math.random() * 1.5;
+
+        // 找射程內所有攻擊塔
+        const candidates = [];
+        for (let i = 0; i < SPOTS.length; i++) {
+            const t = SPOTS[i].tower;
+            if (!isAttacker(t)) continue;
+            const d = Math.hypot(t.x - this.x, t.y - this.y);
+            if (d <= this.range) {
+                candidates.push(t);
+            }
+        }
+
+        if (candidates.length === 0) {
+            this._harmonyTarget = null;
+            this._harmonyMult = 1;
+            this._harmonyIntervalMult = 1;
+            return;
+        }
+
+        // 找攻速最接近和諧頻率的塔
+        let best = null;
+        let bestError = Infinity;
+        for (let i = 0; i < candidates.length; i++) {
+            const t = candidates[i];
+            const fi = t.baseFireInterval || t.fireInterval || 1;
+            const err = Math.abs(fi - this._harmonyFreq) / this._harmonyFreq;
+            if (err < bestError) {
+                bestError = err;
+                best = t;
+            }
+        }
+
+        if (!best) return;
+
+        // ★ 加成只看頻率誤差，不看距離
+        let damageMult, intervalMult;
+        if (bestError < 0.05) {
+            damageMult = 3.0;
+            intervalMult = 0.5;
+        } else if (bestError < 0.15) {
+            damageMult = 2.0;
+            intervalMult = 0.7;
+        } else if (bestError < 0.30) {
+            damageMult = 1.5;
+            intervalMult = 0.85;
+        } else if (bestError < 0.50) {
+            damageMult = 1.2;
+            intervalMult = 0.95;
+        } else {
+            damageMult = 1.0;
+            intervalMult = 1.0;
+        }
+
+        this._harmonyTarget = best;
+        this._harmonyError = bestError;
+        this._harmonyMult = damageMult;
+        this._harmonyIntervalMult = intervalMult;
+
+        // 標記目標塔
+        best._noteBuff = {
+            damageMult: damageMult,
+            intervalMult: intervalMult,
+            noteTower: this,
+        };
+
+        this._harmonyFx.push({ timer: 1.2, maxTimer: 1.2 });
+
+        // 音效
+        if (typeof playTone === 'function') {
+            playTone({ freq: 500, slideTo: 900, duration: 0.25, type: 'sine', volume: 0.2 });
+            playTone({ freq: 750, slideTo: 1100, duration: 0.2, type: 'sine', volume: 0.15, delay: 0.1 });
+        }
+
+        console.log('[音符塔] 和諧頻率 ' + this._harmonyFreq.toFixed(2) + 's ｜ 目標：' + (best.config ? best.config.name : best.type) + '（攻速 ' + (best.baseFireInterval || 1).toFixed(2) + 's）｜ 誤差 ' + (bestError * 100).toFixed(1) + '% ｜ 傷害 ×' + damageMult.toFixed(2));
+    };
+
+    NoteTower.prototype.drawBody = function(x, y, alpha) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        drawTowerBase(x, y, '#cc66ff', true);
+        ctx.restore();
+        drawNoteIcon(x, y, 70);
+    };
+
+    NoteTower.prototype.draw = function() {
+        const x = this.x, y = this.y, size = 70, half = size / 2;
+
+        if (selectedTower === this) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(204, 102, 255, 0.06)';
+            ctx.beginPath();
+            ctx.arc(x, y, this.range, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(204, 102, 255, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        const isDragging = drag && drag.tower === this && drag.isDragging;
+        if (!isDragging) this.drawBody(x, y, 1);
+
+        // 光環
+        ctx.save();
+        const pulse = 0.5 + 0.5 * Math.sin(this._pulse * 3);
+        ctx.strokeStyle = 'rgba(204, 102, 255, ' + (0.4 + pulse * 0.4) + ')';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#cc66ff';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(x, y, half + 5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // 和聲漣漪
+        for (let i = 0; i < this._harmonyFx.length; i++) {
+            const fx = this._harmonyFx[i];
+            const t = 1 - fx.timer / fx.maxTimer;
+            const r = this.range * t;
+            const a = fx.timer / fx.maxTimer;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(220, 160, 255, ' + a * 0.7 + ')';
+            ctx.lineWidth = 3 * a;
+            ctx.shadowColor = '#cc66ff';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // 顯示和諧頻率
+        if (this._harmonyFreq > 0) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(20, 5, 40, 0.9)';
+            ctx.strokeStyle = '#cc66ff';
+            ctx.lineWidth = 1.5;
+            const w = 58, h = 22;
+            const bx = x - w / 2;
+            const by = y - half - 34;
+            ctx.beginPath();
+            ctx.roundRect(bx, by, w, h, 6);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#e0a0ff';
+            ctx.font = 'bold 12px system-ui';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('♪ ' + this._harmonyFreq.toFixed(2) + 's', x, by + h / 2 + 1);
+            ctx.restore();
+        }
+
+        drawLevelStars(this.level, x, y - half - 12, size);
+    };
+
+    function drawNoteIcon(x, y, size) {
+        const s = size;
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold ' + (s * 0.55) + 'px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#cc66ff';
+        ctx.shadowBlur = 15;
+        ctx.fillText('♪', x, y + 2);
+
+        const time = performance.now() / 1000;
+        for (let i = 0; i < 4; i++) {
+            const a = time * 1.5 + i * Math.PI / 2;
+            const r = s * 0.36;
+            const nx = x + Math.cos(a) * r;
+            const ny = y + Math.sin(a) * r;
+            ctx.fillStyle = 'rgba(220, 160, 255, 0.7)';
+            ctx.font = 'bold ' + (s * 0.16) + 'px system-ui';
+            ctx.fillText('♪', nx, ny);
+        }
+        ctx.restore();
+    }
+
+    // ============ 被加成塔的視覺 ============
+    const _prevTowerDraw = Tower.prototype.draw;
+    Tower.prototype.draw = function() {
+        _prevTowerDraw.call(this);
+
+        if (this._noteBuff) {
+            const x = this.x, y = this.y;
+            ctx.save();
+            const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 200);
+            ctx.strokeStyle = 'rgba(220, 160, 255, ' + (0.5 + pulse * 0.4) + ')';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#cc66ff';
+            ctx.shadowBlur = 18;
+            ctx.beginPath();
+            ctx.arc(x, y, 42, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // 顯示 ♪ 倍率
+            const w = 52, h = 20;
+            const bx = x - w / 2;
+            const by = y - 52;
+            ctx.fillStyle = 'rgba(60, 20, 80, 0.95)';
+            ctx.strokeStyle = '#cc66ff';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(bx, by, w, h, 5);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#e0a0ff';
+            ctx.font = 'bold 11px system-ui';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('♪ ×' + this._noteBuff.damageMult.toFixed(1), x, by + h / 2 + 1);
+            ctx.restore();
+        }
+    };
+
+    // ============ 包裝 Tower.update：臨時加成 ============
+    const _prevTowerUpdate = Tower.prototype.update;
+    Tower.prototype.update = function(dt) {
+        if (this._noteBuff) {
+            const savedDmg = this.damage;
+            const savedFI = this.fireInterval;
+            this.damage = savedDmg * this._noteBuff.damageMult;
+            this.fireInterval = savedFI * this._noteBuff.intervalMult;
+            try {
+                _prevTowerUpdate.call(this, dt);
+            } finally {
+                this.damage = savedDmg;
+                this.fireInterval = savedFI;
+            }
+        } else {
+            _prevTowerUpdate.call(this, dt);
+        }
+    };
+
+    // ============ 覆寫 createTower ============
+    const _prevCreateTower = createTower;
+    createTower = function(spot, type) {
+        if (type === 'note') return new NoteTower(spot);
+        return _prevCreateTower.call(this, spot, type);
+    };
+
+    // ============ 覆寫 drawTowerIcon ============
+    const _prevDrawTowerIcon = drawTowerIcon;
+    drawTowerIcon = function(type, x, y, size) {
+        if (type === 'note') {
+            drawNoteIcon(x, y, size);
+            return;
+        }
+        _prevDrawTowerIcon.call(this, type, x, y, size);
+    };
+
+    // ============ 每波開始時重刷和諧頻率 ============
+    const _prevStartWave = startWave;
+    startWave = function() {
+        const result = _prevStartWave.call(this);
+
+        // 清掉所有舊的 buff
+        for (let i = 0; i < SPOTS.length; i++) {
+            const t = SPOTS[i].tower;
+            if (t && t._noteBuff) {
+                t._noteBuff = null;
+            }
+        }
+
+        // 對每座音符塔重新生成和諧頻率
+        for (let i = 0; i < SPOTS.length; i++) {
+            const t = SPOTS[i].tower;
+            if (t instanceof NoteTower) {
+                t._harmonyFreq = 0;
+                t._generateHarmony();
+            }
+        }
+
+        return result;
+    };
+
+    // ============ 音符塔不能升級/合成 ============
+    const _prevUpgradeTower = upgradeTower;
+    upgradeTower = function(tower) {
+        if (tower && tower.type === 'note') {
+            if (typeof log === 'function') log('音符塔無法升級', 2000);
+            return;
+        }
+        return _prevUpgradeTower.call(this, tower);
+    };
+
+    const _prevCanCombine = canCombine;
+    canCombine = function(a, b) {
+        if ((a && a.type === 'note') || (b && b.type === 'note')) return false;
+        return _prevCanCombine.call(this, a, b);
+    };
+
+    // ============ 存檔整合 ============
+    const _prevSave = saveGame;
+    saveGame = function() {
+        if (typeof currentDifficulty === 'undefined' || !currentDifficulty) return;
+        if (typeof gameState === 'undefined' || gameState !== 'playing') return;
+        try {
+            const EVOLUTION_MAP = {
+                '墨綠塔': { base: 'green', branch: 'A' },
+                '天狼之塔': { base: 'green', branch: 'B' },
+                '電磁鏈塔': { base: 'blue', branch: 'A' },
+                '超頻藍塔': { base: 'blue', branch: 'B' },
+                '質量塔': { base: 'purple', branch: 'A' },
+                '霜凍塔': { base: 'purple', branch: 'B' },
+                '聚能伽馬塔': { base: 'orange', branch: 'A' },
+                '超新星塔': { base: 'orange', branch: 'B' },
+                '全金屬狂潮塔': { base: 'silver', branch: 'A' },
+                '霰彈加特林塔': { base: 'silver', branch: 'B' },
+                '雙刀流·塔': { base: 'tachi', branch: 'A' },
+                '大太刀·塔': { base: 'tachi', branch: 'B' },
+                '時光停滯塔': { base: 'chrono', branch: 'A' },
+                '坍縮迴圈塔': { base: 'chrono', branch: 'B' },
+            };
+            const towerData = [];
+            for (let i = 0; i < SPOTS.length; i++) {
+                const s = SPOTS[i];
+                if (s.tower) {
+                    const t = s.tower;
+                    const n = t.config && t.config.name;
+                    const evo = n && EVOLUTION_MAP[n];
+                    towerData.push({
+                        idx: i,
+                        type: evo ? evo.base : t.type,
+                        level: t.level,
+                        evolution: evo ? evo.branch : null,
+                    });
+                }
+            }
+            const data = {
+                version: 2, difficulty: currentDifficulty,
+                money: money, lives: lives, wave: wave,
+                damageStats: damageStats,
+                unlocked: Object.assign({}, unlocked),
+                towers: towerData,
+                timestamp: Date.now(),
+            };
+            localStorage.setItem(getSaveKey(), JSON.stringify(data));
+        } catch (e) {}
+    };
+
+    const _prevLoad = loadGame;
+    loadGame = function() {
+        if (typeof currentDifficulty === 'undefined' || !currentDifficulty) return false;
+        try {
+            const raw = localStorage.getItem(getSaveKey());
+            if (!raw) return false;
+            const data = JSON.parse(raw);
+            if (!data || (data.version !== 1 && data.version !== 2)) return false;
+            if (data.difficulty !== currentDifficulty || data.wave === 0) return false;
+            money = data.money || DIFFICULTIES[currentDifficulty].startMoney;
+            lives = data.lives || DIFFICULTIES[currentDifficulty].startLives;
+            wave = data.wave || 0;
+            damageStats = data.damageStats || {};
+            if (data.unlocked) {
+                for (const k in data.unlocked) {
+                    if (unlocked.hasOwnProperty(k)) unlocked[k] = data.unlocked[k];
+                }
+            }
+            for (let i = 0; i < SPOTS.length; i++) SPOTS[i].tower = null;
+            const towers = data.towers || [];
+            for (let i = 0; i < towers.length; i++) {
+                const t = towers[i];
+                const spot = SPOTS[t.idx];
+                if (!spot) continue;
+                const tower = createTower(spot, t.type);
+                if (!tower) continue;
+                tower.level = Math.min(t.level || 1, MAX_TOWER_LEVEL);
+                if (tower.applyLevel) tower.applyLevel();
+                spot.tower = tower;
+                if (t.evolution && typeof window.evolveSelectedTower === 'function') {
+                    const oldSel = selectedTower;
+                    selectedTower = tower;
+                    try { window.evolveSelectedTower(t.evolution); } catch (e) {}
+                    selectedTower = oldSel;
+                }
+            }
+            for (const type in unlocked) {
+                const btn = document.querySelector('.shop-btn[data-type="' + type + '"]');
+                if (!btn) continue;
+                if (unlocked[type]) btn.classList.remove('locked');
+                else btn.classList.add('locked');
+            }
+            if (typeof updateUI === 'function') updateUI();
+            return true;
+        } catch (e) { return false; }
+    };
+
+    console.log('[音符塔] 系統載入完成');
+})();
+</script>
+
+  <script>
+// ============================================================
+// 圖鑑更新：死亡筆記 + 音符塔
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[圖鑑新塔] 載入中...');
+
+    const NEW_CARDS = [
+        {
+            icon: '📓',
+            name: '死亡筆記',
+            color: '#c00000',
+            desc: '不攻擊。玩家點擊塔面板的「使用」按鈕後，可選擇場上任意一座塔將其消滅，並 100% 返還建造與升級的所有金幣。使用後死亡筆記本身也會消失。',
+            meta: '費用 200｜一次性｜返還 100% 金幣',
+            key: 'deathNote',
+        },
+        {
+            icon: '♪',
+            name: '音符塔',
+            color: '#cc66ff',
+            desc: '不攻擊。每一波開始時隨機生成一個【和諧頻率】（0.5~2.0 秒）。射程內所有攻擊塔中，基礎攻速最接近該頻率的那座塔將獲得大幅強化：傷害與攻速同時提升，越接近效果越強。',
+            meta: '費用 240｜射程 220｜每波隨機強化一座塔',
+            key: 'note',
+        },
+    ];
+
+    function makeCardHTML(data) {
+        return '<div class="codex-card" style="border-left:4px solid ' + data.color + ';">' +
+            '<div class="cc-icon">' + data.icon + '</div>' +
+            '<div class="cc-body">' +
+                '<div class="cc-name">' + data.name + '</div>' +
+                '<div class="cc-desc">' + data.desc + '</div>' +
+                '<div class="cc-meta">' + data.meta + '</div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    // ============ 注入塔圖鑑 ============
+    function injectCards() {
+        const content = document.getElementById('codexContent');
+        if (!content) return;
+
+        // 檢查「塔」分頁
+        const titles = content.querySelectorAll('.codex-section-title');
+        let targetSection = null;
+        for (let i = 0; i < titles.length; i++) {
+            if (titles[i].textContent.indexOf('特殊商店塔') >= 0) {
+                targetSection = titles[i];
+                break;
+            }
+        }
+        if (!targetSection) return;
+
+        // 找「特殊商店塔」區塊中所有卡片的最後一張
+        let lastCard = null;
+        let node = targetSection.nextElementSibling;
+        while (node && !node.classList.contains('codex-section-title')) {
+            if (node.classList.contains('codex-card')) lastCard = node;
+            node = node.nextElementSibling;
+        }
+        if (!lastCard) return;
+
+        // 逐張注入（各自檢查是否已存在）
+        for (let i = 0; i < NEW_CARDS.length; i++) {
+            const card = NEW_CARDS[i];
+            if (content.querySelector('.codex-card[data-new-tower="' + card.key + '"]')) continue;
+
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = makeCardHTML(card);
+            const newCard = wrapper.firstElementChild;
+            newCard.setAttribute('data-new-tower', card.key);
+
+            // 插到 lastCard 之後，然後更新 lastCard 指標
+            lastCard.parentNode.insertBefore(newCard, lastCard.nextSibling);
+            lastCard = newCard;
+            console.log('[圖鑑新塔] 已注入：' + card.name);
+        }
+    }
+
+    // ============ 更新（防遞迴） ============
+    let _updating = false;
+    function updateCodex() {
+        if (_updating) return;
+        _updating = true;
+        try {
+            injectCards();
+        } finally {
+            setTimeout(function() { _updating = false; }, 50);
+        }
+    }
+
+    // ============ 監聽圖鑑內容變化 ============
+    const content = document.getElementById('codexContent');
+    if (content) {
+        const observer = new MutationObserver(function(mutations) {
+            let shouldUpdate = false;
+            for (let i = 0; i < mutations.length; i++) {
+                const m = mutations[i];
+                if (m.addedNodes && m.addedNodes.length > 0) {
+                    let isOurs = false;
+                    for (let j = 0; j < m.addedNodes.length; j++) {
+                        const n = m.addedNodes[j];
+                        if (n.nodeType === 1 && n.hasAttribute && n.hasAttribute('data-new-tower')) {
+                            isOurs = true;
+                            break;
+                        }
+                    }
+                    if (!isOurs) shouldUpdate = true;
+                } else {
+                    shouldUpdate = true;
+                }
+            }
+            if (shouldUpdate) setTimeout(updateCodex, 30);
+        });
+        observer.observe(content, { childList: true, subtree: true });
+        console.log('[圖鑑新塔] 監聽器已綁定');
+    }
+
+    // ============ 點 tab 時觸發 ============
+    document.addEventListener('click', function(e) {
+        if (!e.target || !e.target.closest) return;
+        const tab = e.target.closest('.codex-tab');
+        if (!tab) return;
+        setTimeout(updateCodex, 80);
+    }, true);
+
+    // ============ 保險：圖鑑開啟時每 500ms 檢查 ============
+    setInterval(function() {
+        const panel = document.getElementById('codexPanel');
+        if (!panel || !panel.classList.contains('show')) return;
+        updateCodex();
+    }, 500);
+
+    console.log('[圖鑑新塔] 載入完成');
+})();
+</script>
   
 </body>
 </html>
