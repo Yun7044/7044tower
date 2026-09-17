@@ -16072,6 +16072,186 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     console.log('[狀態修正v2] 載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 圖鑑更新：太刀塔 + 收取小費
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[圖鑑] 擴充載入中...');
+
+    // ============ 太刀塔資料 ============
+    const TACHI_CARD = {
+        icon: '⚔️',
+        name: '太刀塔',
+        desc: '粉色六邊形，中央刻著「斬」字。發射弧形劍氣攻擊敵人，Lv.3 後可進化成雙刀流或大太刀。',
+        meta: '費用 45｜射程 240｜間隔 0.9s｜傷害 18',
+    };
+
+    const TACHI_EVOLVE_CARDS = [
+        {
+            icon: '⚔️',
+            name: '太刀塔 → 雙刀流·塔',
+            desc: '每次攻擊揮出兩道半尺寸劍氣，各造成 50% 傷害。命中敵人時短暫提升自身攻速（最多疊 5 層），並附加流血（每秒 30% 塔傷害，持續 3 秒）。',
+        },
+        {
+            icon: '🗡️',
+            name: '太刀塔 → 大太刀·塔',
+            desc: '攻速極慢但傷害極高。對前方 180 度內所有敵人同時造成傷害，命中眩暈 0.5 秒。範圍內沒敵人時持續居合蓄力，下一擊傷害翻倍並擊退 30 像素。',
+        },
+    ];
+
+    function makeCardHTML(data, color) {
+        const c = color || '#FF66B2';
+        return '<div class="codex-card" style="border-left:4px solid ' + c + ';">' +
+            '<div class="cc-icon">' + (data.icon || '') + '</div>' +
+            '<div class="cc-body">' +
+                '<div class="cc-name">' + (data.name || '') + '</div>' +
+                '<div class="cc-desc">' + (data.desc || '') + '</div>' +
+                (data.meta ? '<div class="cc-meta">' + data.meta + '</div>' : '') +
+            '</div>' +
+        '</div>';
+    }
+
+    // ============ 注入塔圖鑑：太刀塔 ============
+    function injectTowerCard() {
+        const content = document.getElementById('codexContent');
+        if (!content) return;
+        if (content.querySelector('[data-tachi-tower]')) return;
+
+        // 找「特殊商店塔」區塊
+        const titles = content.querySelectorAll('.codex-section-title');
+        let targetSection = null;
+        for (let i = 0; i < titles.length; i++) {
+            if (titles[i].textContent.indexOf('特殊商店塔') >= 0) {
+                targetSection = titles[i];
+                break;
+            }
+        }
+        if (!targetSection) return;
+
+        // 找「特殊商店塔」下面所有的卡片，取最後一張
+        let lastCard = null;
+        let node = targetSection.nextElementSibling;
+        while (node && !node.classList.contains('codex-section-title')) {
+            if (node.classList.contains('codex-card')) lastCard = node;
+            node = node.nextElementSibling;
+        }
+        if (!lastCard) return;
+
+        const div = document.createElement('div');
+        div.setAttribute('data-tachi-tower', '1');
+        div.innerHTML = makeCardHTML(TACHI_CARD, '#FF66B2');
+        const newCard = div.firstElementChild;
+        lastCard.parentNode.insertBefore(newCard, lastCard.nextSibling);
+        console.log('[圖鑑] 太刀塔卡片已注入');
+    }
+
+    // ============ 注入進化圖鑑：兩張太刀分支 ============
+    function injectEvolveCards() {
+        const content = document.getElementById('codexContent');
+        if (!content) return;
+        if (content.querySelector('[data-tachi-evolve]')) return;
+
+        // 檢查是不是「進化」分頁
+        const titles = content.querySelectorAll('.codex-section-title');
+        let isEvolveTab = false;
+        for (let i = 0; i < titles.length; i++) {
+            if (titles[i].textContent.indexOf('進化分支') >= 0) {
+                isEvolveTab = true;
+                break;
+            }
+        }
+        if (!isEvolveTab) return;
+
+        // 找所有進化卡片，取最後一張
+        const cards = content.querySelectorAll('.codex-card');
+        if (cards.length === 0) return;
+        const lastCard = cards[cards.length - 1];
+
+        const div = document.createElement('div');
+        div.setAttribute('data-tachi-evolve', '1');
+        let html = '';
+        for (let i = 0; i < TACHI_EVOLVE_CARDS.length; i++) {
+            html += makeCardHTML(TACHI_EVOLVE_CARDS[i], '#FF66B2');
+        }
+        div.innerHTML = html;
+
+        let refNode = lastCard.nextSibling;
+        while (div.firstElementChild) {
+            const card = div.firstElementChild;
+            lastCard.parentNode.insertBefore(card, refNode);
+            refNode = card.nextSibling;
+        }
+        console.log('[圖鑑] 太刀塔進化卡片已注入');
+    }
+
+    // ============ 修正事件圖鑑：血量賭博 → 收取小費 ============
+    function fixEventCards() {
+        const content = document.getElementById('codexContent');
+        if (!content) return;
+
+        const cards = content.querySelectorAll('.codex-card');
+        for (let i = 0; i < cards.length; i++) {
+            const card = cards[i];
+            const nameEl = card.querySelector('.cc-name');
+            const descEl = card.querySelector('.cc-desc');
+            if (!nameEl || !descEl) continue;
+
+            const n = nameEl.textContent;
+            // 修正名字
+            if (n === '血量賭博') {
+                nameEl.textContent = '收取小費';
+                // 修正 icon
+                const iconEl = card.querySelector('.cc-icon');
+                if (iconEl) iconEl.textContent = '💸';
+                console.log('[圖鑑] 修正：血量賭博 → 收取小費');
+            }
+            // 修正描述（不管是舊名字還是新名字都檢查）
+            if (descEl.textContent.indexOf('扣') >= 0 && descEl.textContent.indexOf('生命') >= 0) {
+                descEl.textContent = '扣除當前金幣的 10%，全塔永久傷害 +5%。';
+                console.log('[圖鑑] 修正：事件描述');
+            }
+        }
+    }
+
+    // ============ 綜合更新 ============
+    function updateCodex() {
+        injectTowerCard();
+        injectEvolveCards();
+        fixEventCards();
+    }
+
+    // ============ 監聽圖鑑內容變化 ============
+    const content = document.getElementById('codexContent');
+    if (content) {
+        const observer = new MutationObserver(function() {
+            // 延遲 30ms，避開 mutation 批次
+            setTimeout(updateCodex, 30);
+        });
+        observer.observe(content, { childList: true, subtree: true });
+        console.log('[圖鑑] 監聽器已綁定');
+    }
+
+    // ============ 點 tab 時觸發 ============
+    document.addEventListener('click', function(e) {
+        if (!e.target || !e.target.closest) return;
+        const tab = e.target.closest('.codex-tab');
+        if (!tab) return;
+        setTimeout(updateCodex, 80);
+    }, true);
+
+    // ============ 保險：圖鑑開啟時每 300ms 檢查一次 ============
+    setInterval(function() {
+        const panel = document.getElementById('codexPanel');
+        if (!panel || !panel.classList.contains('show')) return;
+        updateCodex();
+    }, 300);
+
+    console.log('[圖鑑] 擴充載入完成');
+})();
+</script>
   
 </body>
 </html>
