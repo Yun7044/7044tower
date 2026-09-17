@@ -16791,6 +16791,132 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     }, true);
 })();
 </script>
+
+<script>
+// ============================================================
+// 大太刀刀光視覺修正
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[大太刀視覺] 載入中...');
+
+    let patched = false;
+
+    function tryPatch() {
+        if (patched) return;
+        if (typeof SPOTS === 'undefined') return;
+
+        // 找一座大太刀
+        let sample = null;
+        for (let i = 0; i < SPOTS.length; i++) {
+            const t = SPOTS[i].tower;
+            if (t && t.config && t.config.name === '大太刀·塔') {
+                sample = t;
+                break;
+            }
+        }
+        if (!sample) return;
+
+        const proto = Object.getPrototypeOf(sample);
+        if (proto === Tower.prototype) return;
+
+        // 防重複
+        if (proto._visualPatched) return;
+        proto._visualPatched = true;
+
+        // 縮短刀光顯示時間
+        const _prevFireOdachi = proto.fireOdachi;
+        proto.fireOdachi = function(target) {
+            _prevFireOdachi.call(this, target);
+            // 把刀光時間從 0.25 縮到 0.12
+            if (this.lastSlash) {
+                this.lastSlash.timer = 0.12;
+                this.lastSlash.maxTimer = 0.12;
+            }
+        };
+
+        // 覆寫 draw：用新視覺
+        const _prevDraw = proto.draw;
+        proto.draw = function() {
+            const self = this;
+
+            // 先畫原本的塔（但不畫舊刀光）
+            // 因為原 draw 會畫刀光，我們先暫時清掉 lastSlash
+            const savedSlash = self.lastSlash;
+            self.lastSlash = null;
+            _prevDraw.call(self);
+            self.lastSlash = savedSlash;
+
+            // 然後自己畫新的刀光
+            if (savedSlash) {
+                const s = savedSlash;
+                const alpha = Math.max(0, s.timer / s.maxTimer);
+                const range = Math.min(s.range || 286, 240); // 視覺範圍縮到 240
+
+                ctx.save();
+                ctx.translate(self.x, self.y);
+                ctx.rotate(s.angle);
+
+                // === 刀光主體：只畫外緣弧線 ===
+                ctx.globalAlpha = alpha * 0.5;
+
+                // 外緣粗線（粉色）
+                ctx.strokeStyle = s.charged ? '#ffb8e0' : '#FF66B2';
+                ctx.lineWidth = s.charged ? 5 : 3;
+                ctx.shadowColor = '#FF66B2';
+                ctx.shadowBlur = s.charged ? 18 : 10;
+                ctx.beginPath();
+                ctx.arc(0, 0, range * 0.9, -Math.PI / 2, Math.PI / 2);
+                ctx.stroke();
+
+                // 內側細線（白色）
+                ctx.globalAlpha = alpha * 0.7;
+                ctx.shadowColor = '#FFFFFF';
+                ctx.shadowBlur = 6;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(0, 0, range * 0.9, -Math.PI / 2, Math.PI / 2);
+                ctx.stroke();
+
+                // === 中央細細的刀痕 ===
+                ctx.globalAlpha = alpha * 0.3;
+                ctx.shadowBlur = 4;
+                ctx.strokeStyle = 'rgba(255, 180, 220, 0.6)';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < 5; i++) {
+                    const a = -Math.PI / 2 + (i / 4) * Math.PI;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(Math.cos(a) * range * 0.9, Math.sin(a) * range * 0.9);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+        };
+
+        patched = true;
+        console.log('[大太刀視覺] 刀光已改為細線版');
+    }
+
+    tryPatch();
+    const iv = setInterval(function() {
+        tryPatch();
+        if (patched) clearInterval(iv);
+    }, 500);
+
+    document.addEventListener('pointerdown', function(e) {
+        if (!e.target || !e.target.closest) return;
+        const btn = e.target.closest('[data-difficulty], #startWave');
+        if (!btn) return;
+        setTimeout(function() {
+            patched = false;
+            tryPatch();
+        }, 500);
+    }, true);
+})();
+</script>
   
 </body>
 </html>
