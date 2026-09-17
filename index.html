@@ -16696,6 +16696,101 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     console.log('[大太刀] 擊退已移除（居合傷害加成保留）');
 })();
 </script>
+
+<script>
+// ============================================================
+// 移除大太刀擊退（不需要 TachiTower）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[大太刀] 擊退移除載入中...');
+
+    let patched = false;
+
+    function tryPatch() {
+        if (patched) return;
+        if (typeof SPOTS === 'undefined') return;
+
+        // 從場上找一座大太刀塔
+        let sampleTower = null;
+        for (let i = 0; i < SPOTS.length; i++) {
+            const t = SPOTS[i].tower;
+            if (t && t.config && t.config.name === '大太刀·塔') {
+                sampleTower = t;
+                break;
+            }
+        }
+
+        if (!sampleTower) return; // 場上還沒有大太刀
+
+        // 反查它的 prototype
+        const proto = Object.getPrototypeOf(sampleTower);
+
+        // 防止誤抓到 Tower.prototype
+        if (proto === Tower.prototype) return;
+
+        // 檢查有沒有 fireOdachi 方法
+        if (typeof proto.fireOdachi !== 'function') return;
+
+        // 防止重複包裝
+        if (proto._knockbackRemoved) return;
+        proto._knockbackRemoved = true;
+
+        const _prevFireOdachi = proto.fireOdachi;
+
+        proto.fireOdachi = function(target) {
+            // 記錄攻擊前所有敵人的距離
+            const saved = [];
+            if (typeof enemies !== 'undefined') {
+                for (let i = 0; i < enemies.length; i++) {
+                    const e = enemies[i];
+                    if (e && e.alive) {
+                        saved.push({ enemy: e, distance: e.distance });
+                    }
+                }
+            }
+
+            // 執行原版（會擊退）
+            _prevFireOdachi.call(this, target);
+
+            // 還原被擊退的敵人（只還原大幅倒退的，避免影響履帶效果）
+            for (let i = 0; i < saved.length; i++) {
+                const item = saved[i];
+                if (!item.enemy || !item.enemy.alive) continue;
+                const diff = item.distance - item.enemy.distance;
+                if (diff > 5) {
+                    // 差距超過 5 → 是擊退，還原
+                    item.enemy.distance = item.distance;
+                }
+            }
+        };
+
+        patched = true;
+        console.log('[大太刀] 擊退已移除（找到實例，prototype 已包裝）');
+    }
+
+    // 立刻試一次
+    tryPatch();
+
+    // 每 500ms 重試（因為玩家可能還沒蓋大太刀）
+    const interval = setInterval(function() {
+        tryPatch();
+        if (patched) clearInterval(interval);
+    }, 500);
+
+    // 保險：遊戲重新開始時也重新偵測
+    document.addEventListener('pointerdown', function(e) {
+        if (!e.target || !e.target.closest) return;
+        // 如果點的是「開始遊戲」相關按鈕，重置偵測
+        const btn = e.target.closest('[data-difficulty], #startWave');
+        if (!btn) return;
+        setTimeout(function() {
+            patched = false;
+            tryPatch();
+        }, 500);
+    }, true);
+})();
+</script>
   
 </body>
 </html>
