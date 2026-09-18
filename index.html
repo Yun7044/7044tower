@@ -21255,6 +21255,246 @@ body.in-menu #chronoSkillBtn { display: none !important; }
     console.log('[大廳BGM] 載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 大廳 BGM：手機解鎖修正
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[大廳BGM手機修復] 載入中...');
+
+    const NOTES = {
+        C2: 65.41, A1: 55.00, F1: 43.65, G1: 49.00,
+        A3: 220.00, B4: 493.88, C4: 261.63, D4: 293.66,
+        E4: 329.63, F3: 174.61, G3: 196.00, G4: 392.00,
+    };
+    const ARPEGGIO = [
+        'C4','E4','G4','E4','C4','E4','G4','E4',
+        'A3','C4','E4','C4','A3','C4','E4','C4',
+        'F3','A3','C4','A3','F3','A3','C4','A3',
+        'G3','B4','D4','B4','G3','B4','D4','B4',
+    ];
+    const BASS = ['C2', 'A1', 'F1', 'G1'];
+    const PADS = [
+        ['C4', 'E4', 'G4'],
+        ['A3', 'C4', 'E4'],
+        ['F3', 'A3', 'C4'],
+        ['G3', 'B4', 'D4'],
+    ];
+    const TEMPO = 0.40;
+    const LOOKAHEAD = 0.15;
+    const INTERVAL = 30;
+
+    let bgmPlaying = false;
+    let bgmTimer = null;
+    let bgmNextTime = 0;
+    let bgmStep = 0;
+    let ownGain = null;
+
+    function ensureGain() {
+        if (ownGain) return ownGain;
+        if (typeof audioCtx === 'undefined' || !audioCtx) return null;
+        try {
+            ownGain = audioCtx.createGain();
+            ownGain.gain.value = 0.15;
+            ownGain.connect(audioCtx.destination);
+            return ownGain;
+        } catch (e) { return null; }
+    }
+
+    function playNote(freq, time, duration, volume, type, attack) {
+        const g = ensureGain();
+        if (!g) return;
+        try {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type || 'sine';
+            osc.frequency.setValueAtTime(freq, time);
+            const att = attack || 0.04;
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(volume, time + att);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+            osc.connect(gain);
+            gain.connect(g);
+            osc.start(time);
+            osc.stop(time + duration + 0.05);
+        } catch (e) {}
+    }
+
+    function playChorus(freq, time, duration, volume, type, attack) {
+        const g = ensureGain();
+        if (!g) return;
+        try {
+            const o1 = audioCtx.createOscillator();
+            const o2 = audioCtx.createOscillator();
+            const gn = audioCtx.createGain();
+            o1.type = type || 'sine';
+            o2.type = type || 'sine';
+            o1.frequency.setValueAtTime(freq, time);
+            o2.frequency.setValueAtTime(freq * 1.004, time);
+            const att = attack || 0.05;
+            gn.gain.setValueAtTime(0, time);
+            gn.gain.linearRampToValueAtTime(volume, time + att);
+            gn.gain.exponentialRampToValueAtTime(0.001, time + duration);
+            o1.connect(gn); o2.connect(gn);
+            gn.connect(g);
+            o1.start(time); o1.stop(time + duration + 0.05);
+            o2.start(time); o2.stop(time + duration + 0.05);
+        } catch (e) {}
+    }
+
+    function scheduler() {
+        if (!bgmPlaying || document.hidden) return;
+        if (typeof audioCtx === 'undefined' || !audioCtx) return;
+        const horizon = audioCtx.currentTime + LOOKAHEAD;
+        while (bgmNextTime < horizon) {
+            const step = bgmStep % 32;
+            const bar = Math.floor(step / 8);
+            const inBar = step % 8;
+
+            const note = ARPEGGIO[step];
+            if (note && NOTES[note]) {
+                playChorus(NOTES[note], bgmNextTime, 0.9, 0.05, 'sine', 0.06);
+                playNote(NOTES[note] * 2, bgmNextTime, 0.5, 0.012, 'sine', 0.08);
+            }
+            if (inBar === 0) {
+                const bass = BASS[bar];
+                if (bass && NOTES[bass]) playNote(NOTES[bass], bgmNextTime, 2.6, 0.09, 'sine', 0.15);
+                const chord = PADS[bar];
+                for (let i = 0; i < chord.length; i++) {
+                    if (NOTES[chord[i]]) playNote(NOTES[chord[i]], bgmNextTime, 3.0, 0.018, 'sine', 0.7);
+                }
+            }
+            bgmNextTime += TEMPO;
+            bgmStep++;
+        }
+    }
+
+    function startOwnBgm() {
+        if (bgmPlaying) return;
+        if (typeof audioCtx === 'undefined' || !audioCtx) return;
+        if (audioCtx.state !== 'running') {
+            console.log('[大廳BGM手機修復] 無法啟動：AudioContext 狀態 =', audioCtx.state);
+            return;
+        }
+        if (typeof muted !== 'undefined' && muted) return;
+        bgmPlaying = true;
+        bgmNextTime = audioCtx.currentTime + 0.2;
+        bgmStep = 0;
+        if (bgmTimer) clearInterval(bgmTimer);
+        bgmTimer = setInterval(scheduler, INTERVAL);
+        console.log('[大廳BGM手機修復] 開始播放');
+    }
+
+    function stopOwnBgm() {
+        if (!bgmPlaying) return;
+        bgmPlaying = false;
+        if (bgmTimer) clearInterval(bgmTimer);
+        bgmTimer = null;
+        console.log('[大廳BGM手機修復] 停止播放');
+    }
+
+    // ★ 核心：第一次手勢時「同步」解鎖
+    let _unlocked = false;
+
+    function unlockFromGesture() {
+        if (_unlocked) return;
+
+        console.log('[大廳BGM手機修復] 收到使用者手勢，嘗試解鎖');
+
+        // 1. 同步初始化（必須在手勢的同步執行中）
+        if (typeof initAudio === 'function') {
+            try { initAudio(); } catch (e) {}
+        }
+
+        // 2. 如果沒有 audioCtx，試著自己建立（極端備援）
+        if (typeof audioCtx === 'undefined' || !audioCtx) {
+            try {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (Ctx) {
+                    window.audioCtx = new Ctx();
+                    console.log('[大廳BGM手機修復] 自行建立 AudioContext');
+                }
+            } catch (e) {
+                console.warn('[大廳BGM手機修復] 建立失敗', e);
+                return;
+            }
+        }
+
+        if (!audioCtx) return;
+
+        // 3. resume（手機必須）
+        function afterResume() {
+            if (audioCtx.state === 'running') {
+                _unlocked = true;
+                const menu = document.getElementById('mainMenu');
+                if (menu && menu.classList.contains('show')) {
+                    startOwnBgm();
+                }
+                console.log('[大廳BGM手機修復] 解鎖成功');
+            } else {
+                console.log('[大廳BGM手機修復] resume 後狀態仍為：', audioCtx.state);
+            }
+        }
+
+        if (audioCtx.state === 'suspended') {
+            // iOS 有時需要「播一個空音」才會真的解鎖
+            try {
+                const buf = audioCtx.createBuffer(1, 1, 22050);
+                const src = audioCtx.createBufferSource();
+                src.buffer = buf;
+                src.connect(audioCtx.destination);
+                src.start(0);
+            } catch (e) {}
+
+            audioCtx.resume().then(afterResume).catch(function(e) {
+                console.warn('[大廳BGM手機修復] resume 失敗', e);
+            });
+        } else {
+            afterResume();
+        }
+    }
+
+    // ★ 三種事件都綁（不同手機觸發的事件不同）
+    document.addEventListener('pointerdown', unlockFromGesture, true);
+    document.addEventListener('touchstart', unlockFromGesture, true);
+    document.addEventListener('click', unlockFromGesture, true);
+
+    // ★ 保險：狀態監控（如果使用者手勢沒觸發，這裡仍會嘗試）
+    setInterval(function() {
+        if (typeof audioCtx === 'undefined' || !audioCtx) return;
+        if (audioCtx.state !== 'running') {
+            stopOwnBgm();
+            return;
+        }
+        if (typeof muted !== 'undefined' && muted) {
+            stopOwnBgm();
+            return;
+        }
+        const menu = document.getElementById('mainMenu');
+        const inMenu = menu && menu.classList.contains('show');
+        if (inMenu && !bgmPlaying) startOwnBgm();
+        if (!inMenu && bgmPlaying) stopOwnBgm();
+    }, 500);
+
+    // ★ 監聽「靜音按鈕」被按下時的反應
+    document.addEventListener('pointerdown', function(e) {
+        if (!e.target || !e.target.closest) return;
+        if (e.target.closest('#muteBtn')) {
+            setTimeout(function() {
+                if (typeof muted !== 'undefined' && muted) stopOwnBgm();
+                else if (audioCtx && audioCtx.state === 'running') {
+                    const menu = document.getElementById('mainMenu');
+                    if (menu && menu.classList.contains('show')) startOwnBgm();
+                }
+            }, 150);
+        }
+    }, true);
+
+    console.log('[大廳BGM手機修復] 載入完成｜等待使用者手勢');
+})();
+</script>
   
 </body>
 </html>
