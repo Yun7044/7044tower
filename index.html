@@ -21690,6 +21690,804 @@ body.in-menu #chronoSkillBtn { display: none !important; }
     console.log('[大廳BGM v2] 載入完成');
 })();
 </script>
+
+<script>
+// ============================================================
+// 特殊 Boss 系統：資料與邏輯
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[特殊Boss] 邏輯載入中...');
+
+    window.BOSS_TYPES = {
+        basic:          { name: '深淵領主', icon: '👑', color: '#c68642', hpMult: 1.0, speedMult: 1.0, abilities: ['暴走'] },
+        paramecium:     { name: '草履蟲王', icon: '🦠', color: '#4ec472', hpMult: 0.7, speedMult: 0.5, abilities: ['無限分裂'] },
+        whiteHorse:     { name: '白駒暴君', icon: '🐎', color: '#e8e8e8', hpMult: 1.2, speedMult: 0.8, abilities: ['越戰越快'] },
+        ironFortress:   { name: '鋼鐵壁壘', icon: '🛡️', color: '#808890', hpMult: 1.5, speedMult: 0.4, abilities: ['3 層護盾'] },
+        beeLord:        { name: '群蜂之主', icon: '🐝', color: '#ffcc44', hpMult: 1.3, speedMult: 0.3, abilities: ['召喚小蜂'] },
+        lifePriest:     { name: '生命祭司', icon: '✚',  color: '#66ff99', hpMult: 1.4, speedMult: 0.6, abilities: ['自我治療'] },
+        shadowAssassin: { name: '暗影刺客', icon: '🗡️', color: '#2a1a4a', hpMult: 1.1, speedMult: 1.0, abilities: ['週期隱形'] },
+    };
+
+    window.getBossTypeForWave = function(w) {
+        if (w === 10) return 'basic';
+        if (w === 20) return 'paramecium';
+        if (w === 30) return 'whiteHorse';
+        if (w === 40) return 'ironFortress';
+        if (w === 50) return 'beeLord';
+        if (w === 60) return 'lifePriest';
+        if (w === 70) return 'shadowAssassin';
+        if (w >= 80) {
+            const pool = ['paramecium', 'whiteHorse', 'ironFortress', 'beeLord', 'lifePriest', 'shadowAssassin'];
+            return pool[Math.floor(Math.random() * pool.length)];
+        }
+        return 'basic';
+    };
+
+    // ============ 偵測新 Boss 並初始化 ============
+    setInterval(function() {
+        if (typeof enemies === 'undefined') return;
+        if (typeof gameState === 'undefined' || gameState !== 'playing') return;
+
+        for (let i = 0; i < enemies.length; i++) {
+            const e = enemies[i];
+            if (!e.isBoss || !e.alive) continue;
+            if (e.bossType) continue;
+
+            e.bossType = getBossTypeForWave(wave);
+            const bType = BOSS_TYPES[e.bossType];
+            if (!bType) continue;
+
+            if (bType.hpMult && bType.hpMult !== 1.0) {
+                e.maxHp = Math.floor(e.maxHp * bType.hpMult);
+                e.hp = e.maxHp;
+            }
+            if (bType.speedMult && bType.speedMult !== 1.0) {
+                e.baseSpeed *= bType.speedMult;
+            }
+
+            if (e.bossType === 'paramecium') {
+                e._splitGeneration = 0;
+            }
+            if (e.bossType === 'whiteHorse') {
+                e._accumulatedDamage = 0;
+                e._speedBonus = 0;
+            }
+            if (e.bossType === 'ironFortress') {
+                e._shields = 3;
+                e._maxShieldPer = Math.floor(e.maxHp * 0.15);
+                e._currentShield = e._maxShieldPer;
+            }
+            if (e.bossType === 'beeLord') {
+                e._summonTimer = 5.0;
+            }
+            if (e.bossType === 'lifePriest') {
+                e._healTimer = 5.0;
+                e._healBlockTimer = 0;
+            }
+            if (e.bossType === 'shadowAssassin') {
+                e._invisTimer = 4.0;
+                e._invisible = false;
+            }
+        }
+    }, 25);
+
+    // ============ takeDamage 攔截 ============
+    const _prevTakeDamage = Enemy.prototype.takeDamage;
+    Enemy.prototype.takeDamage = function(amount) {
+        if (!this.alive) return 0;
+        if (amount <= 0) return 0;
+
+        // 鋼鐵壁壘：護盾優先
+        if (this.bossType === 'ironFortress' && this._shields > 0) {
+            const absorbed = Math.min(this._currentShield, amount);
+            this._currentShield -= absorbed;
+            if (this._currentShield <= 0) {
+                this._shields--;
+                if (this._shields > 0) {
+                    this._currentShield = this._maxShieldPer;
+                } else {
+                    this._currentShield = 0;
+                }
+                if (typeof log === 'function') log('🛡️ 護盾破裂！剩 ' + this._shields + ' 層', 1500);
+            }
+            return absorbed;
+        }
+
+        // 暗影刺客：隱形時受傷減半
+        let finalAmount = amount;
+        if (this.bossType === 'shadowAssassin' && this._invisible) {
+            finalAmount = amount * 0.5;
+        }
+
+        const wasAlive = this.alive;
+        const result = _prevTakeDamage.call(this, finalAmount);
+
+        // 白駒暴君：累計傷害 → 加速
+        if (this.bossType === 'whiteHorse' && this.alive) {
+            this._accumulatedDamage = (this._accumulatedDamage || 0) + result;
+            const threshold = this.maxHp * 0.05;
+            const stacks = Math.floor(this._accumulatedDamage / threshold);
+            const targetBonus = Math.min(1.0, stacks * 0.05);  // 上限 +100% = 2 倍速
+            if (targetBonus > (this._speedBonus || 0)) {
+                this.baseSpeed /= (1 + this._speedBonus);
+                this._speedBonus = targetBonus;
+                this.baseSpeed *= (1 + this._speedBonus);
+            }
+        }
+
+        // 生命祭司：大傷害中斷治療
+        if (this.bossType === 'lifePriest') {
+            if (result >= this.maxHp * 0.15) {
+                this._healBlockTimer = 3.0;
+            }
+        }
+
+        // 草履蟲王：死亡分裂
+        if (wasAlive && !this.alive && this.bossType === 'paramecium') {
+            splitParamecium(this);
+        }
+
+        return result;
+    };
+
+    function splitParamecium(parent) {
+        const gen = parent._splitGeneration || 0;
+        if (gen >= 5) return;  // 最多分 5 代，避免無限爆增
+
+        const childHp = Math.floor(parent.maxHp * 0.42);  // 每代衰減 42%
+        if (childHp < 5) return;
+
+        for (let i = 0; i < 2; i++) {
+            const child = new Enemy(childHp, parent.baseSpeed * 1.15, false);
+            child.distance = parent.distance + (i === 0 ? -6 : 6);
+            child.col = parent.col + (i === 0 ? -0.15 : 0.15);
+            child.row = parent.row;
+            child.bossType = 'paramecium';
+            child._splitGeneration = gen + 1;
+            child._isParameciumChild = true;
+            // 子代血量 = maxHp，不套 Boss 倍率
+            enemies.push(child);
+        }
+        if (typeof log === 'function') log('🦠 分裂！', 1200);
+    }
+
+    // ============ 群蜂之主召喚 ============
+    function summonBeeMinions(boss) {
+        const minionHp = Math.floor(boss.hp * 0.025);  // 2.5% 當前血量
+        if (minionHp < 5) return;
+
+        for (let i = 0; i < 2; i++) {
+            const minion = new Enemy(minionHp, boss.baseSpeed * 4, false);
+            minion.distance = Math.max(0, boss.distance - 20 - i * 10);
+            minion._isBeeMinion = true;
+            minion._beeLifeTimer = 8.0;
+            enemies.push(minion);
+        }
+        if (typeof log === 'function') log('🐝 召喚 2 隻小蜂！', 1200);
+    }
+
+    // ============ update 攔截 ============
+    const _prevUpdate = Enemy.prototype.update;
+    Enemy.prototype.update = function(dt) {
+        if (!this.alive) { _prevUpdate.call(this, dt); return; }
+
+        // 小蜂存活時間
+        if (this._isBeeMinion) {
+            this._beeLifeTimer -= dt;
+            if (this._beeLifeTimer <= 0) {
+                this.alive = false;
+                return;
+            }
+        }
+
+        // 群蜂之主：召喚
+        if (this.bossType === 'beeLord') {
+            this._summonTimer -= dt;
+            if (this._summonTimer <= 0) {
+                this._summonTimer = 5.0;
+                summonBeeMinions(this);
+            }
+        }
+
+        // 生命祭司：治療
+        if (this.bossType === 'lifePriest') {
+            if (this._healBlockTimer > 0) {
+                this._healBlockTimer -= dt;
+            } else {
+                this._healTimer -= dt;
+                if (this._healTimer <= 0) {
+                    this._healTimer = 5.0;
+                    const heal = Math.floor(this.maxHp * 0.10);
+                    this.hp = Math.min(this.maxHp, this.hp + heal);
+                    if (typeof log === 'function') log('✚ 生命祭司回復 ' + heal, 1200);
+                }
+            }
+        }
+
+        // 暗影刺客：隱形切換
+        if (this.bossType === 'shadowAssassin') {
+            this._invisTimer -= dt;
+            if (this._invisTimer <= 0) {
+                this._invisible = !this._invisible;
+                this._invisTimer = this._invisible ? 2.0 : 4.0;
+            }
+        }
+
+        _prevUpdate.call(this, dt);
+    };
+
+    console.log('[特殊Boss] 邏輯載入完成');
+})();
+</script>
+
+  <script>
+// ============================================================
+// 特殊 Boss 外觀
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[特殊Boss] 外觀載入中...');
+
+    function drawBossBody(e, p, r) {
+        const type = e.bossType || 'basic';
+        const t = performance.now() / 1000;
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+
+        if (type === 'paramecium') {
+            // 草履蟲王：綠色不規則液體
+            const wobble = 1 + 0.08 * Math.sin(t * 3);
+            ctx.fillStyle = '#4ec472';
+            ctx.strokeStyle = '#2a7a4a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < 12; i++) {
+                const a = (i / 12) * Math.PI * 2;
+                const rr = r * wobble * (0.9 + 0.15 * Math.sin(t * 2 + i));
+                ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            // 細胞核
+            ctx.fillStyle = '#1a5a2a';
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#a0ffb0';
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.18, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (type === 'whiteHorse') {
+            // 白駒暴君：白色馬頭
+            ctx.fillStyle = '#f0f0f0';
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 2;
+            // 馬頭側面
+            ctx.beginPath();
+            ctx.ellipse(0, 0, r * 0.7, r * 0.95, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // 耳朵
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.3, -r * 0.8);
+            ctx.lineTo(-r * 0.4, -r * 1.2);
+            ctx.lineTo(-r * 0.15, -r * 0.9);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(r * 0.3, -r * 0.8);
+            ctx.lineTo(r * 0.4, -r * 1.2);
+            ctx.lineTo(r * 0.15, -r * 0.9);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            // 眼睛
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(-r * 0.25, -r * 0.15, r * 0.1, 0, Math.PI * 2);
+            ctx.arc(r * 0.25, -r * 0.15, r * 0.1, 0, Math.PI * 2);
+            ctx.fill();
+            // 鬃毛
+            ctx.fillStyle = '#a0a0a0';
+            for (let i = 0; i < 4; i++) {
+                ctx.beginPath();
+                ctx.moveTo(-r * 0.6 + i * r * 0.3, -r * 0.7);
+                ctx.lineTo(-r * 0.5 + i * r * 0.3, -r * 1.0);
+                ctx.lineTo(-r * 0.3 + i * r * 0.3, -r * 0.75);
+                ctx.closePath();
+                ctx.fill();
+            }
+        } else if (type === 'ironFortress') {
+            // 鋼鐵壁壘：六角形裝甲
+            ctx.fillStyle = '#808890';
+            ctx.strokeStyle = '#303840';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+                const rr = r * 1.0;
+                ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            // 內層
+            ctx.fillStyle = '#505860';
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+                const rr = r * 0.65;
+                ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+            }
+            ctx.closePath();
+            ctx.fill();
+            // 中心紅點
+            ctx.fillStyle = '#c00000';
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.22, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (type === 'beeLord') {
+            // 群蜂之主：黃黑條紋 + 翅膀
+            const wobble = Math.sin(t * 8) * 3;
+            // 翅膀
+            ctx.fillStyle = 'rgba(200, 220, 255, 0.5)';
+            ctx.beginPath();
+            ctx.ellipse(-r * 0.7, -r * 0.5 + wobble, r * 0.5, r * 0.25, -0.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(r * 0.7, -r * 0.5 + wobble, r * 0.5, r * 0.25, 0.5, 0, Math.PI * 2);
+            ctx.fill();
+            // 身體
+            ctx.fillStyle = '#ffcc44';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, r * 0.9, r * 1.0, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // 黑條紋
+            ctx.fillStyle = '#000';
+            for (let i = 0; i < 3; i++) {
+                ctx.fillRect(-r * 0.85, -r * 0.3 + i * r * 0.35, r * 1.7, r * 0.18);
+            }
+            // 眼睛
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(-r * 0.3, -r * 0.5, r * 0.12, 0, Math.PI * 2);
+            ctx.arc(r * 0.3, -r * 0.5, r * 0.12, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (type === 'lifePriest') {
+            // 生命祭司：綠袍 + 十字
+            // 袍子
+            ctx.fillStyle = '#2a7a4a';
+            ctx.beginPath();
+            ctx.moveTo(0, -r * 1.0);
+            ctx.lineTo(-r * 0.9, r * 0.9);
+            ctx.lineTo(r * 0.9, r * 0.9);
+            ctx.closePath();
+            ctx.fill();
+            // 十字
+            ctx.fillStyle = '#66ff99';
+            ctx.fillRect(-r * 0.15, -r * 0.6, r * 0.3, r * 1.0);
+            ctx.fillRect(-r * 0.4, -r * 0.3, r * 0.8, r * 0.3);
+            // 頭
+            ctx.fillStyle = '#ffd8b0';
+            ctx.beginPath();
+            ctx.arc(0, -r * 0.75, r * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+            // 治療光環
+            if (e._healBlockTimer <= 0) {
+                ctx.strokeStyle = 'rgba(100, 255, 150, ' + (0.4 + 0.3 * Math.sin(t * 4)) + ')';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, r * 1.2, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        } else if (type === 'shadowAssassin') {
+            // 暗影刺客：紫色忍者
+            // 斗篷
+            ctx.fillStyle = '#2a1a4a';
+            ctx.beginPath();
+            ctx.moveTo(0, -r * 1.1);
+            ctx.lineTo(-r * 0.9, r * 0.8);
+            ctx.lineTo(r * 0.9, r * 0.8);
+            ctx.closePath();
+            ctx.fill();
+            // 兜帽
+            ctx.fillStyle = '#1a0a2a';
+            ctx.beginPath();
+            ctx.arc(0, -r * 0.55, r * 0.55, 0, Math.PI * 2);
+            ctx.fill();
+            // 眼睛（發光）
+            if (e._invisible) {
+                ctx.fillStyle = 'rgba(180, 100, 255, 0.9)';
+            } else {
+                ctx.fillStyle = '#ff0040';
+            }
+            ctx.beginPath();
+            ctx.ellipse(-r * 0.22, -r * 0.55, r * 0.1, r * 0.06, 0, 0, Math.PI * 2);
+            ctx.ellipse(r * 0.22, -r * 0.55, r * 0.1, r * 0.06, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // 苦無
+            ctx.fillStyle = '#c0c0c0';
+            ctx.fillRect(-r * 0.05, r * 0.4, r * 0.1, r * 0.5);
+        } else {
+            // 基礎 Boss：原本的圓形
+            const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+            grad.addColorStop(0, '#c68642');
+            grad.addColorStop(1, '#5a2e0a');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+
+    // 覆寫 Enemy.draw
+    const _prevDraw = Enemy.prototype.draw;
+    Enemy.prototype.draw = function() {
+        if (!this.alive) { _prevDraw.call(this); return; }
+
+        // 非 Boss 或沒有特殊類型 → 走原本
+        if (!this.isBoss || !this.bossType || this.bossType === 'basic') {
+            _prevDraw.call(this);
+            if (this.bossType === 'basic' || !this.bossType) {
+                // 王冠由原本的 draw 處理
+            }
+            return;
+        }
+
+        const p = this.getPos();
+        const r = 22;
+
+        // 暗影刺客隱形時：只畫發光輪廓
+        if (this.bossType === 'shadowAssassin' && this._invisible) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(180, 100, 255, 0.85)';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#a060ff';
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r + 3, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+
+            // 隱形文字
+            ctx.save();
+            ctx.fillStyle = 'rgba(180, 100, 255, 0.9)';
+            ctx.font = 'bold 12px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText('隱', p.x, p.y - r - 8);
+            ctx.restore();
+            return;
+        }
+
+        // 暴走光暈（Boss 通用）
+        if (this.elapsed > 1) {
+            const rage = Math.min(1, (this.elapsed - 1) / 20);
+            const glow = 0.3 + 0.4 * Math.sin(this.elapsed * 6) * rage;
+            ctx.fillStyle = 'rgba(231, 76, 60, ' + glow + ')';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r + 10, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // 獨特外觀
+        drawBossBody(this, p, r);
+
+        // 鋼鐵壁壘：護盾環
+        if (this.bossType === 'ironFortress' && this._shields > 0) {
+            for (let s = 0; s < this._shields; s++) {
+                const ringR = r + 6 + s * 5;
+                const alpha = 0.5 + 0.3 * Math.sin(performance.now() / 200 + s);
+                ctx.save();
+                ctx.strokeStyle = 'rgba(180, 200, 220, ' + alpha + ')';
+                ctx.lineWidth = 2;
+                ctx.shadowColor = '#88aacc';
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, ringR, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        // 金冠（非基礎 Boss 也戴）
+        ctx.save();
+        ctx.fillStyle = '#ffd700';
+        ctx.strokeStyle = '#a06000';
+        ctx.lineWidth = 1.5;
+        const crownY = p.y - r - 8;
+        const cw = r * 1.2;
+        ctx.beginPath();
+        ctx.moveTo(p.x - cw / 2, crownY);
+        ctx.lineTo(p.x - cw / 2, crownY - 8);
+        ctx.lineTo(p.x - cw / 4, crownY - 2);
+        ctx.lineTo(p.x, crownY - 12);
+        ctx.lineTo(p.x + cw / 4, crownY - 2);
+        ctx.lineTo(p.x + cw / 2, crownY - 8);
+        ctx.lineTo(p.x + cw / 2, crownY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        // 緩速光環
+        if (this.slowTimer > 0) {
+            ctx.strokeStyle = 'rgba(155, 89, 182, 0.85)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r + 3, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    };
+
+    console.log('[特殊Boss] 外觀載入完成');
+})();
+</script>
+
+  <style>
+#bossWarningOverlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 380;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.55);
+}
+#bossWarningOverlay.show { display: flex; }
+
+#bossWarningBox {
+    background: linear-gradient(180deg, rgba(40, 20, 10, 0.98), rgba(20, 10, 5, 0.98));
+    border: 3px solid #ff8800;
+    border-radius: 16px;
+    padding: 28px 40px;
+    text-align: center;
+    box-shadow: 0 0 80px rgba(255, 136, 0, 0.8);
+    transform: scale(0.7);
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s;
+}
+#bossWarningOverlay.show #bossWarningBox {
+    transform: scale(1);
+    opacity: 1;
+}
+#bossWarningBox .bw-label {
+    font-size: 13px;
+    color: #ff8800;
+    letter-spacing: 6px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+#bossWarningBox .bw-icon {
+    font-size: 64px;
+    margin-bottom: 12px;
+    filter: drop-shadow(0 0 20px rgba(255, 136, 0, 0.9));
+}
+#bossWarningBox .bw-name {
+    font-size: 28px;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 6px;
+    margin-bottom: 12px;
+    text-shadow: 0 0 20px rgba(255, 136, 0, 0.8);
+}
+#bossWarningBox .bw-abilities {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+#bossWarningBox .bw-ability {
+    background: rgba(255, 136, 0, 0.15);
+    border: 1px solid rgba(255, 136, 0, 0.5);
+    color: #ffb060;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 6px;
+    letter-spacing: 2px;
+}
+#bossWarningBox .bw-stats {
+    font-size: 12px;
+    color: #aaa;
+    letter-spacing: 1px;
+}
+</style>
+
+<div id="bossWarningOverlay">
+    <div id="bossWarningBox">
+        <div class="bw-label">⚠ BOSS 來襲 ⚠</div>
+        <div class="bw-icon" id="bwIcon">👑</div>
+        <div class="bw-name" id="bwName">深淵領主</div>
+        <div class="bw-abilities" id="bwAbilities"></div>
+        <div class="bw-stats" id="bwStats"></div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// Boss 預告系統
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[Boss預告] 系統載入中...');
+
+    const overlay = document.getElementById('bossWarningOverlay');
+    const iconEl = document.getElementById('bwIcon');
+    const nameEl = document.getElementById('bwName');
+    const abilitiesEl = document.getElementById('bwAbilities');
+    const statsEl = document.getElementById('bwStats');
+
+    // 攔截 Enemy 建構：Boss 出生時顯示警告
+    let _bossShownThisWave = false;
+    let _lastWave = 0;
+
+    // 追蹤每波的 Boss 是否已預告
+    setInterval(function() {
+        if (typeof wave === 'undefined') return;
+        if (typeof gameState === 'undefined' || gameState !== 'playing') return;
+
+        // 波次改變 → 重置預告狀態
+        if (wave !== _lastWave) {
+            _lastWave = wave;
+            _bossShownThisWave = false;
+        }
+
+        // 檢查是否為 Boss 波次
+        if (wave % 10 !== 0) return;
+        if (_bossShownThisWave) return;
+
+        // 檢查 spawnQueue 裡有沒有還沒出來的 Boss
+        if (typeof spawnQueue === 'undefined') return;
+        const hasPendingBoss = spawnQueue.some(function(s) { return s.isBoss; });
+        if (!hasPendingBoss) return;
+
+        // 顯示預告
+        _bossShownThisWave = true;
+        showBossWarning();
+    }, 100);
+
+    function showBossWarning() {
+        const type = window.getBossTypeForWave ? window.getBossTypeForWave(wave) : 'basic';
+        const bType = window.BOSS_TYPES && window.BOSS_TYPES[type];
+        if (!bType) return;
+
+        iconEl.textContent = bType.icon;
+        nameEl.textContent = bType.name;
+
+        // 能力標籤
+        let abilitiesHTML = '';
+        if (bType.abilities) {
+            for (let i = 0; i < bType.abilities.length; i++) {
+                abilitiesHTML += '<span class="bw-ability">' + bType.abilities[i] + '</span>';
+            }
+        }
+        abilitiesEl.innerHTML = abilitiesHTML;
+
+        // 數值
+        statsEl.textContent = '血量 ×' + bType.hpMult + ' ｜ 速度 ×' + bType.speedMult;
+
+        overlay.classList.add('show');
+
+        // 音效
+        if (typeof sfxBoss === 'function') sfxBoss();
+
+        // 1.8 秒後隱藏
+        setTimeout(function() {
+            overlay.classList.remove('show');
+        }, 1800);
+    }
+
+    console.log('[Boss預告] 系統載入完成');
+})();
+</script>
+
+  <script>
+// ============================================================
+// 事件佇列系統：解決紅綠事件同時觸發的覆蓋問題
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[事件佇列] 系統載入中...');
+
+    // 全域事件佇列
+    window._eventQueue = [];
+    window._eventProcessing = false;
+
+    function processQueue() {
+        if (window._eventProcessing) return;
+        if (window._eventQueue.length === 0) return;
+
+        window._eventProcessing = true;
+        const next = window._eventQueue.shift();
+
+        try {
+            next();
+        } catch (e) {
+            console.error('[事件佇列] 執行失敗：', e);
+        }
+
+        // 2 秒後處理下一個
+        setTimeout(function() {
+            window._eventProcessing = false;
+            processQueue();
+        }, 3200);
+    }
+
+    window.queueEvent = function(fn) {
+        window._eventQueue.push(fn);
+        processQueue();
+    };
+
+    // 修正原本的事件觸發：攔截 warning 顯示
+    // 由於舊的事件系統直接呼叫 showWarning，我們用旗標方式阻擋
+    const _origLog = window.log;
+
+    // 觀察警告元素，發現多個警告同時開啟時，排隊處理
+    const overlays = [
+        'eventWarningOverlay',
+        'eventWarningOverlay2',
+        'eventWarningOverlay3',
+    ];
+
+    let _lastOpenCheck = 0;
+    setInterval(function() {
+        const now = performance.now();
+        if (now - _lastOpenCheck < 200) return;
+        _lastOpenCheck = now;
+
+        // 計算開啟中的警告
+        let openCount = 0;
+        for (let i = 0; i < overlays.length; i++) {
+            const el = document.getElementById(overlays[i]);
+            if (el && (el.style.display === 'flex' || el.classList.contains('show'))) {
+                openCount++;
+            }
+        }
+
+        // 如果超過 1 個同時開啟 → 把後面的隱藏，等前面的關閉
+        if (openCount > 1) {
+            let foundFirst = false;
+            for (let i = 0; i < overlays.length; i++) {
+                const el = document.getElementById(overlays[i]);
+                if (!el) continue;
+                const isOpen = (el.style.display === 'flex' || el.classList.contains('show'));
+                if (!isOpen) continue;
+
+                if (!foundFirst) {
+                    foundFirst = true;
+                } else {
+                    // 這是第二個 → 隱藏它
+                    el.style.display = 'none';
+                    el.classList.remove('show');
+                    console.log('[事件佇列] 延後顯示事件 ' + i);
+                    // 500ms 後重試（讓第一個先播完）
+                    const idx = i;
+                    setTimeout(function() {
+                        const el2 = document.getElementById(overlays[idx]);
+                        if (el2) {
+                            el2.style.display = 'flex';
+                            if (idx === 2) el2.classList.add('show');
+                        }
+                    }, 3000);
+                }
+            }
+        }
+    }, 200);
+
+    console.log('[事件佇列] 系統載入完成');
+})();
+</script>
   
 </body>
 </html>
