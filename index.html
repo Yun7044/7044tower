@@ -21495,6 +21495,201 @@ body.in-menu #chronoSkillBtn { display: none !important; }
     console.log('[大廳BGM手機修復] 載入完成｜等待使用者手勢');
 })();
 </script>
+
+  <script>
+// ============================================================
+// 大廳 BGM v2（明亮版）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[大廳BGM v2] 載入中...');
+
+    const NOTES = {
+        C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, B3: 246.94,
+        C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
+        C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00,
+    };
+
+    // C - G - Am - F 進行（明亮、朗朗上口）
+    const ARPEGGIO = [
+        // C 大調（I）
+        'C4','E4','G4','C5','G4','E4','C4','E4',
+        // G 大調（V）
+        'G3','B3','D4','G4','D4','B3','G3','B3',
+        // A 小調（vi）
+        'A3','C4','E4','A4','E4','C4','A3','C4',
+        // F 大調（IV）
+        'F3','A3','C4','F4','C4','A3','F3','A3',
+    ];
+
+    // 低音（提高八度，不再用 F1/A1）
+    const BASS = ['C3', 'G3', 'A3', 'F3'];
+
+    // Pad 和聲（加一個高音，更明亮）
+    const PADS = [
+        ['C4', 'E4', 'G4'],
+        ['G3', 'B3', 'D4'],
+        ['A3', 'C4', 'E4'],
+        ['F3', 'A3', 'C4'],
+    ];
+
+    const TEMPO = 0.38;
+    const LOOKAHEAD = 0.15;
+    const INTERVAL = 30;
+
+    let bgmPlaying = false;
+    let bgmTimer = null;
+    let bgmNextTime = 0;
+    let bgmStep = 0;
+    let ownGain = null;
+
+    function ensureGain() {
+        if (ownGain) return ownGain;
+        if (typeof audioCtx === 'undefined' || !audioCtx) return null;
+        try {
+            ownGain = audioCtx.createGain();
+            ownGain.gain.value = 0.18;
+            ownGain.connect(audioCtx.destination);
+            return ownGain;
+        } catch (e) { return null; }
+    }
+
+    function playNote(freq, time, duration, volume, type, attack) {
+        const g = ensureGain();
+        if (!g) return;
+        try {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type || 'sine';
+            osc.frequency.setValueAtTime(freq, time);
+            const att = attack || 0.02;
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(volume, time + att);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+            osc.connect(gain);
+            gain.connect(g);
+            osc.start(time);
+            osc.stop(time + duration + 0.05);
+        } catch (e) {}
+    }
+
+    function scheduler() {
+        if (!bgmPlaying || document.hidden) return;
+        if (typeof audioCtx === 'undefined' || !audioCtx) return;
+        const horizon = audioCtx.currentTime + LOOKAHEAD;
+
+        while (bgmNextTime < horizon) {
+            const step = bgmStep % 32;
+            const bar = Math.floor(step / 8);
+            const inBar = step % 8;
+
+            // 主旋律：單音 + 五度泛音（不用 detune，避免拍頻）
+            const note = ARPEGGIO[step];
+            if (note && NOTES[note]) {
+                // 主音（triangle 波，溫暖）
+                playNote(NOTES[note], bgmNextTime, 0.7, 0.08, 'triangle', 0.02);
+                // 五度泛音（更明亮）
+                playNote(NOTES[note] * 1.5, bgmNextTime, 0.5, 0.025, 'sine', 0.03);
+                // 高八度輕微點綴
+                playNote(NOTES[note] * 2, bgmNextTime, 0.4, 0.015, 'sine', 0.02);
+            }
+
+            // 低音（每小節第一拍，用 C3 而非 C2，避免低頻糊掉）
+            if (inBar === 0) {
+                const bass = BASS[bar];
+                if (bass && NOTES[bass]) {
+                    playNote(NOTES[bass], bgmNextTime, 1.8, 0.06, 'sine', 0.06);
+                }
+            }
+
+            // Pad 和聲（快 attack，短 sustain）
+            if (inBar === 0) {
+                const chord = PADS[bar];
+                for (let i = 0; i < chord.length; i++) {
+                    if (NOTES[chord[i]]) {
+                        // attack 從 0.7 秒改成 0.15 秒，持續從 3 秒改成 1.6 秒
+                        playNote(NOTES[chord[i]], bgmNextTime, 1.6, 0.022, 'sine', 0.15);
+                    }
+                }
+            }
+
+            bgmNextTime += TEMPO;
+            bgmStep++;
+        }
+    }
+
+    function startOwnBgm() {
+        if (bgmPlaying) return;
+        if (typeof audioCtx === 'undefined' || !audioCtx) return;
+        if (audioCtx.state !== 'running') return;
+        if (typeof muted !== 'undefined' && muted) return;
+        bgmPlaying = true;
+        bgmNextTime = audioCtx.currentTime + 0.2;
+        bgmStep = 0;
+        if (bgmTimer) clearInterval(bgmTimer);
+        bgmTimer = setInterval(scheduler, INTERVAL);
+        console.log('[大廳BGM v2] 開始播放');
+    }
+
+    function stopOwnBgm() {
+        if (!bgmPlaying) return;
+        bgmPlaying = false;
+        if (bgmTimer) clearInterval(bgmTimer);
+        bgmTimer = null;
+        console.log('[大廳BGM v2] 停止播放');
+    }
+
+    let _unlocked = false;
+    function unlockFromGesture() {
+        if (_unlocked) return;
+        if (typeof initAudio === 'function') {
+            try { initAudio(); } catch (e) {}
+        }
+        if (typeof audioCtx === 'undefined' || !audioCtx) {
+            try {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (Ctx) window.audioCtx = new Ctx();
+            } catch (e) { return; }
+        }
+        if (!audioCtx) return;
+        function afterResume() {
+            if (audioCtx.state === 'running') {
+                _unlocked = true;
+                const menu = document.getElementById('mainMenu');
+                if (menu && menu.classList.contains('show')) startOwnBgm();
+                console.log('[大廳BGM v2] 解鎖成功');
+            }
+        }
+        if (audioCtx.state === 'suspended') {
+            try {
+                const buf = audioCtx.createBuffer(1, 1, 22050);
+                const src = audioCtx.createBufferSource();
+                src.buffer = buf;
+                src.connect(audioCtx.destination);
+                src.start(0);
+            } catch (e) {}
+            audioCtx.resume().then(afterResume).catch(function() {});
+        } else {
+            afterResume();
+        }
+    }
+
+    document.addEventListener('pointerdown', unlockFromGesture, true);
+    document.addEventListener('touchstart', unlockFromGesture, true);
+
+    setInterval(function() {
+        if (typeof audioCtx === 'undefined' || !audioCtx) return;
+        if (audioCtx.state !== 'running') { stopOwnBgm(); return; }
+        if (typeof muted !== 'undefined' && muted) { stopOwnBgm(); return; }
+        const menu = document.getElementById('mainMenu');
+        const inMenu = menu && menu.classList.contains('show');
+        if (inMenu && !bgmPlaying) startOwnBgm();
+        if (!inMenu && bgmPlaying) stopOwnBgm();
+    }, 500);
+
+    console.log('[大廳BGM v2] 載入完成');
+})();
+</script>
   
 </body>
 </html>
