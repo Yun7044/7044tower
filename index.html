@@ -1,3 +1,20 @@
+<!--
+  ═══════════════════════════════════════════════════════════
+  ⚔️ 塔防 (Tower Defense)
+  ═══════════════════════════════════════════════════════════
+  作者：允. (yun7044)
+  GitHub：https://github.com/yun7044/7044tower
+  首次發布：2026 年
+  
+  本專案為原創作品，未經授權禁止：
+    · 移除或修改作者資訊
+    · 重新發布為他人作品
+    · 商業使用
+  
+  若你是從其他來源取得此代碼，請回報至 GitHub Issues。
+  ═══════════════════════════════════════════════════════════
+-->
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -1165,6 +1182,24 @@
   
   <h1>塔防</h1>
   <div class="subtitle">TOWER DEFENSE</div>
+  <div id="authorSig" style="font-size: 11px; color: #444; letter-spacing: 3px; margin-bottom: 6px; text-align: center; cursor: pointer; transition: 0.3s;">
+    ✦
+</div>
+
+<script>
+(function() {
+    const sig = document.getElementById('authorSig');
+    if (!sig) return;
+    sig.addEventListener('click', function() {
+        sig.textContent = 'created by 允. (yun7044)';
+        sig.style.color = '#ffd700';
+        setTimeout(function() {
+            sig.textContent = '✦';
+            sig.style.color = '#444';
+        }, 2500);
+    });
+})();
+</script>
   <div class="player-name" id="playerNameEl">👤 載入中...</div>
 
   <button class="diff-btn" data-difficulty="easy">
@@ -22486,6 +22521,122 @@ body.in-menu #chronoSkillBtn { display: none !important; }
     }, 200);
 
     console.log('[事件佇列] 系統載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 原創指紋（不可刪）
+// ============================================================
+(function() {
+    'use strict';
+    
+    // 唯一識別碼，用 base64 編碼
+    // 解碼後是：yun7044/7044tower-2026-original
+    const FINGERPRINT = 'eXVuNzA0NC83MDQ0dG93ZXItMjAyNi1vcmlnaW5hbA==';
+    
+    // 把指紋藏進 window 物件
+    try {
+        Object.defineProperty(window, '__author__', {
+            value: {
+                name: '允.',
+                github: 'yun7044',
+                repo: '7044tower',
+                year: 2026,
+                fingerprint: FINGERPRINT,
+                verify: function() {
+                    try { return atob(FINGERPRINT); } catch (e) { return null; }
+                },
+            },
+            writable: false,
+            configurable: false,
+        });
+    } catch (e) {}
+    
+    // 藏進 localStorage（第一次載入時寫入，之後不會覆蓋）
+    try {
+        if (!localStorage.getItem('_origin_signature')) {
+            localStorage.setItem('_origin_signature', JSON.stringify({
+                by: 'yun7044',
+                repo: '7044tower',
+                stamp: '2026-' + Date.now(),
+            }));
+        }
+    } catch (e) {}
+    
+    // 藏進 DOM（隱形元素）
+    const mark = document.createElement('meta');
+    mark.name = 'author';
+    mark.content = 'yun7044 (允.)';
+    document.head.appendChild(mark);
+    
+    const mark2 = document.createElement('meta');
+    mark2.name = 'source';
+    mark2.content = 'https://github.com/yun7044/7044tower';
+    document.head.appendChild(mark2);
+    
+    console.log('%c⚔️ 塔防 v1.0 ', 'background: linear-gradient(90deg, #ffd700, #ff8800); color: #000; font-weight: 900; font-size: 16px; padding: 6px 14px; border-radius: 4px;');
+    console.log('%c作者：允. (yun7044)', 'color: #ffd700; font-size: 13px; font-weight: 700;');
+    console.log('%cGitHub：https://github.com/yun7044/7044tower', 'color: #88aacc; font-size: 12px;');
+    console.log('%c如果你在別的地方看到這個遊戲，請回報！', 'color: #ff6666; font-size: 12px;');
+})();
+</script>
+
+<script>
+// ============================================================
+// 金絲雀：只有原作者知道的隱藏觸發
+// ============================================================
+(function() {
+    'use strict';
+    
+    let spaceCount = 0;
+    let lastSpaceTime = 0;
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.code !== 'Space') return;
+        
+        const now = performance.now();
+        if (now - lastSpaceTime > 1000) {
+            spaceCount = 0;
+        }
+        lastSpaceTime = now;
+        
+        // 條件：第 87 波 + 金幣 4444 + 沒有塔
+        if (typeof wave === 'undefined') return;
+        if (typeof money === 'undefined') return;
+        if (typeof SPOTS === 'undefined') return;
+        
+        const noTowers = SPOTS.every(function(s) { return !s.tower; });
+        
+        if (wave === 87 && Math.floor(money) === 4444 && noTowers) {
+            spaceCount++;
+            if (spaceCount >= 3) {
+                spaceCount = 0;
+                showOriginStamp();
+            }
+        }
+    });
+    
+    function showOriginStamp() {
+        const el = document.createElement('div');
+        el.style.cssText = 
+            'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;' +
+            'background:rgba(0,0,0,0.95);z-index:99999;' +
+            'flex-direction:column;gap:16px;font-family:system-ui;';
+        el.innerHTML = 
+            '<div style="font-size:48px;">⚔️</div>' +
+            '<div style="font-size:32px;font-weight:900;color:#ffd700;letter-spacing:8px;' +
+                'text-shadow:0 0 30px rgba(255,215,0,0.9);">原創證明</div>' +
+            '<div style="font-size:16px;color:#fff;letter-spacing:3px;">允. (yun7044)</div>' +
+            '<div style="font-size:12px;color:#888;letter-spacing:2px;">github.com/yun7044/7044tower</div>' +
+            '<div style="font-size:11px;color:#555;margin-top:20px;">你找到了隱藏的秘密</div>';
+        document.body.appendChild(el);
+        setTimeout(function() {
+            el.style.transition = 'opacity 0.5s';
+            el.style.opacity = '0';
+            setTimeout(function() { el.remove(); }, 500);
+        }, 4000);
+    }
 })();
 </script>
   
