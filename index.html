@@ -22640,5 +22640,895 @@ body.in-menu #chronoSkillBtn { display: none !important; }
 })();
 </script>
   
+<script>
+// ============================================================
+// 波次 BGM：11-20 波生化 BGM
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[生化BGM] 載入中...');
+
+    const NOTES = {
+        C2: 65.41, C3: 130.81,
+        Fs3: 185.00, G3: 196.00, Bf3: 233.08,
+        Cs4: 277.18, E4: 329.63, F4: 349.23,
+        G4: 392.00, Af4: 415.30, Bf4: 466.16,
+    };
+
+    const TEMPO = 0.5;
+    const LOOKAHEAD = 0.15;
+    const INTERVAL = 30;
+
+    let bioGain = null;
+    let bioPlaying = false;
+    let bioTimer = null;
+    let bioNextTime = 0;
+    let bioStep = 0;
+
+    function ensureGain() {
+        if (bioGain) return bioGain;
+        if (typeof audioCtx === 'undefined' || !audioCtx) return null;
+        try {
+            bioGain = audioCtx.createGain();
+            bioGain.gain.value = 0.28;
+            bioGain.connect(audioCtx.destination);
+            return bioGain;
+        } catch (e) { return null; }
+    }
+
+    function playNote(freq, time, duration, volume, type, attack) {
+        const g = ensureGain();
+        if (!g) return;
+        try {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type || 'sine';
+            osc.frequency.setValueAtTime(freq, time);
+            const att = attack || 0.05;
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(volume, time + att);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+            osc.connect(gain);
+            gain.connect(g);
+            osc.start(time);
+            osc.stop(time + duration + 0.05);
+        } catch (e) {}
+    }
+
+    function playBubble(freq, time, volume) {
+        const g = ensureGain();
+        if (!g) return;
+        try {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, time);
+            osc.frequency.exponentialRampToValueAtTime(freq * 2.5, time + 0.1);
+            gain.gain.setValueAtTime(volume, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+            osc.connect(gain);
+            gain.connect(g);
+            osc.start(time);
+            osc.stop(time + 0.15);
+        } catch (e) {}
+    }
+
+    function playHeartbeat(time, volume) {
+        const g = ensureGain();
+        if (!g) return;
+        try {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(NOTES.C2, time);
+            osc.frequency.exponentialRampToValueAtTime(NOTES.C2 * 0.5, time + 0.4);
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(volume, time + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.45);
+            osc.connect(gain);
+            gain.connect(g);
+            osc.start(time);
+            osc.stop(time + 0.5);
+        } catch (e) {}
+    }
+
+    function playBioPad(notes, time, volume) {
+        const g = ensureGain();
+        if (!g) return;
+        for (let i = 0; i < notes.length; i++) {
+            if (!NOTES[notes[i]]) continue;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(NOTES[notes[i]], time);
+                osc.frequency.linearRampToValueAtTime(NOTES[notes[i]] * 1.02, time + 2);
+                osc.frequency.linearRampToValueAtTime(NOTES[notes[i]], time + 3.5);
+                gain.gain.setValueAtTime(0, time);
+                gain.gain.linearRampToValueAtTime(volume, time + 0.8);
+                gain.gain.linearRampToValueAtTime(volume * 0.8, time + 2.5);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 3.5);
+                osc.connect(gain);
+                gain.connect(g);
+                osc.start(time);
+                osc.stop(time + 3.6);
+            } catch (e) {}
+        }
+    }
+
+    function scheduler() {
+        if (!bioPlaying || document.hidden) return;
+        if (typeof audioCtx === 'undefined' || !audioCtx) return;
+        const horizon = audioCtx.currentTime + LOOKAHEAD;
+
+        while (bioNextTime < horizon) {
+            const step = bioStep;
+
+            // 心跳：每 2 秒
+            if (step % 4 === 0) {
+                playHeartbeat(bioNextTime, 0.20);
+            }
+
+            // Pad 和弦：每 4 秒
+            if (step % 8 === 0) {
+                const bar = Math.floor(step / 8) % 2;
+                if (bar === 0) {
+                    playBioPad(['C3', 'Fs3', 'G3'], bioNextTime, 0.05);
+                } else {
+                    playBioPad(['C3', 'Fs3', 'Bf3'], bioNextTime, 0.05);
+                }
+            }
+
+            // 泡泡音：每拍 60% 機率
+            if (Math.random() < 0.6) {
+                const pool = ['Cs4', 'E4', 'F4', 'G4', 'Af4', 'Bf4'];
+                const freq = NOTES[pool[Math.floor(Math.random() * pool.length)]];
+                const offset = Math.random() * TEMPO;
+                playBubble(freq, bioNextTime + offset, 0.04 + Math.random() * 0.03);
+            }
+
+            // Stinger：每 8 秒
+            if (step % 16 === 0 && step > 0) {
+                const f = NOTES.Fs3 * 4;
+                playNote(f, bioNextTime, 0.8, 0.03, 'sawtooth', 0.05);
+                playNote(f * 1.06, bioNextTime + 0.02, 0.8, 0.025, 'sawtooth', 0.05);
+            }
+
+            bioNextTime += TEMPO;
+            bioStep++;
+        }
+    }
+
+    function startBioBgm() {
+        if (bioPlaying) return;
+        if (typeof audioCtx === 'undefined' || !audioCtx) return;
+        if (audioCtx.state !== 'running') return;
+        if (typeof muted !== 'undefined' && muted) return;
+        if (typeof musicEnabled !== 'undefined' && !musicEnabled) return;
+
+        bioPlaying = true;
+        bioNextTime = audioCtx.currentTime + 0.2;
+        bioStep = 0;
+        if (bioTimer) clearInterval(bioTimer);
+        bioTimer = setInterval(scheduler, INTERVAL);
+        console.log('[生化BGM] 開始播放');
+    }
+
+    function stopBioBgm() {
+        if (!bioPlaying) return;
+        bioPlaying = false;
+        if (bioTimer) clearInterval(bioTimer);
+        bioTimer = null;
+        console.log('[生化BGM] 停止播放');
+    }
+
+    function checkWaveAndSwitchBgm() {
+        if (typeof gameState === 'undefined' || gameState !== 'playing') {
+            stopBioBgm();
+            return;
+        }
+        if (typeof wave === 'undefined') return;
+
+        const inBioWave = (wave >= 11 && wave <= 20);
+
+        if (inBioWave) {
+            if (!bioPlaying) {
+                if (typeof stopBgm === 'function') stopBgm();
+                startBioBgm();
+            }
+        } else {
+            if (bioPlaying) {
+                stopBioBgm();
+                if (typeof musicEnabled !== 'undefined' && musicEnabled &&
+                    typeof muted !== 'undefined' && !muted &&
+                    typeof startBgm === 'function') {
+                    startBgm();
+                }
+            }
+        }
+    }
+
+    // 每 200ms 檢查一次
+    setInterval(checkWaveAndSwitchBgm, 200);
+
+    // 監聽靜音/音樂按鈕
+    document.addEventListener('pointerdown', function(e) {
+        if (!e.target || !e.target.closest) return;
+        if (e.target.closest('#muteBtn') || e.target.closest('#musicBtn')) {
+            setTimeout(checkWaveAndSwitchBgm, 150);
+        }
+    }, true);
+
+    // 分頁切換
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopBioBgm();
+        } else {
+            checkWaveAndSwitchBgm();
+        }
+    });
+
+    console.log('[生化BGM] 載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// Boss 警告協調器 v2：完整接管顯示生命週期
+// ============================================================
+(function() {
+    'use strict';
+
+    // 防止重複安裝
+    if (window.__bossWarningFix) {
+        console.log('[警告協調v2] 已安裝，跳過');
+        return;
+    }
+    window.__bossWarningFix = true;
+
+    console.log('[警告協調v2] 載入中...');
+
+    const bossOverlay = document.getElementById('bossWarningOverlay');
+    if (!bossOverlay) {
+        console.warn('[警告協調v2] 找不到 bossWarningOverlay');
+        return;
+    }
+
+    const EVENT_IDS = ['eventWarningOverlay', 'eventWarningOverlay2', 'eventWarningOverlay3'];
+
+    function hasActiveEventWarning() {
+        for (let i = 0; i < EVENT_IDS.length; i++) {
+            const el = document.getElementById(EVENT_IDS[i]);
+            if (!el) continue;
+            if (el.classList.contains('show') || el.style.display === 'flex') return true;
+        }
+        return false;
+    }
+
+    // 保存原始方法
+    const origAdd = bossOverlay.classList.add.bind(bossOverlay.classList);
+    const origRemove = bossOverlay.classList.remove.bind(bossOverlay.classList);
+    const origContains = bossOverlay.classList.contains.bind(bossOverlay.classList);
+
+    let hideTimer = null;
+    let waitingForEvent = false;
+
+    function startHideTimer() {
+        if (hideTimer) clearTimeout(hideTimer);
+        hideTimer = setTimeout(function() {
+            origRemove('show');
+            hideTimer = null;
+            console.log('[警告協調v2] Boss 預告自動隱藏');
+        }, 2000);
+    }
+
+    function actuallyShow() {
+        if (hideTimer) clearTimeout(hideTimer);
+        origAdd('show');
+        startHideTimer();
+        console.log('[警告協調v2] Boss 預告顯示（2 秒後自動隱藏）');
+    }
+
+    function waitAndShow() {
+        if (waitingForEvent) return;
+        waitingForEvent = true;
+        console.log('[警告協調v2] 事件警告中，Boss 預告排隊');
+
+        const check = function() {
+            if (hasActiveEventWarning()) {
+                setTimeout(check, 500);
+            } else {
+                waitingForEvent = false;
+                actuallyShow();
+            }
+        };
+        setTimeout(check, 500);
+    }
+
+    // ★ 接管 add('show')
+    bossOverlay.classList.add = function(...args) {
+        if (args.includes('show')) {
+            // 如果事件警告開著 → 排隊
+            if (hasActiveEventWarning()) {
+                waitAndShow();
+                return; // 不呼叫原始 add，避免「閃一下」
+            }
+            // 沒有事件警告 → 直接顯示
+            if (hideTimer) clearTimeout(hideTimer);
+            origAdd(...args);
+            startHideTimer();
+            console.log('[警告協調v2] Boss 預告顯示（無衝突）');
+            return;
+        }
+        return origAdd(...args);
+    };
+
+    // ★ 接管 remove('show')：原始代碼的 setTimeout 呼叫這裡時，忽略它
+    bossOverlay.classList.remove = function(...args) {
+        if (args.includes('show')) {
+            // 如果是原始代碼的 1800ms remove，忽略它（我們自己管時間）
+            // 但如果是其他情況（例如遊戲重置），允許移除
+            if (hideTimer) {
+                // 我們自己有 timer，讓它管就好
+                return;
+            }
+            return origRemove(...args);
+        }
+        return origRemove(...args);
+    };
+
+    bossOverlay.classList.contains = function(...args) {
+        return origContains(...args);
+    };
+
+    // 保險：如果 waiting 中但事件已經結束，強制執行
+    setInterval(function() {
+        if (!waitingForEvent) return;
+        if (hasActiveEventWarning()) return;
+        // 事件結束但還在 waiting → 觸發
+        waitingForEvent = false;
+        actuallyShow();
+    }, 800);
+
+    // 啟動時檢查：如果一開始就是顯示狀態（不應該發生），強制移除
+    if (bossOverlay.classList.contains('show') && hasActiveEventWarning()) {
+        origRemove('show');
+        console.log('[警告協調v2] 啟動時偵測到殘留，已清除');
+    }
+
+    console.log('[警告協調v2] 載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 統一 BGM 系統：11-100 波全部 BGM
+// ============================================================
+(function() {
+    if (window.__unifiedBgm) { console.log('[統一BGM] 已安裝'); return; }
+    window.__unifiedBgm = true;
+    console.log('[統一BGM] 載入中...');
+
+    const N = {
+        C2:65.41,D2:73.42,Eb2:77.78,F2:87.31,G2:98,A2:110,Bb2:116.54,
+        C3:130.81,D3:146.83,Eb3:155.56,F3:174.61,G3:196,Ab3:207.65,A3:220,Bb3:233.08,B3:246.94,
+        C4:261.63,Cs4:277.18,D4:293.66,Eb4:311.13,E4:329.63,F4:349.23,Fs4:369.99,G4:392,Ab4:415.3,A4:440,Bb4:466.16,B4:493.88,
+        C5:523.25,Cs5:554.37,D5:587.33,Eb5:622.25,E5:659.25,F5:698.46,G5:783.99,A5:880,
+    };
+
+    // ============ 各風格設定 ============
+    const STYLES = {
+        bio: {
+            name: '生化', beat: 0.42,
+            bass: ['C2','F2','C2','Ab2'],
+            melody: ['C4','Eb4','G4','Eb4','F4','Ab4','B4','Ab4','C4','Eb4','G4','Bb4','Ab4','G4','F4','Eb4'],
+            pads: [['C3','Eb3','G3'],['F3','Ab3','B4'],['C3','Eb3','G3'],['Ab3','C4','Eb4']],
+        },
+        war: {
+            name: '戰歌', beat: 0.44,
+            bass: ['D2','G2','Bb2','A2'],
+            melody: ['D4','F4','A4','D5','Bb4','G4','D4','G4','F4','Bb4','D5','F5','E5','D5','Cs5','A4'],
+            pads: [['D3','F3','A3'],['G3','Bb3','D4'],['Bb3','D4','F4'],['A3','Cs4','E4']],
+        },
+        steel: {
+            name: '鋼鐵', beat: 0.42,
+            bass: ['D2','Bb2','G2','A2'],
+            melody: ['D4','F4','D4','F4','Bb3','D4','Bb3','D4','G3','Bb3','G3','Bb3','A3','Cs4','E4','D4'],
+            pads: [['D3','F3','A3'],['Bb2','D3','F3'],['G3','Bb3','D4'],['A3','Cs4','E4']],
+        },
+        swarm: {
+            name: '蟲群', beat: 0.32,
+            bass: ['Eb2','Bb2','Eb2','F2'],
+            melody: ['Eb4','G4','Bb4','G4','Eb4','G4','Bb4','D5','C5','Eb5','G5','Eb5','C5','Bb4','G4','Eb4'],
+            pads: [['Eb3','G3','Bb3'],['Bb2','D3','F3'],['Eb3','G3','Bb3'],['F3','A3','C4']],
+        },
+        holy: {
+            name: '聖光', beat: 0.5,
+            bass: ['C2','F2','G2','C2'],
+            melody: ['C4','E4','G4','C5','A4','F4','C5','A4','G4','B4','D5','G5','E5','C5','G4','E4'],
+            pads: [['C3','E3','G3'],['F3','A3','C4'],['G3','B3','D4'],['C4','E4','G4']],
+        },
+        shadow: {
+            name: '暗影', beat: 0.45,
+            bass: ['D2','F2','A2','E2'],
+            melody: ['D4','A3','F4','D4','F4','A3','D4','C4','Bb3','F4','D4','Bb3','A3','E4','Cs4','A3'],
+            pads: [['D3','F3','A3'],['F3','A3','C4'],['A3','C4','E4'],['E3','G3','B3']],
+        },
+    };
+
+    // ============ 音色函式 ============
+    function note(f, t0, d, v, type, att) {
+        if (!audioCtx) return;
+        try {
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.type = type || 'sine';
+            o.frequency.setValueAtTime(f, t0);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(v, t0 + (att || 0.02));
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + d);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(t0); o.stop(t0 + d + 0.05);
+        } catch (e) {}
+    }
+
+    function horn(f, t0, v) {
+        if (!audioCtx) return;
+        try {
+            const o1 = audioCtx.createOscillator(), g1 = audioCtx.createGain();
+            o1.type = 'sine';
+            o1.frequency.setValueAtTime(f, t0);
+            g1.gain.setValueAtTime(0, t0);
+            g1.gain.linearRampToValueAtTime(v, t0 + 0.04);
+            g1.gain.setValueAtTime(v * 0.9, t0 + 0.18);
+            g1.gain.exponentialRampToValueAtTime(0.001, t0 + 0.42);
+
+            const o2 = audioCtx.createOscillator(), g2 = audioCtx.createGain();
+            o2.type = 'sine';
+            o2.frequency.setValueAtTime(f * 2, t0);
+            g2.gain.setValueAtTime(0, t0);
+            g2.gain.linearRampToValueAtTime(v * 0.22, t0 + 0.05);
+            g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.35);
+
+            o1.connect(g1); g1.connect(audioCtx.destination);
+            o2.connect(g2); g2.connect(audioCtx.destination);
+            o1.start(t0); o1.stop(t0 + 0.5);
+            o2.start(t0); o2.stop(t0 + 0.4);
+        } catch (e) {}
+    }
+
+    function bass(f, t0, v, cutoff) {
+        if (!audioCtx) return;
+        try {
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain(), fl = audioCtx.createBiquadFilter();
+            o.type = 'sawtooth';
+            o.frequency.setValueAtTime(f, t0);
+            fl.type = 'lowpass';
+            fl.frequency.setValueAtTime(cutoff || 320, t0);
+            fl.frequency.exponentialRampToValueAtTime(160, t0 + 0.8);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(v, t0 + 0.03);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.9);
+            o.connect(fl); fl.connect(g); g.connect(audioCtx.destination);
+            o.start(t0); o.stop(t0 + 0.95);
+        } catch (e) {}
+    }
+
+    function heartbeat(t0, v) {
+        if (!audioCtx) return;
+        try {
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.type = 'sine';
+            o.frequency.setValueAtTime(N.C2, t0);
+            o.frequency.exponentialRampToValueAtTime(N.C2 * 0.55, t0 + 0.35);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(v, t0 + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.4);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(t0); o.stop(t0 + 0.45);
+        } catch (e) {}
+    }
+
+    function snare(t0, v) {
+        if (!audioCtx) return;
+        try {
+            const sr = audioCtx.sampleRate;
+            const len = Math.floor(sr * 0.08);
+            const buf = audioCtx.createBuffer(1, len, sr);
+            const data = buf.getChannelData(0);
+            for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+            const src = audioCtx.createBufferSource();
+            src.buffer = buf;
+            const fl = audioCtx.createBiquadFilter();
+            fl.type = 'highpass';
+            fl.frequency.value = 1500;
+            const g = audioCtx.createGain();
+            g.gain.value = v;
+            src.connect(fl); fl.connect(g); g.connect(audioCtx.destination);
+            src.start(t0); src.stop(t0 + 0.1);
+        } catch (e) {}
+    }
+
+    function warDrum(t0, v) {
+        if (!audioCtx) return;
+        try {
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.type = 'sine';
+            o.frequency.setValueAtTime(150, t0);
+            o.frequency.exponentialRampToValueAtTime(42, t0 + 0.16);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(v, t0 + 0.005);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.22);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(t0); o.stop(t0 + 0.25);
+        } catch (e) {}
+    }
+
+    function metalHit(t0, v) {
+        if (!audioCtx) return;
+        const base = 220;
+        const parts = [[1.0, 1.0, 0.5], [2.76, 0.55, 0.35], [5.40, 0.30, 0.22], [8.93, 0.15, 0.15]];
+        for (let i = 0; i < parts.length; i++) {
+            const p = parts[i];
+            try {
+                const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+                o.type = 'sine';
+                o.frequency.setValueAtTime(base * p[0], t0);
+                g.gain.setValueAtTime(v * p[1], t0);
+                g.gain.exponentialRampToValueAtTime(0.001, t0 + p[2]);
+                o.connect(g); g.connect(audioCtx.destination);
+                o.start(t0); o.stop(t0 + p[2] + 0.05);
+            } catch (e) {}
+        }
+    }
+
+    // 蜂鳴：方波 + 快顫音
+    function buzz(t0, v, dur) {
+        if (!audioCtx) return;
+        try {
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            const lfo = audioCtx.createOscillator(), lfoG = audioCtx.createGain();
+            const fl = audioCtx.createBiquadFilter();
+            o.type = 'square';
+            o.frequency.setValueAtTime(180, t0);
+            lfo.type = 'sine';
+            lfo.frequency.value = 22;
+            lfoG.gain.value = 15;
+            lfo.connect(lfoG); lfoG.connect(o.frequency);
+            fl.type = 'bandpass';
+            fl.frequency.value = 250;
+            fl.Q.value = 2;
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(v, t0 + 0.03);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+            o.connect(fl); fl.connect(g); g.connect(audioCtx.destination);
+            o.start(t0); o.stop(t0 + dur + 0.05);
+            lfo.start(t0); lfo.stop(t0 + dur + 0.05);
+        } catch (e) {}
+    }
+
+    // 鐘聲：不諧和泛音 + 長衰減
+    function bell(f, t0, v) {
+        if (!audioCtx) return;
+        const parts = [[1.0, 1.0, 2.0], [2.0, 0.6, 1.5], [2.76, 0.35, 1.2], [5.40, 0.15, 0.8]];
+        for (let i = 0; i < parts.length; i++) {
+            const p = parts[i];
+            try {
+                const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+                o.type = 'sine';
+                o.frequency.setValueAtTime(f * p[0], t0);
+                g.gain.setValueAtTime(v * p[1], t0);
+                g.gain.exponentialRampToValueAtTime(0.001, t0 + p[2]);
+                o.connect(g); g.connect(audioCtx.destination);
+                o.start(t0); o.stop(t0 + p[2] + 0.05);
+            } catch (e) {}
+        }
+    }
+
+    // 暗影噪音：低沉噪音
+    function darkNoise(t0, v, dur) {
+        if (!audioCtx) return;
+        try {
+            const sr = audioCtx.sampleRate;
+            const len = Math.floor(sr * dur);
+            const buf = audioCtx.createBuffer(1, len, sr);
+            const data = buf.getChannelData(0);
+            for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+            const src = audioCtx.createBufferSource();
+            src.buffer = buf;
+            const fl = audioCtx.createBiquadFilter();
+            fl.type = 'lowpass';
+            fl.frequency.value = 400;
+            fl.Q.value = 5;
+            const g = audioCtx.createGain();
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(v, t0 + 0.2);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+            src.connect(fl); fl.connect(g); g.connect(audioCtx.destination);
+            src.start(t0); src.stop(t0 + dur + 0.05);
+        } catch (e) {}
+    }
+
+    // 泡泡：生化裝飾
+    function bubble(f, t0, v) {
+        if (!audioCtx) return;
+        try {
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.type = 'triangle';
+            o.frequency.setValueAtTime(f, t0);
+            o.frequency.exponentialRampToValueAtTime(f * 2.5, t0 + 0.08);
+            g.gain.setValueAtTime(v, t0);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.1);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(t0); o.stop(t0 + 0.12);
+        } catch (e) {}
+    }
+
+    // 熔爐：極低頻噪音
+    function furnace(t0, v) {
+        if (!audioCtx) return;
+        try {
+            const sr = audioCtx.sampleRate;
+            const len = Math.floor(sr * 1.5);
+            const buf = audioCtx.createBuffer(1, len, sr);
+            const data = buf.getChannelData(0);
+            for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+            const src = audioCtx.createBufferSource();
+            src.buffer = buf;
+            const fl = audioCtx.createBiquadFilter();
+            fl.type = 'lowpass';
+            fl.frequency.value = 70;
+            fl.Q.value = 3;
+            const g = audioCtx.createGain();
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(v, t0 + 0.3);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + 1.5);
+            src.connect(fl); fl.connect(g); g.connect(audioCtx.destination);
+            src.start(t0); src.stop(t0 + 1.55);
+        } catch (e) {}
+    }
+
+    // 刺針：高頻下滑
+    function stinger(t0, v) {
+        if (!audioCtx) return;
+        try {
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.type = 'sawtooth';
+            o.frequency.setValueAtTime(2400, t0);
+            o.frequency.exponentialRampToValueAtTime(400, t0 + 0.15);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(v, t0 + 0.005);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.2);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(t0); o.stop(t0 + 0.25);
+        } catch (e) {}
+    }
+
+    // 排程器
+    function scheduler() {
+        if (!on || !audioCtx) return;
+        const horizon = audioCtx.currentTime + 0.2;
+        const style = STYLES[currentStyle];
+        if (!style) return;
+
+        while (nextT < horizon) {
+            const s = step % 16;
+            const bar = Math.floor(s / 4);
+            const beat = s % 4;
+
+            // 低音 + Pad
+            if (beat === 0) {
+                const b = style.bass[bar];
+                if (b && N[b]) bass(N[b], nextT, 0.13);
+                for (let i = 0; i < style.pads[bar].length; i++) {
+                    const n = style.pads[bar][i];
+                    if (N[n]) note(N[n], nextT, 1.6, 0.035, 'sine', 0.15);
+                }
+            }
+
+            // 各風格的鼓
+            if (currentStyle === 'bio') {
+                if (beat === 0 || beat === 2) heartbeat(nextT, beat === 0 ? 0.16 : 0.10);
+                if (Math.random() < 0.35) {
+                    const p = ['C4','Eb4','G4','Bb4','Ab4'];
+                    bubble(N[p[Math.floor(Math.random() * p.length)]], nextT + style.beat * 0.5, 0.025);
+                }
+            } else if (currentStyle === 'war') {
+                if (beat === 0) { warDrum(nextT, 0.18); snare(nextT, 0.08); }
+                else if (beat === 1) { snare(nextT, 0.04); }
+                else if (beat === 2) { warDrum(nextT, 0.13); snare(nextT, 0.06); }
+            } else if (currentStyle === 'steel') {
+                if (beat === 0) { metalHit(nextT, 0.09); warDrum(nextT, 0.16); }
+                else if (beat === 1) { metalHit(nextT, 0.045); }
+                else if (beat === 2) { metalHit(nextT, 0.07); warDrum(nextT, 0.10); }
+                else { metalHit(nextT, 0.035); }
+                if (s === 0 && step >= 16) furnace(nextT, 0.05);
+            } else if (currentStyle === 'swarm') {
+                // 蜂鳴：每拍
+                if (Math.random() < 0.7) buzz(nextT, 0.035, 0.15);
+                // 每 4 拍一個刺針
+                if (beat === 0 && step % 8 === 0 && step > 0) stinger(nextT, 0.06);
+                // 低頻脈動
+                if (beat === 0) heartbeat(nextT, 0.10);
+            } else if (currentStyle === 'holy') {
+                // 鐘聲：每小節第一拍
+                if (beat === 0) {
+                    const b = style.bass[bar];
+                    if (b && N[b]) bell(N[b] * 2, nextT, 0.10);
+                }
+                // 每拍輕柔的和聲
+                if (Math.random() < 0.4) {
+                    const p = ['C5','E5','G5','A5'];
+                    note(N[p[Math.floor(Math.random() * p.length)]], nextT + Math.random() * style.beat, 1.2, 0.02, 'sine', 0.3);
+                }
+            } else if (currentStyle === 'shadow') {
+                // 暗影噪音：每 4 拍
+                if (beat === 0) darkNoise(nextT, 0.04, 1.8);
+                // 悄悄話：低頻震動
+                if (beat === 2) {
+                    note(N.A2, nextT, 0.8, 0.05, 'sine', 0.1);
+                }
+            }
+
+            // 主旋律
+            const mel = style.melody[s];
+            if (mel && N[mel]) {
+                if (currentStyle === 'swarm') {
+                    // 蟲群：短促
+                    note(N[mel], nextT, 0.2, 0.09, 'triangle', 0.01);
+                } else if (currentStyle === 'holy') {
+                    // 聖光：鐘聲感
+                    note(N[mel], nextT, 0.6, 0.10, 'sine', 0.05);
+                    note(N[mel] * 2, nextT, 0.4, 0.025, 'sine', 0.08);
+                } else if (currentStyle === 'shadow') {
+                    // 暗影：低沉
+                    note(N[mel], nextT, 0.5, 0.07, 'triangle', 0.08);
+                } else {
+                    horn(N[mel], nextT, 0.11);
+                }
+            }
+
+            nextT += style.beat;
+            step++;
+        }
+    }
+
+    // ============ 播放控制 ============
+    let on = false;
+    let mainTimer = null;
+    let blockTimer = null;
+    let step = 0;
+    let nextT = 0;
+    let currentStyle = null;
+
+    function blockOtherBgm() {
+        if (typeof stopBgm === 'function') { try { stopBgm(); } catch (e) {} }
+        if (typeof window.stopLobbyBgm === 'function') { try { window.stopLobbyBgm(); } catch (e) {} }
+        for (const key in window) {
+            try {
+                if (typeof window[key] === 'function' &&
+                    /stop.*[Bb]gm|stopLobby|stopMusic/i.test(key) &&
+                    key !== 'stopBgm') {
+                    window[key]();
+                }
+            } catch (e) {}
+        }
+    }
+
+    function startBgm(styleKey) {
+        if (on && currentStyle === styleKey) return;
+        if (typeof audioCtx === 'undefined' || !audioCtx) return;
+        if (audioCtx.state !== 'running') return;
+        if (typeof muted !== 'undefined' && muted) return;
+        if (typeof musicEnabled !== 'undefined' && !musicEnabled) return;
+
+        stopBgmInternal();
+        blockOtherBgm();
+
+        currentStyle = styleKey;
+        on = true;
+        step = 0;
+        nextT = audioCtx.currentTime + 0.3;
+        mainTimer = setInterval(scheduler, 30);
+        if (blockTimer) clearInterval(blockTimer);
+        blockTimer = setInterval(blockOtherBgm, 300);
+        console.log('[統一BGM] 播放：' + STYLES[styleKey].name);
+    }
+
+    function stopBgmInternal() {
+        if (!on) return;
+        on = false;
+        if (mainTimer) clearInterval(mainTimer);
+        mainTimer = null;
+        if (blockTimer) clearInterval(blockTimer);
+        blockTimer = null;
+        currentStyle = null;
+    }
+
+    // ============ 波次偵測 ============
+    function getStyleForWave(w) {
+        if (w >= 11 && w <= 20) return 'bio';
+        if (w >= 21 && w <= 30) return 'war';
+        if (w >= 31 && w <= 40) return 'steel';
+        if (w >= 41 && w <= 50) return 'swarm';
+        if (w >= 51 && w <= 60) return 'holy';
+        if (w >= 61 && w <= 70) return 'shadow';
+        if (w >= 71) {
+            // 71+ 隨機選一個
+            const pool = ['bio','war','steel','swarm','holy','shadow'];
+            const idx = Math.floor((w - 71) / 10) % pool.length;
+            return pool[idx];
+        }
+        return null; // 1-10 用原本 BGM
+    }
+
+    function checkWave() {
+        if (typeof gameState === 'undefined' || gameState !== 'playing') {
+            stopBgmInternal();
+            if (typeof startBgm === 'function' &&
+                typeof musicEnabled !== 'undefined' && musicEnabled &&
+                typeof muted !== 'undefined' && !muted) {
+                // 大廳 or 菜單不管
+            }
+            return;
+        }
+        if (typeof wave === 'undefined') return;
+
+        const styleKey = getStyleForWave(wave);
+
+        if (styleKey) {
+            // 特殊 BGM 波次
+            if (!on || currentStyle !== styleKey) {
+                startBgm(styleKey);
+            }
+        } else {
+            // 1-10 波用原本 BGM
+            if (on) {
+                stopBgmInternal();
+                if (typeof startBgm === 'function' &&
+                    typeof musicEnabled !== 'undefined' && musicEnabled &&
+                    typeof muted !== 'undefined' && !muted) {
+                    try { startBgm(); } catch (e) {}
+                }
+            }
+        }
+    }
+
+    setInterval(checkWave, 200);
+
+    // 靜音/音樂按鈕監聽
+    document.addEventListener('pointerdown', function(e) {
+        if (!e.target || !e.target.closest) return;
+        if (e.target.closest('#muteBtn') || e.target.closest('#musicBtn')) {
+            setTimeout(checkWave, 150);
+        }
+    }, true);
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopBgmInternal();
+        } else {
+            checkWave();
+        }
+    });
+
+    // 手動切換
+    window._bgm = function(key) {
+        if (!key) {
+            console.log('可用：bio, war, steel, swarm, holy, shadow');
+            return;
+        }
+        if (STYLES[key]) {
+            startBgm(key);
+        } else {
+            stopBgmInternal();
+            console.log('已停止');
+        }
+    };
+
+    console.log('[統一BGM] 載入完成｜_bgm("swarm") 手動切換');
+    console.log('可用風格：bio, war, steel, swarm, holy, shadow');
+})();
+</script>
+
 </body>
 </html>
