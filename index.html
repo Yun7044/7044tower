@@ -11409,7 +11409,7 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     };
 
     const SKILL_DATA = [
-        { icon: '☄️', name: '隕石轟炸', color: 'fire',
+        { icon: '☄️', name: '隕石轟炸(測試中，暫時移除)', color: 'fire',
             desc: '花 500 金幣解鎖。冷卻 60 秒。召喚 5 顆隕石隨機轟炸全場，每顆對 100 像素內敵人造成 5000 傷害（Boss 減半）。',
             meta: '解鎖 500💰｜冷卻 60s｜傷害 5000 × 5' },
         { icon: '⚡', name: '電磁風暴', color: 'blue',
@@ -23527,6 +23527,245 @@ body.in-menu #chronoSkillBtn { display: none !important; }
 
     console.log('[統一BGM] 載入完成｜_bgm("swarm") 手動切換');
     console.log('可用風格：bio, war, steel, swarm, holy, shadow');
+})();
+</script>
+
+<style>
+/* 綠色事件警告 → 左半邊 */
+#eventWarningOverlay,
+#eventWarningOverlay3 {
+    justify-content: flex-start !important;
+    padding-left: 4vw !important;
+}
+
+/* 紅色事件警告 → 右半邊 */
+#eventWarningOverlay2 {
+    justify-content: flex-end !important;
+    padding-right: 4vw !important;
+}
+
+/* BGM 切換通知 */
+#bgmChangeNotice {
+    position: fixed;
+    top: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: linear-gradient(135deg, rgba(30, 20, 60, 0.96), rgba(15, 10, 35, 0.96));
+    border: 2px solid #a080ff;
+    border-radius: 12px;
+    padding: 10px 22px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 390;
+    box-shadow: 0 0 30px rgba(160, 128, 255, 0.7);
+    transition: opacity 0.4s, transform 0.4s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+#bgmChangeNotice.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+#bgmChangeNotice .bcn-icon {
+    font-size: 20px;
+    filter: drop-shadow(0 0 8px currentColor);
+}
+#bgmChangeNotice .bcn-name {
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+}
+</style>
+
+<div id="bgmChangeNotice">
+    <span class="bcn-icon">♪</span>
+    <span>音樂切換：<span class="bcn-name" id="bcnName">生化</span></span>
+</div>
+
+<script>
+// ============================================================
+// 事件警告左右分開 + BGM 切換通知
+// ============================================================
+(function() {
+    'use strict';
+    if (window.__warningSplit && window.__bgmNotice) return;
+    window.__warningSplit = true;
+    window.__bgmNotice = true;
+
+    console.log('[警告優化] 載入中...');
+
+    // ============ 強制左右定位 ============
+    function enforceLayout() {
+        const green = document.getElementById('eventWarningOverlay');
+        const green2 = document.getElementById('eventWarningOverlay3');
+        const red = document.getElementById('eventWarningOverlay2');
+
+        if (green) {
+            green.style.justifyContent = 'flex-start';
+            green.style.paddingLeft = '4vw';
+        }
+        if (green2) {
+            green2.style.justifyContent = 'flex-start';
+            green2.style.paddingLeft = '4vw';
+        }
+        if (red) {
+            red.style.justifyContent = 'flex-end';
+            red.style.paddingRight = '4vw';
+        }
+    }
+
+    // 每 500ms 檢查一次（防止被其他系統覆蓋）
+    setInterval(enforceLayout, 500);
+    enforceLayout();
+
+    // ============ BGM 切換通知 ============
+    const noticeEl = document.getElementById('bgmChangeNotice');
+    const nameEl = document.getElementById('bcnName');
+
+    const STYLE_INFO = {
+        bio:    { name: '生化', icon: '🧬', color: '#4ec472' },
+        war:    { name: '戰歌', icon: '🐎', color: '#e8e8e8' },
+        steel:  { name: '鋼鐵', icon: '🛡️', color: '#808890' },
+        swarm:  { name: '蟲群', icon: '🐝', color: '#ffcc44' },
+        holy:   { name: '聖光', icon: '✚',  color: '#66ff99' },
+        shadow: { name: '暗影', icon: '🗡️', color: '#a060ff' },
+    };
+
+    function getStyleForWave(w) {
+        if (w >= 11 && w <= 20) return 'bio';
+        if (w >= 21 && w <= 30) return 'war';
+        if (w >= 31 && w <= 40) return 'steel';
+        if (w >= 41 && w <= 50) return 'swarm';
+        if (w >= 51 && w <= 60) return 'holy';
+        if (w >= 61 && w <= 70) return 'shadow';
+        if (w >= 71) {
+            const pool = ['bio','war','steel','swarm','holy','shadow'];
+            return pool[Math.floor((w - 71) / 10) % pool.length];
+        }
+        return null;
+    }
+
+    let _lastShownStyle = null;
+    let _noticeTimer = null;
+
+    function showNotice(styleKey) {
+        const info = STYLE_INFO[styleKey];
+        if (!info || !noticeEl) return;
+
+        const iconEl = noticeEl.querySelector('.bcn-icon');
+        if (iconEl) {
+            iconEl.textContent = info.icon;
+            iconEl.style.color = info.color;
+        }
+        if (nameEl) {
+            nameEl.textContent = info.name;
+            nameEl.style.color = info.color;
+        }
+        noticeEl.style.borderColor = info.color;
+        noticeEl.style.boxShadow = '0 0 30px ' + info.color + 'aa';
+
+        noticeEl.classList.add('show');
+        if (_noticeTimer) clearTimeout(_noticeTimer);
+        _noticeTimer = setTimeout(function() {
+            noticeEl.classList.remove('show');
+        }, 2500);
+
+        // 音效：上滑提示音
+        if (typeof playTone === 'function') {
+            playTone({ freq: 600, slideTo: 900, duration: 0.15, type: 'sine', volume: 0.2 });
+            playTone({ freq: 900, slideTo: 1200, duration: 0.15, type: 'sine', volume: 0.15, delay: 0.1 });
+        }
+    }
+
+    // 追蹤波次變化
+    let _lastWave = -1;
+
+    setInterval(function() {
+        if (typeof gameState === 'undefined' || gameState !== 'playing') {
+            _lastWave = -1;
+            _lastShownStyle = null;
+            return;
+        }
+        if (typeof wave === 'undefined') return;
+
+        // 波次變了才檢查
+        if (wave === _lastWave) return;
+        _lastWave = wave;
+
+        const styleKey = getStyleForWave(wave);
+        if (styleKey && styleKey !== _lastShownStyle) {
+            _lastShownStyle = styleKey;
+            // 延遲 400ms 顯示，讓波次先開始
+            setTimeout(function() {
+                showNotice(styleKey);
+            }, 400);
+        } else if (!styleKey) {
+            _lastShownStyle = null;
+        }
+    }, 150);
+
+    console.log('[警告優化] 載入完成｜綠左紅右 + BGM 切換通知');
+})();
+</script>
+
+<style>
+#eventWarningOverlay[data-show="1"],
+#eventWarningOverlay2[data-show="1"],
+#eventWarningOverlay3[data-show="1"] {
+    display: flex !important;
+}
+</style>
+
+<script>
+// ============================================================
+// 警告保護：讓事件佇列失效
+// ============================================================
+(function() {
+    'use strict';
+    if (window.__warningProtected) return;
+    window.__warningProtected = true;
+
+    console.log('[警告保護] 載入中...');
+
+    const ids = [
+        'eventWarningOverlay',    // 綠
+        'eventWarningOverlay2',   // 紅
+        'eventWarningOverlay3',   // 黃
+    ];
+
+    ids.forEach(function(id) {
+        const el = document.getElementById(id);
+        if (!el) {
+            console.warn('[警告保護] 找不到 ' + id);
+            return;
+        }
+
+        // 攔截 style.display 變化 → 轉成 data-show
+        const observer = new MutationObserver(function() {
+            const d = el.style.display;
+            if (d === 'flex') {
+                el.style.display = '';
+                el.setAttribute('data-show', '1');
+            } else if (d === 'none') {
+                el.style.display = '';
+                el.setAttribute('data-show', '0');
+            }
+        });
+        observer.observe(el, { attributes: true, attributeFilter: ['style'] });
+
+        // 初始化
+        if (el.style.display === 'flex') {
+            el.style.display = '';
+            el.setAttribute('data-show', '1');
+        }
+    });
+
+    console.log('[警告保護] 載入完成｜事件佇列已失效');
 })();
 </script>
 
