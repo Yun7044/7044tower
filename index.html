@@ -21932,8 +21932,8 @@ body.in-menu #chronoSkillBtn { display: none !important; }
             } else {
                 this._healTimer -= dt;
                 if (this._healTimer <= 0) {
-                    this._healTimer = 5.0;
-                    const heal = Math.floor(this.maxHp * 0.10);
+                    this._healTimer = 7.0;
+                    const heal = Math.floor(this.maxHp * 0.06);
                     this.hp = Math.min(this.maxHp, this.hp + heal);
                     if (typeof log === 'function') log('✚ 生命祭司回復 ' + heal, 1200);
                 }
