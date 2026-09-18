@@ -16472,6 +16472,38 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     const TEAMS = [
 
                 {
+            name: '時間戰術流',
+            icon: '⏳',
+            badge: 'hard',
+            badgeText: '困難模式',
+            desc: '時幻塔把敵人時間倒流，時光停滯塔把怪定住，然後用秒殺流一波帶走。專打 Boss 的戰術型陣容。',
+            towers: [
+                { id: 'chrono', name: '時幻塔', must: true },
+                { id: 'white', name: '白塔', must: true },
+                { id: 'blue', name: '藍塔', must: true },
+                { id: 'frost', name: '霜凍塔', must: false },
+                { id: 'amethyst', name: '紫晶塔', must: false },
+            ],
+            tip: '時光停滯塔的定身會讓敵人「秒殺率 ×1.5」，白塔 8% → 12%、藍塔 5% → 7.5%。時幻塔的時間倒流能把漏掉的怪拉回來。死亡筆記可以隨時重整陣容。',
+        },
+        {
+            name: '和諧交響曲',
+            icon: '♪',
+            badge: 'pro',
+            badgeText: '困難',
+            desc: '音符塔每波隨機選一座「攻速最接近和諧頻率」的塔，大幅強化。搭配同頻率塔群提高命中率。',
+            towers: [
+                { id: 'note', name: '音符塔', must: true },
+                { id: 'green', name: '綠塔', must: true },
+                { id: 'amethyst', name: '紫晶塔', must: false },
+                { id: 'jade', name: '翠玉塔', must: false },
+                { id: 'frost', name: '霜凍塔', must: false },
+                { id: 'sirius', name: '天狼之塔', must: false },
+            ],
+            tip: '音符塔射程內放 3~4 座綠塔（基礎攻速 1.0s），和諧頻率落在 1.0s 附近時，其中一座會被大幅強化（傷害 ×3、攻速 ×2）。多蓋幾座音符塔分散風險。',
+        },
+      
+                {
             name: '太刀劍氣',
             icon: '⚔️',
             badge: 'normal',
@@ -16543,7 +16575,7 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
                 { id: 'jade', name: '翠玉塔', must: false },
                 { id: 'cyan', name: '青藍塔', must: false },
             ],
-            tip: '超頻藍塔秒殺時，對 120 像素內敵人造成「目標最大生命 20%」傷害。霜凍塔把怪黏在一起，一次炸一群。這是目前最強的陣容。',
+            tip: '超頻藍塔秒殺時，對 120 像素內敵人造成「目標最大生命 20%」傷害。霜凍塔把怪黏在一起，一次炸一群。如果陣型卡住，用死亡筆記 100% 退還金幣重整。',
         },
         {
             name: '光環流',
@@ -20992,6 +21024,235 @@ body.in-menu #chronoSkillBtn { display: none !important; }
     }, true);
 
     console.log('[音符修正] 載入完成');
+})();
+</script>
+
+<script>
+// ============================================================
+// 大廳背景音樂（耐聽版）
+// ============================================================
+(function() {
+    'use strict';
+    console.log('[大廳BGM] 載入中...');
+
+    // ============ 音名 → 頻率 ============
+    const NOTES = {
+        C2: 65.41, A1: 55.00, F1: 43.65, G1: 49.00,
+        C3: 130.81, F3: 174.61, G3: 196.00, A3: 220.00,
+        C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23,
+        G4: 392.00, A4: 440.00, B4: 493.88,
+        C5: 523.25, E5: 659.25, G5: 783.99,
+    };
+
+    // ============ 和弦進行：C - Am - F - G ============
+    // 每小節 8 個音，4 小節一循環
+    const ARPEGGIO = [
+        // C 大調（I）
+        'C4','E4','G4','E4','C4','E4','G4','E4',
+        // A 小調（vi）
+        'A3','C4','E4','C4','A3','C4','E4','C4',
+        // F 大調（IV）
+        'F3','A3','C4','A3','F3','A3','C4','A3',
+        // G 大調（V）
+        'G3','B4','D4','B4','G3','B4','D4','B4',
+    ];
+
+    // 低音（每小節一個，持續整小節）
+    const BASS = ['C2', 'A1', 'F1', 'G1'];
+
+    // Pad 和聲（每小節三和音）
+    const PADS = [
+        ['C4', 'E4', 'G4'],
+        ['A3', 'C4', 'E4'],
+        ['F3', 'A3', 'C4'],
+        ['G3', 'B4', 'D4'],
+    ];
+
+    // ============ 狀態 ============
+    const TEMPO = 0.40;        // 每音的秒數（比遊戲中 BGM 慢）
+    const LOOKAHEAD = 0.15;
+    const INTERVAL = 30;
+
+    let bgmPlaying = false;
+    let bgmTimer = null;
+    let bgmNextTime = 0;
+    let bgmStep = 0;
+    let bgmGain = null;
+
+    // ============ 初始化 Gain ============
+    function ensureGain() {
+        if (bgmGain) return bgmGain;
+        if (typeof audioCtx === 'undefined' || !audioCtx) return null;
+        try {
+            bgmGain = audioCtx.createGain();
+            bgmGain.gain.value = 0.15;   // 低音量
+            bgmGain.connect(audioCtx.destination);
+            return bgmGain;
+        } catch (e) { return null; }
+    }
+
+    // ============ 播放單音 ============
+    function playNote(freq, time, duration, volume, type, attack) {
+        if (typeof audioCtx === 'undefined' || !audioCtx) return;
+        const gain = ensureGain();
+        if (!gain) return;
+        try {
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = type || 'sine';
+            osc.frequency.setValueAtTime(freq, time);
+            const att = attack || 0.04;
+            g.gain.setValueAtTime(0, time);
+            g.gain.linearRampToValueAtTime(volume, time + att);
+            g.gain.exponentialRampToValueAtTime(0.001, time + duration);
+            osc.connect(g);
+            g.connect(gain);
+            osc.start(time);
+            osc.stop(time + duration + 0.05);
+        } catch (e) {}
+    }
+
+    // ============ 雙音 detune（Chorus 感） ============
+    function playChorus(freq, time, duration, volume, type, attack) {
+        if (typeof audioCtx === 'undefined' || !audioCtx) return;
+        const gain = ensureGain();
+        if (!gain) return;
+        try {
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc1.type = type || 'sine';
+            osc2.type = type || 'sine';
+            osc1.frequency.setValueAtTime(freq, time);
+            osc2.frequency.setValueAtTime(freq * 1.004, time);
+            const att = attack || 0.05;
+            g.gain.setValueAtTime(0, time);
+            g.gain.linearRampToValueAtTime(volume, time + att);
+            g.gain.exponentialRampToValueAtTime(0.001, time + duration);
+            osc1.connect(g);
+            osc2.connect(g);
+            g.connect(gain);
+            osc1.start(time); osc1.stop(time + duration + 0.05);
+            osc2.start(time); osc2.stop(time + duration + 0.05);
+        } catch (e) {}
+    }
+
+    // ============ 排程器 ============
+    function bgmScheduler() {
+        if (typeof audioCtx === 'undefined' || !audioCtx) return;
+        if (!bgmPlaying || document.hidden) return;
+
+        const horizon = audioCtx.currentTime + LOOKAHEAD;
+
+        while (bgmNextTime < horizon) {
+            const step = bgmStep % 32;
+            const bar = Math.floor(step / 8);
+            const stepInBar = step % 8;
+
+            // 主旋律（琶音）：雙音 detune，柔和
+            const note = ARPEGGIO[step];
+            if (note && NOTES[note]) {
+                playChorus(NOTES[note], bgmNextTime, 0.9, 0.05, 'sine', 0.06);
+                // 加一點高八度的閃爍（很輕）
+                playNote(NOTES[note] * 2, bgmNextTime, 0.5, 0.012, 'sine', 0.08);
+            }
+
+            // 低音（每小節第一拍）
+            if (stepInBar === 0) {
+                const bass = BASS[bar];
+                if (bass && NOTES[bass]) {
+                    playNote(NOTES[bass], bgmNextTime, 2.6, 0.09, 'sine', 0.15);
+                }
+            }
+
+            // Pad 和聲（每小節第一拍，慢 attack）
+            if (stepInBar === 0) {
+                const chord = PADS[bar];
+                for (let i = 0; i < chord.length; i++) {
+                    if (NOTES[chord[i]]) {
+                        playNote(NOTES[chord[i]], bgmNextTime, 3.0, 0.018, 'sine', 0.7);
+                    }
+                }
+            }
+
+            bgmNextTime += TEMPO;
+            bgmStep++;
+        }
+    }
+
+    // ============ 開始/停止 ============
+    function startLobbyBgm() {
+        if (typeof audioCtx === 'undefined' || !audioCtx) return;
+        if (typeof muted !== 'undefined' && muted) return;
+        if (bgmPlaying) return;
+        bgmPlaying = true;
+        bgmNextTime = audioCtx.currentTime + 0.2;
+        bgmStep = 0;
+        if (bgmTimer) clearInterval(bgmTimer);
+        bgmTimer = setInterval(bgmScheduler, INTERVAL);
+        console.log('[大廳BGM] 開始播放');
+    }
+
+    function stopLobbyBgm() {
+        if (!bgmPlaying) return;
+        bgmPlaying = false;
+        if (bgmTimer) clearInterval(bgmTimer);
+        bgmTimer = null;
+        console.log('[大廳BGM] 停止播放');
+    }
+
+    // ============ 判斷是否在主選單 ============
+    function isInMenu() {
+        const menu = document.getElementById('mainMenu');
+        return menu && menu.classList.contains('show');
+    }
+
+    // ============ 每次頁面變動時檢查 ============
+    setInterval(function() {
+        if (typeof audioCtx === 'undefined' || !audioCtx) return;
+        if (typeof muted !== 'undefined' && muted) {
+            stopLobbyBgm();
+            return;
+        }
+
+        if (isInMenu()) {
+            if (!bgmPlaying) startLobbyBgm();
+        } else {
+            if (bgmPlaying) stopLobbyBgm();
+        }
+    }, 500);
+
+    // ============ 靜音時停止 ============
+    // 包裝 mute 按鈕的行為（如果存在）
+    document.addEventListener('pointerdown', function(e) {
+        if (!e.target || !e.target.closest) return;
+        if (e.target.closest('#muteBtn')) {
+            setTimeout(function() {
+                if (typeof muted !== 'undefined' && muted) {
+                    stopLobbyBgm();
+                } else if (isInMenu()) {
+                    startLobbyBgm();
+                }
+            }, 100);
+        }
+    }, true);
+
+    // ============ 第一次點擊時嘗試啟動 ============
+    let _firstInteraction = false;
+    function tryFirstStart() {
+        if (_firstInteraction) return;
+        _firstInteraction = true;
+        if (typeof initAudio === 'function') initAudio();
+        setTimeout(function() {
+            if (isInMenu() && typeof audioCtx !== 'undefined' && audioCtx) {
+                startLobbyBgm();
+            }
+        }, 300);
+    }
+    document.addEventListener('pointerdown', tryFirstStart, { once: true });
+    document.addEventListener('touchstart', tryFirstStart, { once: true });
+
+    console.log('[大廳BGM] 載入完成');
 })();
 </script>
   
