@@ -23769,5 +23769,121 @@ body.in-menu #chronoSkillBtn { display: none !important; }
 })();
 </script>
 
+<style>
+.codex-tabs { flex-wrap: wrap; }
+.codex-tab { min-width: 0; padding: 8px 4px; font-size: 11px; }
+</style>
+
+<script>
+// ============================================================
+// 圖鑑：Boss 分頁
+// ============================================================
+(function() {
+    'use strict';
+    if (window.__bossCodex) return;
+    window.__bossCodex = true;
+    console.log('[圖鑑Boss] 載入中...');
+
+    const BOSSES = [
+        {
+            icon: '👑', name: '深淵領主', wave: '第 10 波', color: '#c68642',
+            desc: '最初的王者。標準血量、標準速度，沒有特殊機制，是後續所有 Boss 的基準。',
+            ability: '暴走：每存活 1 秒，移動速度 +2.5%（上限 2.2 倍）',
+        },
+        {
+            icon: '🦠', name: '草履蟲王', wave: '第 20 波', color: '#4ec472',
+            desc: '綠色液體狀的有機體。血量只有一般 Boss 的 70%，速度也慢一半，但死亡時會分裂。',
+            ability: '無限分裂：死亡時分裂成 2 隻（血量 42% 子代），最多分裂 5 代',
+        },
+        {
+            icon: '🐎', name: '白駒暴君', wave: '第 30 波', color: '#e8e8e8',
+            desc: '白色駿馬。血量 1.2 倍、速度 0.8 倍，越戰越快，拖越久越危險。',
+            ability: '越戰越快：每受 5% 最大生命傷害，速度 +5%（上限 2 倍）',
+        },
+        {
+            icon: '🛡️', name: '鋼鐵壁壘', wave: '第 40 波', color: '#808890',
+            desc: '六角形裝甲。血量 1.5 倍、速度極慢，但外層有堅固護盾。',
+            ability: '3 層護盾：每層吸收 15% 最大生命，破盾才能傷本體',
+        },
+        {
+            icon: '🐝', name: '群蜂之主', wave: '第 50 波', color: '#ffcc44',
+            desc: '黃黑條紋巨蜂。移動很慢，但會不斷召喚小蜂騷擾你的防線。',
+            ability: '召喚小蜂：每 5 秒召喚 2 隻（本體當前血量 2.5%），存活 8 秒',
+        },
+        {
+            icon: '✚', name: '生命祭司', wave: '第 60 波', color: '#66ff99',
+            desc: '綠袍十字。血量 1.4 倍，會週期性自我治療，需要爆發打斷。',
+            ability: '自我治療：每 5 秒回復 10% 最大生命。單次打 15% 以上會中斷治療 3 秒',
+        },
+        {
+            icon: '🗡️', name: '暗影刺客', wave: '第 70 波', color: '#a060ff',
+            desc: '紫色忍者。速度最快，會週期性隱形，只有特定塔能打中。',
+            ability: '週期隱形：每 4 秒隱形 2 秒。隱形時受傷減半，只有青藍塔、金塔、紫晶塔、太刀塔能打中',
+        },
+        {
+            icon: '🛡️', name: '反物質立場', wave: '特殊事件', color: '#a060ff',
+            desc: '不是 Boss，是一種隨機事件。會讓 Boss 獲得控制免疫。',
+            ability: '3 層控制免疫：每次被減速/凍結消耗 1 層，用完才能被控制',
+        },
+    ];
+
+    // ============ 加入 tab ============
+    function ensureTab() {
+        const tabs = document.querySelector('.codex-tabs');
+        if (!tabs) return;
+        if (tabs.querySelector('[data-codex="boss"]')) return;
+
+        const btn = document.createElement('button');
+        btn.className = 'codex-tab';
+        btn.dataset.codex = 'boss';
+        btn.textContent = '👑 Boss';
+        tabs.appendChild(btn);
+
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.codex-tab').forEach(function(t) { t.classList.remove('active'); });
+            btn.classList.add('active');
+            setTimeout(renderBossCodex, 30);
+        });
+
+        console.log('[圖鑑Boss] 已新增 Boss 分頁');
+    }
+
+    // ============ 渲染 ============
+    function renderBossCodex() {
+        const content = document.getElementById('codexContent');
+        if (!content) return;
+
+        let html = '<div class="codex-section-title">👑 特殊 Boss 圖鑑</div>';
+        html += '<div style="margin-bottom:12px;padding:8px 12px;background:rgba(80,60,120,0.2);border-radius:6px;font-size:12px;color:#aaa;line-height:1.6;">每 10 波出現一次。第 80 波以後隨機出現六種特殊 Boss 之一。</div>';
+
+        for (let i = 0; i < BOSSES.length; i++) {
+            const b = BOSSES[i];
+            html += '<div class="codex-card" style="border-left:4px solid ' + b.color + ';">' +
+                '<div class="cc-icon">' + b.icon + '</div>' +
+                '<div class="cc-body">' +
+                    '<div class="cc-name">' + b.name +
+                        ' <span style="font-size:11px;color:#888;font-weight:400;margin-left:6px;">' + b.wave + '</span>' +
+                    '</div>' +
+                    '<div class="cc-desc">' + b.desc + '</div>' +
+                    '<div class="cc-meta" style="color:' + b.color + ';">⚡ ' + b.ability + '</div>' +
+                '</div>' +
+            '</div>';
+        }
+
+        content.innerHTML = html;
+        content.scrollTop = 0;
+    }
+
+    // 每 500ms 檢查圖鑑面板
+    setInterval(function() {
+        const panel = document.getElementById('codexPanel');
+        if (!panel || !panel.classList.contains('show')) return;
+        ensureTab();
+    }, 500);
+
+    console.log('[圖鑑Boss] 載入完成');
+})();
+</script>
+  
 </body>
 </html>
