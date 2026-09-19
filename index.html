@@ -12499,29 +12499,31 @@ body:not(.in-menu) #quickActionsBar { display: flex; }
     };
 
     // ============ 視覺套用：塔底盤（可選，用皮膚的 accent 微調外框） ============
-    const _prevDrawTowerBase = drawTowerBase;
-    drawTowerBase = function(x, y, color, isSpecial) {
-        _prevDrawTowerBase.call(this, x, y, color, isSpecial);
-        // 加一層淡淡的皮膚色外暈
-        const skin = getCurrentSkin();
-        if (skin !== SKINS.classic) {
-            ctx.save();
-            ctx.strokeStyle = hexToRgba(skin.accent, 0.15);
-            ctx.lineWidth = 1.5;
-            const r = 70 * 0.55;
-            ctx.beginPath();
-            for (let i = 0; i < 6; i++) {
-                const a = -Math.PI / 2 + i * Math.PI / 3;
-                const px = x + Math.cos(a) * r;
-                const py = y + Math.sin(a) * r;
-                if (i === 0) ctx.moveTo(px, py);
-                else ctx.lineTo(px, py);
-            }
-            ctx.closePath();
-            ctx.stroke();
-            ctx.restore();
-        }
-    };
+// 1. 先攔截底座繪製，遇到白塔就跳過
+const _prevDrawTowerBase = drawTowerBase;
+drawTowerBase = function(x, y, color, isSpecial) {
+    if (color === '#f0f0f0') return; // 白塔不畫底座
+    _prevDrawTowerBase.call(this, x, y, color, isSpecial);
+};
+
+// 2. 攔截圖示繪製
+const _prevDrawTowerIcon = drawTowerIcon;
+drawTowerIcon = function(type, x, y, size) {
+    if (type === 'white' && whiteTowerImg.complete && whiteTowerImg.naturalWidth > 0) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        
+        // ★ 關鍵：把圖片放大到跟格子一樣大 (90)，而不是原本的 70
+        const drawSize = 90; 
+        const drawX = Math.floor(x - drawSize / 2);
+        const drawY = Math.floor(y - drawSize / 2);
+        
+        ctx.drawImage(whiteTowerImg, drawX, drawY, drawSize, drawSize);
+        ctx.restore();
+        return;
+    }
+    _prevDrawTowerIcon.call(this, type, x, y, size);
+};
 
     // ============ 主選單按鈕高亮當前皮膚 ============
     function refreshSkinPanel() {
