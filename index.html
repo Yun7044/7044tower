@@ -23884,6 +23884,54 @@ body.in-menu #chronoSkillBtn { display: none !important; }
     console.log('[圖鑑Boss] 載入完成');
 })();
 </script>
+
+<!-- ============================================================
+     白塔美術替換
+     ============================================================ -->
+<script>
+(function() {
+    'use strict';
+    console.log('[美術] 白塔替換系統載入中...');
+
+    // 1. 載入你的白塔圖片
+    const whiteTowerImg = new Image();
+    // ★ 請把下面的檔名改成你實際存檔的檔名（例如 'white-tower.png'）
+    whiteTowerImg.src = 'white-tower.png'; 
+    
+    whiteTowerImg.onload = function() {
+        console.log('[美術] 白塔圖片載入成功！尺寸：' + whiteTowerImg.naturalWidth + 'x' + whiteTowerImg.naturalHeight);
+    };
+    whiteTowerImg.onerror = function() {
+        console.warn('[美術] ⚠️ 找不到 white-tower.png，將繼續使用原本的幾何圖形。');
+    };
+
+    // 2. 攔截原本的 drawTowerIcon 函式
+    const _prevDrawTowerIcon = drawTowerIcon;
+    drawTowerIcon = function(type, x, y, size) {
+        // 如果是白塔，且圖片已載入完成
+        if (type === 'white' && whiteTowerImg.complete && whiteTowerImg.naturalWidth > 0) {
+            ctx.save();
+            
+            // ★ 關鍵 1：關閉圖片平滑，讓邊緣保持銳利（像素感）
+            ctx.imageSmoothingEnabled = false;
+            
+            // ★ 關鍵 2：使用 Math.floor 取整數，避免畫在「半個像素」上導致模糊
+            const drawX = Math.floor(x - size / 2);
+            const drawY = Math.floor(y - size / 2);
+            const drawSize = Math.floor(size);
+            
+            ctx.drawImage(whiteTowerImg, drawX, drawY, drawSize, drawSize);
+            ctx.restore();
+            return;
+        }
+        
+        // 如果不是白塔，或是圖片還沒載入完，就呼叫原本的繪圖邏輯
+        _prevDrawTowerIcon.call(this, type, x, y, size);
+    };
+
+    console.log('[美術] 白塔替換系統載入完成');
+})();
+</script>
   
 </body>
 </html>
